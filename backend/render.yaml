@@ -1,0 +1,27 @@
+# render.yaml — deploy backend on Render.com FREE tier
+services:
+  - type: web
+    name: jobmitra-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SCRAPER_SECRET
+        value: jobmitra_secret_change_this
+      - key: DB_PATH
+        value: /var/data/jobmitra.db
+    disk:
+      name: jobmitra-db
+      mountPath: /var/data
+      sizeGB: 1   # free tier
+
+  # Cron job — scrape daily at 2 AM IST (8:30 PM UTC)
+  - type: cron
+    name: jobmitra-scraper
+    env: python
+    schedule: "30 20 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -c "
+      import requests;
+      requests.post('https://jobmitra-api.onrender.com/admin/scrape?secret=jobmitra_secret_change_this')
+    "

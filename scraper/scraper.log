@@ -1,0 +1,955 @@
+22:43:43 ╔══════════════════════════════════╗
+22:43:43 ║  JobMitra Scraper v3  Starting   ║
+22:43:43 ║  16 RSS + 4 Direct sources   ║
+22:43:43 ╚══════════════════════════════════╝
+22:43:43 
+📡 Phase 1 — RSS Feeds
+22:43:43   ✅ rojgarresult           1 jobs
+22:43:44   ✅ govtjobsblog          48 jobs
+22:43:44   ✅ sarkarijobfind         9 jobs
+22:43:45   ✅ sarkariexam           12 jobs
+22:43:45   ✅ freejobalert          68 jobs
+22:43:46   ✅ haryanajobs            9 jobs
+22:43:47   ✅ indiajoblive          10 jobs
+22:43:47   ⚪ jobriya                0 jobs
+22:43:48   ⚠ govtjobguru: XML parse failed
+22:43:48   ⚪ govtjobguru            0 jobs
+22:43:48   ⚠ careerpower: XML parse failed
+22:43:48   ⚪ careerpower            0 jobs
+22:43:48   ✅ sarkarinetwork         5 jobs
+22:43:48   ⚪ indgovtjobs            0 jobs
+22:43:48   ⚪ todaygovtjobs          0 jobs
+22:43:49   ✅ govtjobsdiary         10 jobs
+22:43:51   ⚪ latestgovtjobs         0 jobs
+22:43:52   ✅ applyfornaukri        15 jobs
+22:43:52 
+🌐 Phase 2 — Direct Scrapers
+22:43:55   ⚪ SarkariResult          0 jobs
+22:43:56   ✅ RecruitmentResult      1 jobs
+22:43:57   ✅ LinkingSky             8 jobs
+22:44:00   ⚪ MySarkariNaukri        0 jobs
+22:44:00 
+══════════════════════════════════════════════════
+22:44:00   ✅  196 raw → 190 unique jobs  (17.8s)
+22:44:00 ──────────────────────────────────────────────────
+22:44:00   Category breakdown:
+22:44:00     others           █████████████████████████ 88
+22:44:00     banking          █████████ 19
+22:44:00     medical          █████████ 19
+22:44:00     teaching         ██████ 13
+22:44:00     engineering      █████ 11
+22:44:00     ssc              ████ 9
+22:44:00     railway          ████ 8
+22:44:00     anganwadi        ███ 6
+22:44:00     defence          ███ 6
+22:44:00     police           ██ 5
+22:44:00     psu              ██ 4
+22:44:00     upsc             █ 2
+22:44:00 ══════════════════════════════════════════════════
+22:49:06 ╔══════════════════════════════════╗
+22:49:06 ║  JobMitra Scraper v3  Starting   ║
+22:49:06 ║  27 RSS + 4 Direct sources   ║
+22:49:06 ╚══════════════════════════════════╝
+22:49:06 
+📡 Phase 1 — RSS Feeds
+22:49:07   ✅ freejobalert          68 jobs
+22:49:07   ✅ rojgarresult           1 jobs
+22:49:07   ✅ haryanajobs            9 jobs
+22:49:07   ✅ sarkarinetwork         5 jobs
+22:49:07   ✅ govtjobsblog          48 jobs
+22:49:08   ⚪ fja_railway            0 jobs
+22:49:08   ⚪ fja_bank               0 jobs
+22:49:08   ⚪ fja_ssc                0 jobs
+22:49:08   ✅ sarkarijobfind         9 jobs
+22:49:08   ✅ sarkariexam           12 jobs
+22:49:08   ⚪ fja_defence            0 jobs
+22:49:08   ⚪ fja_police             0 jobs
+22:49:08   ⚪ fja_teaching           0 jobs
+22:49:10   ⚪ fja_12th               0 jobs
+22:49:10   ⚪ fja_10th               0 jobs
+22:49:10   ⚪ fja_psu                0 jobs
+22:49:10   ✅ govtjobsdiary         10 jobs
+22:49:10   ⚪ sarkarinaukriblog      0 jobs
+22:49:10   ✅ thesarkarinaukri      24 jobs
+22:49:10   ✅ jobapply24             4 jobs
+22:49:10   ✅ sarkarijobs_com       30 jobs
+22:49:10   ⚪ jobriya                0 jobs
+22:49:11   ✅ indiajoblive          10 jobs
+22:49:11   ✅ sarkariresultapp      10 jobs
+22:49:11   ✅ applyfornaukri        15 jobs
+22:49:14   ⚠ indiasarkarinaukri: XML parse failed
+22:49:14   ⚪ indiasarkarinaukri     0 jobs
+22:49:14   ✅ rojgar_result2        10 jobs
+22:49:14 
+🌐 Phase 2 — Direct Scrapers
+22:49:18   ✅ SarkariResult          2 jobs
+22:49:19   ✅ RecruitmentResult      1 jobs
+22:49:20   ✅ LinkingSky             8 jobs
+22:49:22   ✅ MySarkariNaukri       31 jobs
+22:49:23 
+══════════════════════════════════════════════════
+22:49:23   ✅  307 raw → 293 unique jobs  (16.5s)
+22:49:23 ──────────────────────────────────────────────────
+22:49:23   Category breakdown:
+22:49:23     others           █████████████████████████ 117
+22:49:23     medical          █████████████████ 34
+22:49:23     banking          ██████████████ 28
+22:49:23     engineering      ██████████ 21
+22:49:23     teaching         ██████████ 21
+22:49:23     railway          ████████ 17
+22:49:23     ssc              ███████ 14
+22:49:23     police           █████ 10
+22:49:23     defence          █████ 10
+22:49:23     anganwadi        █████ 10
+22:49:23     psu              ████ 8
+22:49:23     upsc             █ 3
+22:49:23 ══════════════════════════════════════════════════
+22:55:09 ╔══════════════════════════════════╗
+22:55:09 ║  JobMitra Scraper v3  Starting   ║
+22:55:09 ║  24 RSS + 6 Direct sources   ║
+22:55:09 ╚══════════════════════════════════╝
+22:55:09 
+📡 Phase 1 — RSS Feeds
+22:55:09   ✅ rojgarresult           1 jobs
+22:55:09   ✅ sarkarinetwork         5 jobs
+22:55:09   ✅ haryanajobs            9 jobs
+22:55:10   ✅ freejobalert          68 jobs
+22:55:10   ✅ govtjobsblog          48 jobs
+22:55:10   ⚪ fja_10th               0 jobs
+22:55:10   ⚪ fja_12th               0 jobs
+22:55:11   ✅ sarkarijobfind         9 jobs
+22:55:11   ✅ sarkariexam           12 jobs
+22:55:11   ⚪ fja_medical            0 jobs
+22:55:11   ⚪ jobalertshub           0 jobs
+22:55:11   ✅ jobapply24             4 jobs
+22:55:11   ⚪ fja_graduate           0 jobs
+22:55:11   ⚪ fja_engineering        0 jobs
+22:55:11   ⚪ fja_anganwadi          0 jobs
+22:55:11   ⚪ jobriya                0 jobs
+22:55:12   ✅ thesarkarinaukri      24 jobs
+22:55:13   ✅ govtjobsdiary         10 jobs
+22:55:13   ✅ sarkariresultapp      10 jobs
+22:55:13   ✅ sarkarinaukriblog     24 jobs
+22:55:13   ✅ sarkarijobs_com       30 jobs
+22:55:13   ✅ indiajoblive          10 jobs
+22:55:14   ✅ applyfornaukri        15 jobs
+22:55:15   ✅ rojgar_result2        10 jobs
+22:55:15 
+🌐 Phase 2 — Direct Scrapers
+22:55:18   ✅ SarkariResult          2 jobs
+22:55:19   ✅ RecruitmentResult      1 jobs
+22:55:20   ✅ LinkingSky             8 jobs
+22:55:22   ✅ MySarkariNaukri       31 jobs
+22:55:25   ⚪ FreeJobAlert           0 jobs
+22:55:27   ✅ JobAlertsHub           5 jobs
+22:55:28 
+══════════════════════════════════════════════════
+22:55:28   ✅  336 raw → 322 unique jobs  (18.6s)
+22:55:28 ──────────────────────────────────────────────────
+22:55:28   Category breakdown:
+22:55:28     others           █████████████████████████ 130
+22:55:28     medical          █████████████████ 35
+22:55:28     banking          ████████████████ 33
+22:55:28     engineering      ███████████ 23
+22:55:28     teaching         ██████████ 21
+22:55:28     railway          █████████ 19
+22:55:28     ssc              ███████ 14
+22:55:28     police           ██████ 12
+22:55:28     psu              █████ 11
+22:55:28     defence          █████ 10
+22:55:28     anganwadi        █████ 10
+22:55:28     upsc             ██ 4
+22:55:28 ══════════════════════════════════════════════════
+22:59:10 ╔══════════════════════════════════╗
+22:59:10 ║  JobMitra Scraper v3  Starting   ║
+22:59:10 ║  30 RSS + 6 Direct sources   ║
+22:59:10 ╚══════════════════════════════════╝
+22:59:10 
+📡 Phase 1 — RSS Feeds
+22:59:10   ✅ freejobalert          68 jobs
+22:59:10   ✅ rojgarresult           1 jobs
+22:59:11   ✅ haryanajobs            9 jobs
+22:59:11   ✅ sarkarinetwork         5 jobs
+22:59:11   ✅ govtjobsblog          48 jobs
+22:59:11   ⚪ fja_12th               0 jobs
+22:59:11   ⚪ fja_10th               0 jobs
+22:59:11   ⚪ fja_graduate           0 jobs
+22:59:11   ✅ sarkarijobfind         9 jobs
+22:59:12   ⚪ indiajoblive           0 jobs
+22:59:12   ✅ sarkariexam           12 jobs
+22:59:12   ⚪ fja_medical            0 jobs
+22:59:12   ⚪ fja_ssc                0 jobs
+22:59:12   ⚪ fja_engineering        0 jobs
+22:59:12   ⚪ fja_railway            0 jobs
+22:59:12   ⚪ fja_anganwadi          0 jobs
+22:59:12   ⚪ fja_defence            0 jobs
+22:59:12   ⚪ fja_bank               0 jobs
+22:59:12   ⚪ fja_teaching           0 jobs
+22:59:12   ⚪ fja_psu                0 jobs
+22:59:12   ✅ jobapply24             4 jobs
+22:59:12   ⚪ fja_police             0 jobs
+22:59:13   ⚪ jobriya                0 jobs
+22:59:13   ✅ applyfornaukri        15 jobs
+22:59:13   ✅ sarkariresultapp      10 jobs
+22:59:14   ✅ sarkarijobs_com       30 jobs
+22:59:14   ✅ thesarkarinaukri      24 jobs
+22:59:14   ✅ sarkarinaukriblog     24 jobs
+22:59:15   ✅ govtjobsdiary         10 jobs
+22:59:16   ✅ rojgar_result2        10 jobs
+22:59:16 
+🌐 Phase 2 — Direct Scrapers
+22:59:19   ✅ SarkariResult          2 jobs
+22:59:20   ✅ RecruitmentResult      1 jobs
+22:59:22   ✅ LinkingSky             8 jobs
+22:59:24   ✅ MySarkariNaukri       31 jobs
+22:59:26   ⚪ FreeJobAlert           0 jobs
+22:59:28   ✅ JobAlertsHub           5 jobs
+22:59:29 
+══════════════════════════════════════════════════
+22:59:29   ✅  326 raw → 312 unique jobs  (18.7s)
+22:59:29 ──────────────────────────────────────────────────
+22:59:29   Category breakdown:
+22:59:29     others           █████████████████████████ 113
+22:59:29     banking          ████████████████ 33
+22:59:29     medical          ████████████████ 32
+22:59:29     engineering      ██████████ 21
+22:59:29     teaching         ██████████ 20
+22:59:29     railway          █████████ 19
+22:59:29     psu              ███████ 14
+22:59:29     police           ██████ 12
+22:59:29     ssc              ██████ 12
+22:59:29     defence          ████ 9
+22:59:29     anganwadi        ████ 9
+22:59:29     legal            ████ 8
+22:59:29     upsc             ██ 4
+22:59:29     misc_govt        █ 3
+22:59:29     skill            █ 2
+22:59:29     postal            1
+22:59:29 ══════════════════════════════════════════════════
+23:13:04 ╔══════════════════════════════════════╗
+23:13:04 ║   JobMitra Scraper v4  Starting      ║
+23:13:04 ║   43 RSS + 6 Direct sources      ║
+23:13:04 ╚══════════════════════════════════════╝
+23:13:04 
+📡 Phase 1 — RSS Feeds (parallel)
+23:13:06   ⚠ govtjobguru: XML parse failed
+23:13:12   ✅ freejobalert            66 jobs
+23:13:12   ✅ govtjobsblog            48 jobs
+23:13:12   ✅ sarkariexam             12 jobs
+23:13:12   ✅ applyfornaukri          15 jobs
+23:13:12   ✅ thesarkarinaukri        24 jobs
+23:13:12   ✅ sarkarijobs_com         30 jobs
+23:13:12   ✅ sarkarijobfind           9 jobs
+23:13:12   ✅ haryanajobs              8 jobs
+23:13:12   ✅ sarkarinetwork           5 jobs
+23:13:12   ✅ rojgarresult             1 jobs
+23:13:12   ✅ sarkariresultapp        10 jobs
+23:13:12   ✅ sarkarinaukriblog       24 jobs
+23:13:12   ✅ jobapply24               4 jobs
+23:13:12   ✅ govtjobsdiary           10 jobs
+23:13:12   ✅ rojgar_result2          10 jobs
+23:13:12   ⚪ sarkarialert             0 jobs
+23:13:12   ⚪ sarkariresultcom         0 jobs
+23:13:12   ⚪ employmentnews           0 jobs
+23:13:12   ✅ naukrinama              19 jobs
+23:13:12   ⚪ currentaffairs4u         0 jobs
+23:13:12   ⚪ sarkarijobhub            0 jobs
+23:13:12   ⚪ govtjobguru              0 jobs
+23:13:12   ⚪ jobriya                  0 jobs
+23:13:12   ✅ freshersworld            9 jobs
+23:13:12   ⚪ 99job                    0 jobs
+23:13:12   ⚪ govtjobpaper             0 jobs
+23:13:12   ✅ indiajoblive            10 jobs
+23:13:12   ⚪ resultindia              0 jobs
+23:13:12   ⚪ govtjobsalert            0 jobs
+23:13:12   ⚪ recruitmentindia         0 jobs
+23:13:12   ⚪ fja_10th                 0 jobs
+23:13:12   ⚪ fja_12th                 0 jobs
+23:13:12   ⚪ fja_graduate             0 jobs
+23:13:12   ⚪ fja_engineering          0 jobs
+23:13:12   ⚪ fja_medical              0 jobs
+23:13:12   ⚪ fja_anganwadi            0 jobs
+23:13:12   ⚪ fja_railway              0 jobs
+23:13:12   ⚪ fja_bank                 0 jobs
+23:13:12   ⚪ fja_ssc                  0 jobs
+23:13:12   ⚪ fja_police               0 jobs
+23:13:12   ⚪ fja_defence              0 jobs
+23:13:12   ⚪ fja_teaching             0 jobs
+23:13:12   ⚪ fja_psu                  0 jobs
+23:13:12 
+🌐 Phase 2 — Direct Scrapers (parallel)
+23:13:14   ✅ LinkingSky               7 jobs
+23:13:16   ✅ SarkariResult            2 jobs
+23:13:16   ✅ MySarkariNaukri         31 jobs
+23:13:16   ✅ RecruitmentResult        1 jobs
+23:13:16   ✅ JobAlertsHub             5 jobs
+23:13:17   ⚪ FreeJobAlert             0 jobs
+23:13:17 
+══════════════════════════════════════════════════════
+23:13:17   ✅  360 raw → 296 unique jobs  (13.3s)
+23:13:17 ──────────────────────────────────────────────────────
+23:13:17   Category breakdown:
+23:13:17     others           █████████████████████████   61 (21%)
+23:13:17     medical          █████████████████           35 (12%)
+23:13:17     banking          █████████████████           34 (11%)
+23:13:17     teaching         ███████████                 23 (8%)
+23:13:17     engineering      ███████████                 22 (7%)
+23:13:17     research         ███████████                 22 (7%)
+23:13:17     ssc              █████████                   19 (6%)
+23:13:17     anganwadi        ███████                     14 (5%)
+23:13:17     upsc             ███████                     14 (5%)
+23:13:17     railway          ██████                      12 (4%)
+23:13:17     police           █████                       11 (4%)
+23:13:17     defence          ████                         9 (3%)
+23:13:17     psu              ███                          6 (2%)
+23:13:17     admin            ██                           4 (1%)
+23:13:17     legal            ██                           4 (1%)
+23:13:17     skill            █                            2 (1%)
+23:13:17     it_tech          █                            2 (1%)
+23:13:17     misc_govt        █                            2 (1%)
+23:13:17 ══════════════════════════════════════════════════════
+23:13:17   ⚠ 'others' is 21% — consider adding more category keywords
+01:41:40 ╔══════════════════════════════════════╗
+01:41:40 ║   JobMitra Scraper v5  Starting      ║
+01:41:40 ║   46 RSS + 6 Direct sources      ║
+01:41:40 ╚══════════════════════════════════════╝
+01:41:40 
+📡 Phase 1 — RSS Feeds (parallel)
+01:41:40   ❌ haryanajobs            failed: name '_is_job' is not defined
+01:41:40   ❌ sarkarinetwork         failed: name '_is_job' is not defined
+01:41:40   ❌ jobapply24             failed: name '_is_job' is not defined
+01:41:41   ❌ rojgarresult           failed: name '_is_job' is not defined
+01:41:41   ❌ freejobalert           failed: name '_is_job' is not defined
+01:41:42   ❌ govtjobsblog           failed: name '_is_job' is not defined
+01:41:42   ❌ sarkariresultapp       failed: name '_is_job' is not defined
+01:41:42   ❌ sarkarijobfind         failed: name '_is_job' is not defined
+01:41:42   ❌ naukrinama             failed: name '_is_job' is not defined
+01:41:42   ❌ sarkarinaukriblog      failed: name '_is_job' is not defined
+01:41:43   ❌ applyfornaukri         failed: name '_is_job' is not defined
+01:41:43   ❌ sarkarijobs_com        failed: name '_is_job' is not defined
+01:41:43   ❌ jobriya                failed: name '_is_job' is not defined
+01:41:43   ❌ sarkariexam            failed: name '_is_job' is not defined
+01:41:43   ❌ thesarkarinaukri       failed: name '_is_job' is not defined
+01:41:44   ❌ jobsarkari             failed: name '_is_job' is not defined
+01:41:44   ❌ indiajoblive           failed: name '_is_job' is not defined
+01:41:45   ⚠ naukritime: XML parse failed
+01:41:45   ❌ governmentjobsindia    failed: name '_is_job' is not defined
+01:41:45   ❌ rojgar_result2         failed: name '_is_job' is not defined
+01:41:50   ⚪ freejobalert             0 jobs
+01:41:50   ⚪ govtjobsblog             0 jobs
+01:41:50   ⚪ sarkariexam              0 jobs
+01:41:50   ⚪ applyfornaukri           0 jobs
+01:41:50   ⚪ thesarkarinaukri         0 jobs
+01:41:50   ⚪ sarkarijobs_com          0 jobs
+01:41:50   ⚪ sarkarijobfind           0 jobs
+01:41:50   ⚪ haryanajobs              0 jobs
+01:41:50   ⚪ sarkarinetwork           0 jobs
+01:41:50   ⚪ rojgarresult             0 jobs
+01:41:50   ⚪ sarkariresultapp         0 jobs
+01:41:50   ⚪ sarkarinaukriblog        0 jobs
+01:41:50   ⚪ jobapply24               0 jobs
+01:41:50   ⚪ rojgar_result2           0 jobs
+01:41:50   ⚪ naukrinama               0 jobs
+01:41:50   ⚪ indiajoblive             0 jobs
+01:41:50   ⚪ jobriya                  0 jobs
+01:41:50   ⚪ sarkarialert             0 jobs
+01:41:50   ⚪ sarkariresultcom         0 jobs
+01:41:50   ⚪ govtjobsalert            0 jobs
+01:41:50   ⚪ recruitmentindia         0 jobs
+01:41:50   ⚪ sarkariresultnews        0 jobs
+01:41:50   ⚪ governmentjobsindia      0 jobs
+01:41:50   ⚪ sarkarijobsearch         0 jobs
+01:41:50   ⚪ naukritime               0 jobs
+01:41:50   ⚪ sarkariexpress           0 jobs
+01:41:50   ⚪ jobsarkari               0 jobs
+01:41:50   ⚪ freejobalertorg          0 jobs
+01:41:50   ⚪ govtjobsportal           0 jobs
+01:41:50   ⚪ sarkarijobsadda          0 jobs
+01:41:50   ⚪ jobsnaukri               0 jobs
+01:41:50   ⚪ bharatjobs               0 jobs
+01:41:50   ⚪ latestgovtjobs           0 jobs
+01:41:50   ⚪ fja_10th                 0 jobs
+01:41:50   ⚪ fja_12th                 0 jobs
+01:41:50   ⚪ fja_graduate             0 jobs
+01:41:50   ⚪ fja_engineering          0 jobs
+01:41:50   ⚪ fja_medical              0 jobs
+01:41:50   ⚪ fja_anganwadi            0 jobs
+01:41:50   ⚪ fja_railway              0 jobs
+01:41:50   ⚪ fja_bank                 0 jobs
+01:41:50   ⚪ fja_ssc                  0 jobs
+01:41:50   ⚪ fja_police               0 jobs
+01:41:50   ⚪ fja_defence              0 jobs
+01:41:50   ⚪ fja_teaching             0 jobs
+01:41:50   ⚪ fja_psu                  0 jobs
+01:41:50 
+🌐 Phase 2 — Direct Scrapers (parallel)
+01:41:53   ❌ LinkingSky             failed: name '_is_job' is not defined
+01:41:53   ⚪ LinkingSky               0 jobs
+01:41:54   ❌ SarkariResult          failed: name '_is_job' is not defined
+01:41:54   ⚪ SarkariResult            0 jobs
+01:41:54   ❌ MySarkariNaukri        failed: name '_is_job' is not defined
+01:41:54   ⚪ MySarkariNaukri          0 jobs
+01:41:54   ❌ RecruitmentResult      failed: name '_is_job' is not defined
+01:41:54   ⚪ RecruitmentResult        0 jobs
+01:41:54   ❌ JobAlertsHub           failed: name '_is_job' is not defined
+01:41:54   ⚪ JobAlertsHub             0 jobs
+01:41:54   ❌ FreeJobAlert           failed: name '_is_job' is not defined
+01:41:54   ⚪ FreeJobAlert             0 jobs
+01:41:54 
+══════════════════════════════════════════════════════
+01:41:54   ✅  0 raw → 0 unique jobs  (14.1s)
+01:41:54 ──────────────────────────────────────────────────────
+01:41:54   Category breakdown:
+01:41:54 ══════════════════════════════════════════════════════
+01:45:22 ╔══════════════════════════════════════╗
+01:45:22 ║   JobMitra Scraper v5  Starting      ║
+01:45:22 ║   46 RSS + 6 Direct sources      ║
+01:45:22 ╚══════════════════════════════════════╝
+01:45:22 
+📡 Phase 1 — RSS Feeds (parallel)
+01:45:27   ⚠ naukritime: XML parse failed
+01:45:33   ✅ freejobalert            66 jobs
+01:45:33   ✅ govtjobsblog            48 jobs
+01:45:33   ✅ sarkariexam             12 jobs
+01:45:33   ✅ applyfornaukri          15 jobs
+01:45:33   ✅ thesarkarinaukri        24 jobs
+01:45:33   ✅ sarkarijobs_com         30 jobs
+01:45:33   ✅ sarkarijobfind           9 jobs
+01:45:33   ✅ haryanajobs              8 jobs
+01:45:33   ✅ sarkarinetwork           5 jobs
+01:45:33   ✅ rojgarresult             2 jobs
+01:45:33   ✅ sarkariresultapp         8 jobs
+01:45:33   ✅ sarkarinaukriblog       24 jobs
+01:45:33   ✅ jobapply24               4 jobs
+01:45:33   ✅ rojgar_result2          10 jobs
+01:45:33   ✅ naukrinama              16 jobs
+01:45:33   ✅ indiajoblive            10 jobs
+01:45:33   ⚪ jobriya                  0 jobs
+01:45:33   ⚪ sarkarialert             0 jobs
+01:45:33   ⚪ sarkariresultcom         0 jobs
+01:45:33   ⚪ govtjobsalert            0 jobs
+01:45:33   ⚪ recruitmentindia         0 jobs
+01:45:33   ⚪ sarkariresultnews        0 jobs
+01:45:33   ✅ governmentjobsindia     10 jobs
+01:45:33   ⚪ sarkarijobsearch         0 jobs
+01:45:33   ⚪ naukritime               0 jobs
+01:45:33   ⚪ sarkariexpress           0 jobs
+01:45:33   ⚪ jobsarkari               0 jobs
+01:45:33   ⚪ freejobalertorg          0 jobs
+01:45:33   ⚪ govtjobsportal           0 jobs
+01:45:33   ⚪ sarkarijobsadda          0 jobs
+01:45:33   ⚪ jobsnaukri               0 jobs
+01:45:33   ⚪ bharatjobs               0 jobs
+01:45:33   ⚪ latestgovtjobs           0 jobs
+01:45:33   ⚪ fja_10th                 0 jobs
+01:45:33   ⚪ fja_12th                 0 jobs
+01:45:33   ⚪ fja_graduate             0 jobs
+01:45:33   ⚪ fja_engineering          0 jobs
+01:45:33   ⚪ fja_medical              0 jobs
+01:45:33   ⚪ fja_anganwadi            0 jobs
+01:45:33   ⚪ fja_railway              0 jobs
+01:45:33   ⚪ fja_bank                 0 jobs
+01:45:33   ⚪ fja_ssc                  0 jobs
+01:45:33   ⚪ fja_police               0 jobs
+01:45:33   ⚪ fja_defence              0 jobs
+01:45:33   ⚪ fja_teaching             0 jobs
+01:45:33   ⚪ fja_psu                  0 jobs
+01:45:33 
+🌐 Phase 2 — Direct Scrapers (parallel)
+01:45:36   ✅ LinkingSky               5 jobs
+01:45:37   ✅ MySarkariNaukri         27 jobs
+01:45:38   ✅ SarkariResult            1 jobs
+01:45:38   ✅ RecruitmentResult        1 jobs
+01:45:38   ✅ JobAlertsHub             4 jobs
+01:45:39   ⚪ FreeJobAlert             0 jobs
+01:45:39 
+══════════════════════════════════════════════════════
+01:45:39   ✅  339 raw → 267 unique jobs  (16.8s)
+01:45:39 ──────────────────────────────────────────────────────
+01:45:39   Category breakdown:
+01:45:39     others           ███████████████████         39 (15%)
+01:45:39     medical          █████████████████           35 (13%)
+01:45:39     banking          ████████████████            32 (12%)
+01:45:39     teaching         ███████████                 23 (9%)
+01:45:39     engineering      ██████████                  20 (7%)
+01:45:39     research         █████████                   19 (7%)
+01:45:39     ssc              ███████                     15 (6%)
+01:45:39     anganwadi        ██████                      13 (5%)
+01:45:39     upsc             ██████                      13 (5%)
+01:45:39     railway          █████                       10 (4%)
+01:45:39     police           ████                         9 (3%)
+01:45:39     defence          ████                         9 (3%)
+01:45:39     psu              ██                           5 (2%)
+01:45:39     legal            ██                           5 (2%)
+01:45:39     misc_govt        ██                           5 (2%)
+01:45:39     culture_arts     ██                           4 (1%)
+01:45:39     admin            ██                           4 (1%)
+01:45:39     it_tech          █                            3 (1%)
+01:45:39     skill            █                            2 (1%)
+01:45:39     sports           █                            2 (1%)
+01:45:39 ══════════════════════════════════════════════════════
+01:58:10 ╔══════════════════════════════════════════╗
+01:58:10 ║   JobMitra Scraper v6  Starting          ║
+01:58:10 ║   46 RSS + 6 Direct sources          ║
+01:58:10 ╚══════════════════════════════════════════╝
+01:58:10 
+📡 Phase 1 — RSS Feeds (parallel, 16 workers)
+01:58:11   ⚠ sarkariresult_news: XML parse failed
+01:58:12   ⚠ govtjobguru: XML parse failed
+01:58:12   ⚠ sarkarinokri: XML parse failed
+01:58:13   ⚠ sarkarinaukri_in: XML parse failed
+01:58:13   ⚠ jobnotification: XML parse failed
+01:58:17   ⚠ mp_jobs: XML parse failed
+01:58:18   ✅ freejobalert              66 jobs
+01:58:18   ✅ govtjobsblog              48 jobs
+01:58:18   ✅ sarkariexam               13 jobs
+01:58:18   ✅ applyfornaukri            15 jobs
+01:58:18   ✅ thesarkarinaukri          24 jobs
+01:58:18   ✅ sarkarijobs_com           30 jobs
+01:58:18   ✅ sarkarijobfind             9 jobs
+01:58:18   ✅ haryanajobs                8 jobs
+01:58:18   ✅ sarkarinetwork             5 jobs
+01:58:18   ✅ rojgarresult               3 jobs
+01:58:18   ✅ sarkariresultapp           8 jobs
+01:58:18   ✅ sarkarinaukriblog         24 jobs
+01:58:18   ✅ jobapply24                 4 jobs
+01:58:18   ✅ rojgar_result2            10 jobs
+01:58:18   ✅ naukrinama                21 jobs
+01:58:18   ✅ indiajoblive              10 jobs
+01:58:18   ✅ governmentjobsindia       10 jobs
+01:58:18   ⚪ sarkariresult_news         0 jobs
+01:58:18   ✅ naukridaily                2 jobs
+01:58:18   ⚪ sarkarinokri               0 jobs
+01:58:18   ⚪ sarkariresultup            0 jobs
+01:58:18   ⚪ jobnotification            0 jobs
+01:58:18   ⚪ govtjobguru                0 jobs
+01:58:18   ⚪ recruitmentcare            0 jobs
+01:58:18   ⚪ govtjobstop                0 jobs
+01:58:18   ⚪ sarkarinaukri_in           0 jobs
+01:58:18   ⚪ freejobsalert              0 jobs
+01:58:18   ⚪ fja_10th                   0 jobs
+01:58:18   ⚪ fja_12th                   0 jobs
+01:58:18   ⚪ fja_graduate               0 jobs
+01:58:18   ⚪ fja_engineering            0 jobs
+01:58:18   ⚪ fja_medical                0 jobs
+01:58:18   ⚪ fja_anganwadi              0 jobs
+01:58:18   ⚪ fja_railway                0 jobs
+01:58:18   ⚪ fja_bank                   0 jobs
+01:58:18   ⚪ fja_ssc                    0 jobs
+01:58:18   ⚪ fja_police                 0 jobs
+01:58:18   ⚪ fja_defence                0 jobs
+01:58:18   ⚪ fja_teaching               0 jobs
+01:58:18   ⚪ fja_psu                    0 jobs
+01:58:18   ⚪ fja_upsc                   0 jobs
+01:58:18   ⚪ fja_iti                    0 jobs
+01:58:18   ⚪ up_sarkari                 0 jobs
+01:58:18   ⚪ mp_jobs                    0 jobs
+01:58:18   ⚪ bihar_jobs                 0 jobs
+01:58:18   ⚪ raj_sarkari                0 jobs
+01:58:18 
+🌐 Phase 2 — Direct Scrapers (parallel)
+01:58:21   ✅ LinkingSky                 6 jobs
+01:58:22   ✅ RecruitmentResult          1 jobs
+01:58:22   ✅ MySarkariNaukri           27 jobs
+01:58:23   ✅ SarkariResult              1 jobs
+01:58:23   ✅ JobAlertsHub               5 jobs
+01:58:24   ⚪ FreeJobAlert               0 jobs
+01:58:24 
+══════════════════════════════════════════════════════════
+01:58:24   ✅  350 raw → 278 unique jobs  (13.5s)
+01:58:24 ──────────────────────────────────────────────────────────
+01:58:24   Category breakdown:
+01:58:24     others             █████████████████████        43 (15%)
+01:58:24     medical            █████████████████            35 (13%)
+01:58:24     banking            ████████████████             32 (12%)
+01:58:24     teaching           ████████████                 24 (9%)
+01:58:24     engineering        ███████████                  23 (8%)
+01:58:24     research           █████████                    19 (7%)
+01:58:24     ssc                ███████                      14 (5%)
+01:58:24     upsc               ███████                      14 (5%)
+01:58:24     anganwadi          ██████                       13 (5%)
+01:58:24     defence            █████                        11 (4%)
+01:58:24     police             █████                        10 (4%)
+01:58:24     railway            █████                        10 (4%)
+01:58:24     psu                ██                            5 (2%)
+01:58:24     legal              ██                            5 (2%)
+01:58:24     misc_govt          ██                            5 (2%)
+01:58:24     culture_arts       ██                            4 (1%)
+01:58:24     admin              ██                            4 (1%)
+01:58:24     it_tech            █                             3 (1%)
+01:58:24     skill              █                             2 (1%)
+01:58:24     sports             █                             2 (1%)
+01:58:24 ══════════════════════════════════════════════════════════
+01:58:24 
+⚠  Dead/empty RSS sources (28):
+01:58:24     — sarkariresult_news  [https://sarkariresultsnews.com/feed/]
+01:58:24     — sarkarinokri  [https://sarkarinokri.com/feed/]
+01:58:24     — sarkariresultup  [https://sarkariresultup.com/feed/]
+01:58:24     — jobnotification  [https://www.jobnotification.in/feed/]
+01:58:24     — govtjobguru  [https://www.govtjobguru.in/feed/]
+01:58:24     — recruitmentcare  [https://www.recruitmentcare.com/feed/]
+01:58:24     — govtjobstop  [https://govtjobstop.com/feed/]
+01:58:24     — sarkarinaukri_in  [https://sarkarinaukri.in/feed/]
+01:58:24     — freejobsalert  [https://freejobsalert.in/feed/]
+01:58:24     — fja_10th  [https://www.freejobalert.com/10th-pass-jobs/feed/]
+01:58:24     — fja_12th  [https://www.freejobalert.com/12th-pass-jobs/feed/]
+01:58:24     — fja_graduate  [https://www.freejobalert.com/graduate-pass-jobs/feed/]
+01:58:24     — fja_engineering  [https://www.freejobalert.com/be-btech-jobs/feed/]
+01:58:24     — fja_medical  [https://www.freejobalert.com/medical-para-medical-jobs/feed/]
+01:58:24     — fja_anganwadi  [https://www.freejobalert.com/anganwadi-jobs/feed/]
+01:58:24     — fja_railway  [https://www.freejobalert.com/railway-jobs/feed/]
+01:58:24     — fja_bank  [https://www.freejobalert.com/bank-jobs/feed/]
+01:58:24     — fja_ssc  [https://www.freejobalert.com/ssc-jobs/feed/]
+01:58:24     — fja_police  [https://www.freejobalert.com/police-jobs/feed/]
+01:58:24     — fja_defence  [https://www.freejobalert.com/defence-jobs/feed/]
+01:58:24     — fja_teaching  [https://www.freejobalert.com/teaching-jobs/feed/]
+01:58:24     — fja_psu  [https://www.freejobalert.com/psu-jobs/feed/]
+01:58:24     — fja_upsc  [https://www.freejobalert.com/upsc-jobs/feed/]
+01:58:24     — fja_iti  [https://www.freejobalert.com/iti-jobs/feed/]
+01:58:24     — up_sarkari  [https://upsarkarinaukri.com/feed/]
+01:58:24     — mp_jobs  [https://mprojgar.org/feed/]
+01:58:24     — bihar_jobs  [https://biharsarkariresult.com/feed/]
+01:58:24     — raj_sarkari  [https://rajsarkariresult.in/feed/]
+02:05:22 ╔══════════════════════════════════════════╗
+02:05:22 ║   JobMitra Scraper v6  Starting          ║
+02:05:22 ║   46 RSS + 6 Direct sources          ║
+02:05:22 ╚══════════════════════════════════════════╝
+02:05:22 
+📡 Phase 1 — RSS Feeds (parallel, 16 workers)
+02:05:22   ⚠ govtjobguru: XML parse failed
+02:05:22   ⚠ sarkarinaukri_in: XML parse failed
+02:05:22   ⚠ sarkarinokri: XML parse failed
+02:05:22   ⚠ jobnotification: XML parse failed
+02:05:22   ⚠ sarkariresult_news: XML parse failed
+02:05:23   ⚠ mp_jobs: XML parse failed
+02:05:23 Connection pool is full, discarding connection: www.freejobalert.com
+02:05:23 Connection pool is full, discarding connection: www.freejobalert.com
+02:05:23 Connection pool is full, discarding connection: www.freejobalert.com
+02:05:24 Connection pool is full, discarding connection: www.freejobalert.com
+02:05:31   ✅ freejobalert              66 jobs
+02:05:31   ✅ govtjobsblog              48 jobs
+02:05:31   ✅ sarkariexam               13 jobs
+02:05:31   ✅ applyfornaukri            15 jobs
+02:05:31   ✅ thesarkarinaukri          24 jobs
+02:05:31   ✅ sarkarijobs_com           30 jobs
+02:05:31   ✅ sarkarijobfind             9 jobs
+02:05:31   ✅ haryanajobs                7 jobs
+02:05:31   ✅ sarkarinetwork             5 jobs
+02:05:31   ✅ rojgarresult               3 jobs
+02:05:31   ✅ sarkariresultapp           8 jobs
+02:05:31   ✅ sarkarinaukriblog         24 jobs
+02:05:31   ✅ jobapply24                 4 jobs
+02:05:31   ✅ rojgar_result2            10 jobs
+02:05:31   ✅ naukrinama                21 jobs
+02:05:31   ✅ indiajoblive              10 jobs
+02:05:31   ✅ governmentjobsindia       10 jobs
+02:05:31   ⚪ sarkariresult_news         0 jobs
+02:05:31   ✅ naukridaily                2 jobs
+02:05:31   ⚪ sarkarinokri               0 jobs
+02:05:31   ⚪ sarkariresultup            0 jobs
+02:05:31   ⚪ jobnotification            0 jobs
+02:05:31   ⚪ govtjobguru                0 jobs
+02:05:31   ⚪ recruitmentcare            0 jobs
+02:05:31   ⚪ govtjobstop                0 jobs
+02:05:31   ⚪ sarkarinaukri_in           0 jobs
+02:05:31   ⚪ freejobsalert              0 jobs
+02:05:31   ⚪ fja_10th                   0 jobs
+02:05:31   ⚪ fja_12th                   0 jobs
+02:05:31   ⚪ fja_graduate               0 jobs
+02:05:31   ⚪ fja_engineering            0 jobs
+02:05:31   ⚪ fja_medical                0 jobs
+02:05:31   ⚪ fja_anganwadi              0 jobs
+02:05:31   ⚪ fja_railway                0 jobs
+02:05:31   ⚪ fja_bank                   0 jobs
+02:05:31   ⚪ fja_ssc                    0 jobs
+02:05:31   ⚪ fja_police                 0 jobs
+02:05:31   ⚪ fja_defence                0 jobs
+02:05:31   ⚪ fja_teaching               0 jobs
+02:05:31   ⚪ fja_psu                    0 jobs
+02:05:31   ⚪ fja_upsc                   0 jobs
+02:05:31   ⚪ fja_iti                    0 jobs
+02:05:31   ⚪ up_sarkari                 0 jobs
+02:05:31   ⚪ mp_jobs                    0 jobs
+02:05:31   ⚪ bihar_jobs                 0 jobs
+02:05:31   ⚪ raj_sarkari                0 jobs
+02:05:31 
+🌐 Phase 2 — Direct Scrapers (parallel)
+02:05:31   ✅ LinkingSky                 6 jobs
+02:05:31   ✅ MySarkariNaukri           27 jobs
+02:05:33   ✅ SarkariResult              1 jobs
+02:05:33   ✅ RecruitmentResult          1 jobs
+02:05:33   ✅ JobAlertsHub               5 jobs
+02:05:34   ⚪ FreeJobAlert               0 jobs
+02:05:34 
+══════════════════════════════════════════════════════════
+02:05:34   ✅  349 raw → 261 unique jobs  (11.9s)
+02:05:34 ──────────────────────────────────────────────────────────
+02:05:34   Category breakdown:
+02:05:34     others             ████████████████████████     48 (18%)
+02:05:34     medical            █████████████████            34 (13%)
+02:05:34     banking            █████████████                27 (10%)
+02:05:34     teaching           ██████████                   21 (8%)
+02:05:34     research           █████████                    18 (7%)
+02:05:34     engineering        ███████                      15 (6%)
+02:05:34     ssc                ███████                      14 (5%)
+02:05:34     upsc               ██████                       13 (5%)
+02:05:34     police             █████                        10 (4%)
+02:05:34     railway            █████                        10 (4%)
+02:05:34     anganwadi          █████                        10 (4%)
+02:05:34     defence            █████                        10 (4%)
+02:05:34     psu                ███                           6 (2%)
+02:05:34     legal              ██                            5 (2%)
+02:05:34     misc_govt          ██                            5 (2%)
+02:05:34     culture_arts       ██                            4 (2%)
+02:05:34     admin              ██                            4 (2%)
+02:05:34     it_tech            █                             3 (1%)
+02:05:34     skill              █                             2 (1%)
+02:05:34     sports             █                             2 (1%)
+02:05:34 ──────────────────────────────────────────────────────────
+02:05:34   Apply mode:  🌐 online=222  📮 offline=18  🚶 walk-in=21
+02:05:34   Notif type:  📅 extended=0  🔄 re-open=0
+02:05:34   Salary info: 💰 0 jobs have pay scale extracted
+02:05:34 ══════════════════════════════════════════════════════════
+02:05:34 
+⚠  Dead/empty RSS sources (28):
+02:05:34     — sarkariresult_news  [https://sarkariresultsnews.com/feed/]
+02:05:34     — sarkarinokri  [https://sarkarinokri.com/feed/]
+02:05:34     — sarkariresultup  [https://sarkariresultup.com/feed/]
+02:05:34     — jobnotification  [https://www.jobnotification.in/feed/]
+02:05:34     — govtjobguru  [https://www.govtjobguru.in/feed/]
+02:05:34     — recruitmentcare  [https://www.recruitmentcare.com/feed/]
+02:05:34     — govtjobstop  [https://govtjobstop.com/feed/]
+02:05:34     — sarkarinaukri_in  [https://sarkarinaukri.in/feed/]
+02:05:34     — freejobsalert  [https://freejobsalert.in/feed/]
+02:05:34     — fja_10th  [https://www.freejobalert.com/10th-pass-jobs/feed/]
+02:05:34     — fja_12th  [https://www.freejobalert.com/12th-pass-jobs/feed/]
+02:05:34     — fja_graduate  [https://www.freejobalert.com/graduate-pass-jobs/feed/]
+02:05:34     — fja_engineering  [https://www.freejobalert.com/be-btech-jobs/feed/]
+02:05:34     — fja_medical  [https://www.freejobalert.com/medical-para-medical-jobs/feed/]
+02:05:34     — fja_anganwadi  [https://www.freejobalert.com/anganwadi-jobs/feed/]
+02:05:34     — fja_railway  [https://www.freejobalert.com/railway-jobs/feed/]
+02:05:34     — fja_bank  [https://www.freejobalert.com/bank-jobs/feed/]
+02:05:34     — fja_ssc  [https://www.freejobalert.com/ssc-jobs/feed/]
+02:05:34     — fja_police  [https://www.freejobalert.com/police-jobs/feed/]
+02:05:34     — fja_defence  [https://www.freejobalert.com/defence-jobs/feed/]
+02:05:34     — fja_teaching  [https://www.freejobalert.com/teaching-jobs/feed/]
+02:05:34     — fja_psu  [https://www.freejobalert.com/psu-jobs/feed/]
+02:05:34     — fja_upsc  [https://www.freejobalert.com/upsc-jobs/feed/]
+02:05:34     — fja_iti  [https://www.freejobalert.com/iti-jobs/feed/]
+02:05:34     — up_sarkari  [https://upsarkarinaukri.com/feed/]
+02:05:34     — mp_jobs  [https://mprojgar.org/feed/]
+02:05:34     — bihar_jobs  [https://biharsarkariresult.com/feed/]
+02:05:34     — raj_sarkari  [https://rajsarkariresult.in/feed/]
+02:05:34 
+  ⚠ 'others' is 18% — add more category keywords
+02:17:01 ╔══════════════════════════════════════════╗
+02:17:01 ║   JobMitra Scraper v8  Starting          ║
+02:17:01 ║   86 RSS + 9 Direct sources          ║
+02:17:01 ╚══════════════════════════════════════════╝
+02:17:01 
+📡 Phase 1 — RSS Feeds (parallel, 16 workers)
+02:17:02   ⚠ sarkariprep: XML parse failed
+02:17:04   ⚠ adda247: XML parse failed
+02:17:04   ⚠ careerpower: XML parse failed
+02:17:06   ⚠ sarkariresult_news: XML parse failed
+02:17:06   ⚠ sarkarinokri: XML parse failed
+02:17:06   ⚠ jobnotification: XML parse failed
+02:17:06   ⚠ govtjobguru: XML parse failed
+02:17:07   ⚠ sarkarinaukri_in: XML parse failed
+02:17:07   ⚠ assam_jobs: XML parse failed
+02:17:08   ⚠ mp_rojgar: XML parse failed
+02:18:06   ✅ freejobalert              66 jobs
+02:18:06   ✅ govtjobsblog              48 jobs
+02:18:06   ✅ sarkariexam               13 jobs
+02:18:06   ✅ applyfornaukri            15 jobs
+02:18:06   ✅ thesarkarinaukri          24 jobs
+02:18:06   ✅ sarkarijobs_com           30 jobs
+02:18:06   ✅ sarkarijobfind             9 jobs
+02:18:06   ✅ haryanajobs                3 jobs
+02:18:06   ✅ sarkarinetwork             5 jobs
+02:18:06   ✅ rojgarresult               3 jobs
+02:18:06   ✅ sarkariresultapp           9 jobs
+02:18:06   ✅ sarkarinaukriblog         24 jobs
+02:18:06   ✅ jobapply24                 4 jobs
+02:18:06   ✅ rojgar_result2            10 jobs
+02:18:06   ✅ naukrinama                21 jobs
+02:18:06   ✅ indiajoblive              10 jobs
+02:18:06   ✅ governmentjobsindia       10 jobs
+02:18:06   ⚪ sarkariresultcom           0 jobs
+02:18:06   ✅ freshersworld             30 jobs
+02:18:06   ⚪ govtjobsguide              0 jobs
+02:18:06   ⚪ rojgarsamachar             0 jobs
+02:18:06   ⚪ employment_news            0 jobs
+02:18:06   ⚪ careerpower                0 jobs
+02:18:06   ⚪ adda247                    0 jobs
+02:18:06   ⚪ sarkariprep                0 jobs
+02:18:06   ⚪ jobsarkari                 0 jobs
+02:18:06   ⚪ govtjobpedia               0 jobs
+02:18:06   ⚪ sarkarinaukrified          0 jobs
+02:18:06   ⚪ sarkariwalah               0 jobs
+02:18:06   ⚪ govtjob247                 0 jobs
+02:18:06   ⚪ naukrimission              0 jobs
+02:18:06   ⚪ privatejobshub             0 jobs
+02:18:06   ✅ jobsalertguru              1 jobs
+02:18:06   ⚪ currentgk                  0 jobs
+02:18:06   ⚪ governmentjobsinfo         0 jobs
+02:18:06   ⚪ jobsarkariresult           0 jobs
+02:18:06   ⚪ recruitmentindia           0 jobs
+02:18:06   ⚪ freejobalert2              0 jobs
+02:18:06   ⚪ sarkarijobsearcher         0 jobs
+02:18:06   ⚪ sarkariresultnet           0 jobs
+02:18:06   ⚪ fja_10th                   0 jobs
+02:18:06   ⚪ fja_12th                   0 jobs
+02:18:06   ⚪ fja_graduate               0 jobs
+02:18:06   ⚪ fja_engineering            0 jobs
+02:18:06   ⚪ fja_medical                0 jobs
+02:18:06   ⚪ fja_anganwadi              0 jobs
+02:18:06   ⚪ fja_railway                0 jobs
+02:18:06   ⚪ fja_bank                   0 jobs
+02:18:06   ⚪ fja_ssc                    0 jobs
+02:18:06   ⚪ fja_police                 0 jobs
+02:18:06   ⚪ fja_defence                0 jobs
+02:18:06   ⚪ fja_teaching               0 jobs
+02:18:06   ⚪ fja_psu                    0 jobs
+02:18:06   ⚪ fja_upsc                   0 jobs
+02:18:06   ⚪ fja_iti                    0 jobs
+02:18:06   ⚪ fja_it                     0 jobs
+02:18:06   ⚪ fja_forest                 0 jobs
+02:18:06   ⚪ fja_postal                 0 jobs
+02:18:06   ⚪ fja_judicial               0 jobs
+02:18:06   ⚪ fja_research               0 jobs
+02:18:06   ✅ up_rojgar                  5 jobs
+02:18:06   ⚪ up_bhartimela              0 jobs
+02:18:06   ⚪ mp_rojgar                  0 jobs
+02:18:06   ⚪ mp_vyapam                  0 jobs
+02:18:06   ⚪ bihar_sarkar               0 jobs
+02:18:06   ⚪ rajasthan_jobs             0 jobs
+02:18:06   ⚪ gujarat_jobs               0 jobs
+02:18:06   ⚪ maharashtra_jobs           0 jobs
+02:18:06   ✅ karnataka_jobs             1 jobs
+02:18:06   ⚪ tamilnadu_jobs             0 jobs
+02:18:06   ⚪ haryana_sarkari            0 jobs
+02:18:06   ⚪ punjab_sarkar              0 jobs
+02:18:06   ⚪ delhi_jobs                 0 jobs
+02:18:06   ⚪ odisha_jobs                0 jobs
+02:18:06   ⚪ assam_jobs                 0 jobs
+02:18:06   ⚪ jharkhand_jobs             0 jobs
+02:18:06   ⚪ sarkariresult_news         0 jobs
+02:18:06   ✅ naukridaily                1 jobs
+02:18:06   ⚪ sarkarinokri               0 jobs
+02:18:06   ⚪ sarkariresultup            0 jobs
+02:18:06   ⚪ jobnotification            0 jobs
+02:18:06   ⚪ govtjobguru                0 jobs
+02:18:06   ⚪ recruitmentcare            0 jobs
+02:18:06   ⚪ govtjobstop                0 jobs
+02:18:06   ⚪ sarkarinaukri_in           0 jobs
+02:18:06   ⚪ freejobsalert              0 jobs
+02:18:06 
+🌐 Phase 2 — Direct Scrapers (parallel)
+02:18:06   ✅ LinkingSky                 6 jobs
+02:18:06   ⚪ NDTVJobs                   0 jobs
+02:18:06   ✅ MySarkariNaukri           27 jobs
+02:18:08   ✅ RecruitmentResult          1 jobs
+02:18:08   ✅ SarkariResult              1 jobs
+02:18:08   ✅ JobAlertsHub               5 jobs
+02:18:09   ⚪ FreeJobAlert               0 jobs
+02:18:09   ⚪ JagranJobs                 0 jobs
+02:18:10   ⚪ FreshersWorld              0 jobs
+02:18:10 
+══════════════════════════════════════════════════════════
+02:18:10   ✅  382 raw → 285 unique jobs  (68.9s)
+02:18:10 ──────────────────────────────────────────────────────────
+02:18:10   Category breakdown:
+02:18:10     others             █████████████████████████    61 (21%)
+02:18:10     medical            █████████████████            34 (12%)
+02:18:10     banking            ██████████████               29 (10%)
+02:18:10     teaching           ██████████                   20 (7%)
+02:18:10     research           █████████                    19 (7%)
+02:18:10     engineering        █████████                    18 (6%)
+02:18:10     ssc                ███████                      14 (5%)
+02:18:10     upsc               ██████                       13 (5%)
+02:18:10     police             ██████                       12 (4%)
+02:18:10     railway            ██████                       12 (4%)
+02:18:10     anganwadi          █████                        11 (4%)
+02:18:10     defence            █████                        10 (4%)
+02:18:10     psu                ███                           6 (2%)
+02:18:10     legal              ██                            5 (2%)
+02:18:10     misc_govt          ██                            5 (2%)
+02:18:10     culture_arts       ██                            4 (1%)
+02:18:10     it_tech            ██                            4 (1%)
+02:18:10     admin              ██                            4 (1%)
+02:18:10     skill              █                             2 (1%)
+02:18:10     sports             █                             2 (1%)
+02:18:10 ──────────────────────────────────────────────────────────
+02:18:10   Apply mode:  🌐 online=247  📮 offline=18  🚶 walk-in=20
+02:18:10   Notif type:  📅 extended=0  🔄 re-open=0
+02:18:10   Salary info: 💰 0 jobs have pay scale extracted
+02:18:10 ══════════════════════════════════════════════════════════
+02:18:10 
+⚠  Dead/empty RSS sources (64):
+02:18:10     — sarkariresultcom  [https://www.sarkariresult.com/feed/]
+02:18:10     — govtjobsguide  [https://govtjobsguide.com/feed/]
+02:18:10     — rojgarsamachar  [https://rojgarsamachar.gov.in/feed/]
+02:18:10     — employment_news  [https://www.employmentnews.gov.in/feed/]
+02:18:10     — careerpower  [https://www.careerpower.in/blog/feed/]
+02:18:10     — adda247  [https://currentaffairs.adda247.com/feed/]
+02:18:10     — sarkariprep  [https://sarkariprep.in/feed/]
+02:18:10     — jobsarkari  [https://jobsarkari.com/feed/]
+02:18:10     — govtjobpedia  [https://govtjobpedia.com/feed/]
+02:18:10     — sarkarinaukrified  [https://sarkarinaukrified.com/feed/]
+02:18:10     — sarkariwalah  [https://www.sarkariwalah.com/feed/]
+02:18:10     — govtjob247  [https://govtjob247.com/feed/]
+02:18:10     — naukrimission  [https://naukrimission.com/feed/]
+02:18:10     — privatejobshub  [https://www.privatejobshub.in/feeds/posts/default?alt=rss]
+02:18:10     — currentgk  [https://www.currentgk.com/feed/]
+02:18:10     — governmentjobsinfo  [https://www.governmentjobsinfo.com/feed/]
+02:18:10     — jobsarkariresult  [https://jobsarkariresult.com/feed/]
+02:18:10     — recruitmentindia  [https://www.recruitmentindia.in/feed/]
+02:18:10     — freejobalert2  [https://freejobalert2.com/feed/]
+02:18:10     — sarkarijobsearcher  [https://sarkarijobsearcher.com/feed/]
+02:18:10     — sarkariresultnet  [https://sarkariresult.net/feed/]
+02:18:10     — fja_10th  [https://www.freejobalert.com/category/10th-pass-govt-jobs/feed/]
+02:18:10     — fja_12th  [https://www.freejobalert.com/category/12th-pass-govt-jobs/feed/]
+02:18:10     — fja_graduate  [https://www.freejobalert.com/category/graduate-pass-govt-jobs/feed/]
+02:18:10     — fja_engineering  [https://www.freejobalert.com/category/engineering-govt-jobs/feed/]
+02:18:10     — fja_medical  [https://www.freejobalert.com/category/medical-paramedical-govt-jobs/feed/]
+02:18:10     — fja_anganwadi  [https://www.freejobalert.com/category/anganwadi-jobs/feed/]
+02:18:10     — fja_railway  [https://www.freejobalert.com/category/railway-jobs/feed/]
+02:18:10     — fja_bank  [https://www.freejobalert.com/category/bank-jobs/feed/]
+02:18:10     — fja_ssc  [https://www.freejobalert.com/category/ssc-jobs/feed/]
+02:18:10     — fja_police  [https://www.freejobalert.com/category/police-jobs/feed/]
+02:18:10     — fja_defence  [https://www.freejobalert.com/category/defence-jobs/feed/]
+02:18:10     — fja_teaching  [https://www.freejobalert.com/category/teaching-jobs/feed/]
+02:18:10     — fja_psu  [https://www.freejobalert.com/category/psu-govt-jobs/feed/]
+02:18:10     — fja_upsc  [https://www.freejobalert.com/category/upsc-jobs/feed/]
+02:18:10     — fja_iti  [https://www.freejobalert.com/category/iti-jobs/feed/]
+02:18:10     — fja_it  [https://www.freejobalert.com/category/it-computer-jobs/feed/]
+02:18:10     — fja_forest  [https://www.freejobalert.com/category/forest-department-jobs/feed/]
+02:18:10     — fja_postal  [https://www.freejobalert.com/category/postal-jobs/feed/]
+02:18:10     — fja_judicial  [https://www.freejobalert.com/category/judicial-court-jobs/feed/]
+02:18:10     — fja_research  [https://www.freejobalert.com/category/research-jobs/feed/]
+02:18:10     — up_bhartimela  [https://upbhartimela.com/feed/]
+02:18:10     — mp_rojgar  [https://mprojgar.com/feed/]
+02:18:10     — mp_vyapam  [https://mpvyapam.com/feed/]
+02:18:10     — bihar_sarkar  [https://biharjobs.net/feed/]
+02:18:10     — rajasthan_jobs  [https://rajasthanrpsc.com/feed/]
+02:18:10     — gujarat_jobs  [https://gujaratjobs.net/feed/]
+02:18:10     — maharashtra_jobs  [https://maharashtrajobs.net/feed/]
+02:18:10     — tamilnadu_jobs  [https://tamilnadujobs.in/feed/]
+02:18:10     — haryana_sarkari  [https://haryanagovtjobs.in/feed/]
+02:18:10     — punjab_sarkar  [https://punjabsarkarijobs.com/feed/]
+02:18:10     — delhi_jobs  [https://delhigovtjobs.in/feed/]
+02:18:10     — odisha_jobs  [https://odishagovtjobs.com/feed/]
+02:18:10     — assam_jobs  [https://assamjobs.net/feed/]
+02:18:10     — jharkhand_jobs  [https://jharkhandjobs.net/feed/]
+02:18:10     — sarkariresult_news  [https://sarkariresultsnews.com/feed/]
+02:18:10     — sarkarinokri  [https://sarkarinokri.com/feed/]
+02:18:10     — sarkariresultup  [https://sarkariresultup.com/feed/]
+02:18:10     — jobnotification  [https://www.jobnotification.in/feed/]
+02:18:10     — govtjobguru  [https://www.govtjobguru.in/feed/]
+02:18:10     — recruitmentcare  [https://www.recruitmentcare.com/feed/]
+02:18:10     — govtjobstop  [https://govtjobstop.com/feed/]
+02:18:10     — sarkarinaukri_in  [https://sarkarinaukri.in/feed/]
+02:18:10     — freejobsalert  [https://freejobsalert.in/feed/]
+02:18:10 
+  ⚠ 'others' is 21% — add more category keywords
