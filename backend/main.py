@@ -3,7 +3,7 @@ JobMitra - FastAPI Backend
 Deploy on Render.com (free tier)
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -446,3 +446,36 @@ def trigger_scrape(secret: str = Query(...)):
         return {"success": True, "jobs_inserted": inserted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────
+@app.post("/admin/bulk_import")
+def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    jobs = payload.get("jobs", [])
+    conn = get_db()
+    inserted = 0
+    for job in jobs:
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO jobs
+                (title, department, source, source_url, category,
+                 qualifications, vacancies, last_date, states,
+                 age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (
+                job.get("title",""), job.get("department",""),
+                job.get("source",""), job.get("source_url",""),
+                job.get("category","others"),
+                json.dumps(job.get("qualifications",["graduate"])),
+                job.get("vacancies",0), job.get("last_date",""),
+                json.dumps(job.get("states",["all"])),
+                job.get("age_min",18), job.get("age_max",40),
+                job.get("fee_general",100), job.get("fee_obc",100),
+                job.get("fee_sc_st",0), job.get("scraped_at","")
+            ))
+            inserted += 1
+        except: pass
+    conn.commit()
+    conn.close()
+    return {"inserted": inserted, "total": len(jobs)}
