@@ -412,7 +412,7 @@ def trigger_scrape(secret: str = Query(...)):
     try:
         import sys
         
-        from scraper import run_all_scrapers  # local copy
+        from scraper import run_all as run_all_scrapers  # local copy
 
         jobs = run_all_scrapers()
         conn = get_db()
