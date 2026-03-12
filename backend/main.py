@@ -3,7 +3,7 @@ JobMitra - FastAPI Backend
 Deploy on Render.com (free tier)
 """
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
