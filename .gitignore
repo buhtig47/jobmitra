@@ -3,6 +3,9 @@
 __pycache__/
 .env
 scraped_jobs.json
+scraper.log
+.cache/
 build/
 .dart_tool/
 *.g.dart
+pubspec.lock
