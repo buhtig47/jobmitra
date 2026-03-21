@@ -4,6 +4,7 @@ import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/job_card.dart';
+import 'package:shimmer/shimmer.dart';
 import 'job_detail_screen.dart';
 import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
@@ -83,6 +84,8 @@ class _FeedTabState extends State<_FeedTab> {
   bool _isLoading = true;
   bool _hasMore   = true;
   int  _page      = 1;
+  bool _isCached  = false;
+  DateTime? _cachedAt;
 
   String? _selectedFilter; // null = all
 
@@ -99,15 +102,19 @@ class _FeedTabState extends State<_FeedTab> {
 
   Future<void> _loadJobs({bool refresh = false}) async {
     if (refresh) {
-      setState(() { _jobs.clear(); _page = 1; _hasMore = true; });
+      setState(() { _jobs.clear(); _page = 1; _hasMore = true; _isCached = false; });
     }
     setState(() => _isLoading = true);
 
     final data = await widget.api.getJobFeed(userId: widget.userId, page: _page);
     setState(() {
       _jobs.addAll(data['jobs'] as List<Job>);
-      _hasMore    = data['has_more'];
-      _isLoading  = false;
+      _hasMore   = data['has_more'] as bool;
+      _isLoading = false;
+      _isCached  = data['is_cached'] as bool? ?? false;
+      if (_isCached && data['cached_at'] != null) {
+        _cachedAt = DateTime.tryParse(data['cached_at'] as String);
+      }
     });
   }
 
@@ -125,36 +132,78 @@ class _FeedTabState extends State<_FeedTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Text('🇮🇳', style: TextStyle(fontSize: 20)),
-            const SizedBox(width: 8),
-            const Text('JobMitra'),
-            const Spacer(),
-            // Stats badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${_jobs.length} jobs',
-                style: const TextStyle(
-                  color: AppColors.accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Title + subtitle column
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          '🇮🇳 JobMitra',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Aaj ki Sarkari Naukri',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Jobs count pill badge
+                  if (_jobs.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9933),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_jobs.length} Jobs',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
       body: Column(
         children: [
           // Category filter chips
           _buildFilterBar(),
+          // Offline cache banner
+          if (_isCached) _buildCacheBanner(),
           // Jobs list
           Expanded(
             child: _isLoading && _jobs.isEmpty
@@ -191,6 +240,38 @@ class _FeedTabState extends State<_FeedTab> {
                           },
                         ),
                       ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCacheBanner() {
+    final mins = _cachedAt != null
+        ? DateTime.now().difference(_cachedAt!).inMinutes
+        : 0;
+    final timeText = mins < 1 ? 'abhi' : '$mins min pehle';
+    return Container(
+      width: double.infinity,
+      color: Colors.amber[100],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, size: 16, color: Colors.amber[800]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Cached data — last updated $timeText',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.amber[900],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _loadJobs(refresh: true),
+            child: Icon(Icons.refresh_rounded, size: 20, color: Colors.amber[800]),
           ),
         ],
       ),
@@ -249,16 +330,71 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   Widget _buildShimmer() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 6,
-      itemBuilder: (_, __) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        height: 140,
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(16),
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFD0D8DC),
+      highlightColor: const Color(0xFFF0F4F5),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Column(
+          children: List.generate(5, (_) => _shimmerCard()),
         ),
+      ),
+    );
+  }
+
+  Widget _shimmerCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Colored top bar (shimmer target)
+          Container(
+            height: 5,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(width: 88, height: 24, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
+                    const SizedBox(width: 8),
+                    Container(width: 70, height: 24, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(height: 15, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                const SizedBox(height: 8),
+                Container(width: 220, height: 15, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                const SizedBox(height: 6),
+                Container(width: 160, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                const SizedBox(height: 14),
+                const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(width: 72, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+                    const SizedBox(width: 8),
+                    Container(width: 60, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+                    const Spacer(),
+                    Container(width: 72, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -266,7 +402,7 @@ class _FeedTabState extends State<_FeedTab> {
 
 
 // ─────────────────────────────────────────
-// PROFILE TAB (simple)
+// PROFILE TAB
 // ─────────────────────────────────────────
 class _ProfileTab extends StatefulWidget {
   final int userId;
@@ -289,53 +425,218 @@ class _ProfileTabState extends State<_ProfileTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      backgroundColor: AppColors.background,
       body: _profile == null
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                // Avatar
-                Center(
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor: AppColors.primary.withOpacity(0.15),
-                    child: const Text('👤', style: TextStyle(fontSize: 36)),
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : CustomScrollView(
+              slivers: [
+                // Gradient header
+                SliverToBoxAdapter(child: _buildHeader()),
+                // Info tiles
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Personal Info'),
+                      const SizedBox(height: 10),
+                      _buildInfoTile(Icons.location_on_rounded, 'State / Region', _profile!.state, const Color(0xFF1565C0)),
+                      _buildInfoTile(Icons.school_rounded, 'Education', _profile!.education, const Color(0xFF6A1B9A)),
+                      _buildInfoTile(Icons.badge_rounded, 'Category', _profile!.category.toUpperCase(), const Color(0xFF00695C)),
+                      _buildInfoTile(Icons.cake_rounded, 'Age', '${_profile!.age} saal', const Color(0xFFE65100)),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Job Preferences'),
+                      const SizedBox(height: 10),
+                      _buildJobTypesTile(),
+                      const SizedBox(height: 32),
+                    ]),
                   ),
-                ),
-                const SizedBox(height: 24),
-                _buildInfoCard('🗺️ State',       _profile!.state),
-                _buildInfoCard('🎓 Education',    _profile!.education),
-                _buildInfoCard('👤 Category',     _profile!.category.toUpperCase()),
-                _buildInfoCard('🎂 Age',          '${_profile!.age} saal'),
-                _buildInfoCard('💼 Job Types',    _profile!.jobTypes.join(', ')),
-                const SizedBox(height: 32),
-                OutlinedButton(
-                  onPressed: () {
-                    // TODO: Navigate to edit profile / re-onboarding
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                    side: const BorderSide(color: AppColors.primary),
-                  ),
-                  child: const Text('Profile Edit Karo',
-                    style: TextStyle(color: AppColors.primary)),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildInfoCard(String label, String value) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        title: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        subtitle: Text(value,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          child: Column(
+            children: [
+              // Avatar
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.2),
+                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2.5),
+                ),
+                child: const Center(
+                  child: Text('👤', style: TextStyle(fontSize: 38)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Mera Profile',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'JobMitra aapke liye jobs filter karta hai',
+                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12),
+              ),
+              const SizedBox(height: 20),
+              // Quick pills row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildPill(_profile!.state),
+                  const SizedBox(width: 8),
+                  _buildPill(_profile!.category.toUpperCase()),
+                  const SizedBox(width: 8),
+                  _buildPill('${_profile!.age} saal'),
+                ],
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textHint,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+
+  Widget _buildInfoTile(IconData icon, String label, String value, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobTypesTile() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.work_rounded, color: AppColors.accent, size: 20),
+              ),
+              const SizedBox(width: 14),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Job Types', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
+                  Text('Interested categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _profile!.jobTypes.map((t) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Text(
+                t,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )).toList(),
+          ),
+        ],
       ),
     );
   }

@@ -1,39 +1,61 @@
 // lib/services/api_service.dart
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
 import '../utils/constants.dart';
 
 class ApiService {
-  static const _userIdKey    = 'user_id';
-  static const _profileKey   = 'user_profile';
+  static const _userIdKey  = 'user_id';
+  static const _profileKey = 'user_profile';
+  static const _longTimeout  = Duration(seconds: 60);
 
-  // ─────────────────────────────────────────
-  // USER
-  // ─────────────────────────────────────────
+  Future<void> wakeUpServer() async {
+    try {
+      await http.get(Uri.parse('$kApiBase/stats')).timeout(_longTimeout);
+    } catch (_) {}
+  }
+
+  Future<http.Response?> _get(String url, {int retries = 2}) async {
+    for (int i = 0; i <= retries; i++) {
+      try {
+        final res = await http.get(Uri.parse(url)).timeout(_longTimeout);
+        if (res.statusCode == 200) return res;
+      } catch (e) {
+        if (i == retries) print('GET failed: $e');
+        await Future.delayed(Duration(seconds: 2));
+      }
+    }
+    return null;
+  }
+
+  Future<http.Response?> _post(String url, Map body) async {
+    try {
+      return await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(_longTimeout);
+    } catch (e) {
+      print('POST failed: $e');
+      return null;
+    }
+  }
+
   Future<int?> registerUser(UserProfile profile) async {
     try {
-      final res = await http.post(
-        Uri.parse('$kApiBase/users/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(profile.toJson()),
-      );
-
-      if (res.statusCode == 200) {
+      final res = await _post('$kApiBase/users/register', profile.toJson());
+      if (res != null && res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final userId = data['user_id'] as int;
-
-        // Save locally
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_userIdKey, userId);
         await prefs.setString(_profileKey, jsonEncode(profile.toJson()));
-
         return userId;
       }
-    } catch (e) {
-      print('Register error: $e');
-    }
+    } catch (e) { print('Register error: $e'); }
     return null;
   }
 
@@ -57,112 +79,97 @@ class ApiService {
     );
   }
 
-  // ─────────────────────────────────────────
-  // JOBS FEED
-  // ─────────────────────────────────────────
-  Future<Map<String, dynamic>> getJobFeed({
-    required int userId,
-    int page = 1,
-  }) async {
+  Future<Map<String, dynamic>> getJobFeed({required int userId, int page = 1}) async {
+    final box = Hive.box('jobs_cache');
     try {
-      final res = await http.get(
-        Uri.parse('$kApiBase/jobs/feed?user_id=$userId&page=$page&page_size=20'),
-      );
-
-      if (res.statusCode == 200) {
+      final res = await _get('$kApiBase/jobs/feed?user_id=$userId&page=$page&page_size=20');
+      if (res != null) {
         final data = jsonDecode(res.body);
-        final jobs = (data['jobs'] as List)
-            .map((j) => Job.fromJson(j))
-            .toList();
+        final jobs = (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+        // Cache first page for offline fallback
+        if (page == 1) {
+          await box.put('feed_jobs', res.body);
+          await box.put('feed_timestamp', DateTime.now().toIso8601String());
+        }
         return {
-          'jobs':     jobs,
-          'total':    data['total'],
-          'has_more': data['has_more'],
+          'jobs': jobs,
+          'total': data['total'] ?? jobs.length,
+          'has_more': data['has_more'] ?? false,
+          'is_cached': false,
         };
       }
-    } catch (e) {
-      print('Feed error: $e');
+    } catch (e) { print('Feed error: $e'); }
+
+    // Network failed — load from Hive cache
+    final cached = box.get('feed_jobs') as String?;
+    final timestamp = box.get('feed_timestamp') as String?;
+    if (cached != null) {
+      try {
+        final data = jsonDecode(cached);
+        final jobs = (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+        return {
+          'jobs': jobs,
+          'total': jobs.length,
+          'has_more': false,
+          'is_cached': true,
+          'cached_at': timestamp,
+        };
+      } catch (e) { print('Cache load error: $e'); }
     }
-    return {'jobs': <Job>[], 'total': 0, 'has_more': false};
+    return {'jobs': <Job>[], 'total': 0, 'has_more': false, 'is_cached': false};
   }
 
-  // ─────────────────────────────────────────
-  // JOB DETAIL
-  // ─────────────────────────────────────────
   Future<Job?> getJobDetail(int jobId, String category) async {
     try {
-      final res = await http.get(
-        Uri.parse('$kApiBase/jobs/$jobId?user_category=$category'),
-      );
-      if (res.statusCode == 200) {
-        return Job.fromJson(jsonDecode(res.body));
-      }
-    } catch (e) {
-      print('Job detail error: $e');
-    }
+      final res = await _get('$kApiBase/jobs/$jobId?user_category=$category');
+      if (res != null) return Job.fromJson(jsonDecode(res.body));
+    } catch (e) { print('Job detail error: $e'); }
     return null;
   }
 
-  // ─────────────────────────────────────────
-  // SEARCH
-  // ─────────────────────────────────────────
-  Future<List<Job>> searchJobs(String query) async {
+  Future<List<Job>> searchJobs(String query, {String userCategory = 'general'}) async {
     try {
-      final res = await http.get(
-        Uri.parse('$kApiBase/jobs/search?q=${Uri.encodeComponent(query)}'),
-      );
-      if (res.statusCode == 200) {
+      final url = '$kApiBase/jobs/search?q=${Uri.encodeComponent(query)}&user_category=$userCategory';
+      final res = await _get(url);
+      if (res != null) {
         final data = jsonDecode(res.body);
         return (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
       }
-    } catch (e) {
-      print('Search error: $e');
-    }
+    } catch (e) { print('Search error: $e'); }
     return [];
   }
 
-  // ─────────────────────────────────────────
-  // SAVE JOB
-  // ─────────────────────────────────────────
-  Future<bool> saveJob(int userId, int jobId, String status) async {
+  /// Returns 'saved', 'applied', 'unsaved', or null
+  Future<String?> getJobStatus(int userId, int jobId) async {
     try {
-      final res = await http.post(
-        Uri.parse('$kApiBase/jobs/save'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'job_id': jobId, 'status': status}),
-      );
-      return res.statusCode == 200;
-    } catch (e) {
-      print('Save job error: $e');
-      return false;
-    }
+      final res = await _get('$kApiBase/users/$userId/job/$jobId/status');
+      if (res != null) return jsonDecode(res.body)['status'] as String?;
+    } catch (e) { print('Job status error: $e'); }
+    return null;
   }
 
-  // ─────────────────────────────────────────
-  // SAVED JOBS
-  // ─────────────────────────────────────────
+  Future<bool> saveJob(int userId, int jobId, String status) async {
+    try {
+      final res = await _post('$kApiBase/jobs/save', {'user_id': userId, 'job_id': jobId, 'status': status});
+      return res != null && res.statusCode == 200;
+    } catch (e) { return false; }
+  }
+
   Future<List<Job>> getSavedJobs(int userId) async {
     try {
-      final res = await http.get(
-        Uri.parse('$kApiBase/users/$userId/saved'),
-      );
-      if (res.statusCode == 200) {
+      final res = await _get('$kApiBase/users/$userId/saved');
+      if (res != null) {
         final data = jsonDecode(res.body);
         return (data['saved_jobs'] as List).map((j) => Job.fromJson(j)).toList();
       }
-    } catch (e) {
-      print('Saved jobs error: $e');
-    }
+    } catch (e) { print('Saved jobs error: $e'); }
     return [];
   }
 
-  // ─────────────────────────────────────────
-  // STATS
-  // ─────────────────────────────────────────
   Future<Map<String, dynamic>?> getStats() async {
     try {
-      final res = await http.get(Uri.parse('$kApiBase/stats'));
-      if (res.statusCode == 200) return jsonDecode(res.body);
+      final res = await _get('$kApiBase/stats');
+      if (res != null) return jsonDecode(res.body);
     } catch (e) { print('Stats error: $e'); }
     return null;
   }

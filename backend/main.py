@@ -463,10 +463,20 @@ def get_saved_jobs(user_id: int):
         SELECT j.*, s.status, s.saved_at
         FROM saved_jobs s
         JOIN jobs j ON s.job_id = j.id
-        WHERE s.user_id = ?
+        WHERE s.user_id = ? AND s.status != 'unsaved'
         ORDER BY s.saved_at DESC
     """, (user_id,)).fetchall()
     return {"saved_jobs": [dict(r) for r in rows]}
+
+
+@app.get("/users/{user_id}/job/{job_id}/status")
+def get_job_status(user_id: int, job_id: int):
+    conn = get_db()
+    row = conn.execute("""
+        SELECT status FROM saved_jobs
+        WHERE user_id = ? AND job_id = ?
+    """, (user_id, job_id)).fetchone()
+    return {"status": row["status"] if row else None}
 
 
 @app.get("/stats")
@@ -531,7 +541,19 @@ def trigger_scrape(secret: str = Query(...)):
                 inserted += 1
             except:
                 pass
-        return {"success": True, "jobs_inserted": inserted}
+        # Auto-expire jobs past their last_date
+        expired = 0
+        all_jobs = conn.execute("SELECT id, last_date FROM jobs WHERE is_active=1").fetchall()
+        today = datetime.now().strftime("%d/%m/%Y")
+        for j in all_jobs:
+            try:
+                ld = datetime.strptime(j["last_date"], "%d/%m/%Y")
+                if (ld - datetime.now()).days < 0:
+                    conn.execute("UPDATE jobs SET is_active=0 WHERE id=?", (j["id"],))
+                    expired += 1
+            except:
+                pass
+        return {"success": True, "jobs_inserted": inserted, "jobs_expired": expired}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
