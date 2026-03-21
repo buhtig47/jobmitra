@@ -363,6 +363,12 @@ RSS_SOURCES = {
     "govtjobstop":       "https://govtjobstop.com/feed/",
     "sarkarinaukri_in":  "https://sarkarinaukri.in/feed/",
     "freejobsalert":     "https://freejobsalert.in/feed/",
+
+    # ══ TIER 6: New sources added ══
+    "bharatnaukri":      "https://bharatnaukri.com/feed/",
+    "govtjobsdiary":     "https://govtjobsdiary.com/feed/",
+    "sharmajobs":        "https://www.sharmajobs.com/feed/",
+    "sarkarinaukri2025": "https://sarkarinaukri2025.com/feed/",
 }
 
 DIRECT_SOURCES = {
@@ -1027,7 +1033,7 @@ def _extract_fee(text: str) -> tuple:
             if 50 <= v <= 2500:
                 amounts = [v]
     if not amounts:
-        return 100, 100, 0
+        return 0, 0, 0  # unknown fee — treat as free rather than assuming ₹100
     gen = amounts[0]
     obc = amounts[1] if len(amounts) > 1 else gen
     sc  = 0 if sc_free else (amounts[2] if len(amounts) > 2 else 0)

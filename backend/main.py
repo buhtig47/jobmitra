@@ -349,10 +349,11 @@ def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
 def search_jobs(
     q:         str = Query(..., min_length=2),
     page:      int = 1,
-    page_size: int = 20
+    page_size: int = 20,
+    user_category: str = "general",
 ):
     conn = get_db()
-    jobs = conn.execute("""
+    jobs_raw = conn.execute("""
         SELECT * FROM jobs
         WHERE is_active = 1
         AND (title LIKE ? OR department LIKE ? OR category LIKE ?)
@@ -360,7 +361,41 @@ def search_jobs(
         LIMIT ? OFFSET ?
     """, (f"%{q}%", f"%{q}%", f"%{q}%", page_size, (page - 1) * page_size)).fetchall()
 
-    return {"jobs": [dict(j) for j in jobs], "query": q}
+    results = []
+    for job in jobs_raw:
+        try:
+            last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
+            days_left = (last_date - datetime.now()).days
+        except:
+            days_left = 30
+
+        if user_category == "obc":
+            fee = job["fee_obc"]
+        elif user_category in ("sc", "st"):
+            fee = job["fee_sc_st"]
+        else:
+            fee = job["fee_general"]
+
+        results.append({
+            "id":             job["id"],
+            "title":          job["title"],
+            "department":     job["department"],
+            "source":         job["source"],
+            "source_url":     job["source_url"],
+            "category":       job["category"],
+            "vacancies":      job["vacancies"],
+            "last_date":      job["last_date"],
+            "days_left":      days_left,
+            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "fee":            fee,
+            "is_free":        fee == 0,
+            "qualifications": json.loads(job["qualifications"] or "[]"),
+            "states":         json.loads(job["states"] or '["all"]'),
+            "age_min":        job["age_min"],
+            "age_max":        job["age_max"],
+        })
+
+    return {"jobs": results, "query": q, "total": len(results)}
 
 
 @app.get("/jobs/{job_id}")
