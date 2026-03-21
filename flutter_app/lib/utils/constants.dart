@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 // ─────────────────────────────────────────
 // const String kApiBase = "https://jobmitra-api.onrender.com";
 // For local testing:
-const String kApiBase = "http://192.168.29.148:8000";  // Android emulator
+const String kApiBase = "https://jobmitra-api.onrender.com";  // Android emulator
 // const String kApiBase = "http://localhost:8000";  // iOS simulator
 
 // ─────────────────────────────────────────

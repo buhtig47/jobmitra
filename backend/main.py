@@ -457,8 +457,11 @@ def save_job(req: SaveJobRequest):
 
 
 @app.get("/users/{user_id}/saved")
-def get_saved_jobs(user_id: int):
+def get_saved_jobs(user_id: int, user_category: str = "general"):
     conn = get_db()
+    user = conn.execute("SELECT category FROM users WHERE id=?", (user_id,)).fetchone()
+    cat = (user["category"] if user else None) or user_category
+
     rows = conn.execute("""
         SELECT j.*, s.status, s.saved_at
         FROM saved_jobs s
@@ -466,7 +469,55 @@ def get_saved_jobs(user_id: int):
         WHERE s.user_id = ? AND s.status != 'unsaved'
         ORDER BY s.saved_at DESC
     """, (user_id,)).fetchall()
-    return {"saved_jobs": [dict(r) for r in rows]}
+
+    results = []
+    for row in rows:
+        try:
+            ld = datetime.strptime(row["last_date"], "%d/%m/%Y")
+            days_left = (ld - datetime.now()).days
+        except:
+            days_left = 30
+
+        if cat == "obc":
+            fee = row["fee_obc"]
+        elif cat in ("sc", "st"):
+            fee = row["fee_sc_st"]
+        else:
+            fee = row["fee_general"]
+
+        results.append({
+            "id":             row["id"],
+            "title":          row["title"],
+            "department":     row["department"],
+            "source":         row["source"],
+            "source_url":     row["source_url"],
+            "category":       row["category"],
+            "vacancies":      row["vacancies"],
+            "last_date":      row["last_date"],
+            "days_left":      days_left,
+            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "fee":            fee,
+            "is_free":        fee == 0,
+            "qualifications": json.loads(row["qualifications"] or "[]"),
+            "states":         json.loads(row["states"] or '["all"]'),
+            "age_min":        row["age_min"],
+            "age_max":        row["age_max"],
+            "job_status":     row["status"],   # 'saved' or 'applied'
+        })
+
+    return {"saved_jobs": results}
+
+
+@app.put("/users/{user_id}/profile")
+def update_profile(user_id: int, profile: UserProfile):
+    conn = get_db()
+    conn.execute("""
+        UPDATE users
+        SET state=?, education=?, category=?, age=?, job_types=?, language=?
+        WHERE id=?
+    """, (profile.state, profile.education, profile.category,
+          profile.age, json.dumps(profile.job_types), profile.language, user_id))
+    return {"success": True, "user_id": user_id}
 
 
 @app.get("/users/{user_id}/job/{job_id}/status")

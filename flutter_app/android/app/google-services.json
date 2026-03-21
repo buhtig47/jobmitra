@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "830207301447",
+    "project_id": "jobmitra-17db0",
+    "storage_bucket": "jobmitra-17db0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830207301447:android:035810e4a51703930b1e62",
+        "android_client_info": {
+          "package_name": "com.example.jobmitra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAc8lMootikjlWy5m3tOW6x_2O7kT9MP5E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

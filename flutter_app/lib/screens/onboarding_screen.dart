@@ -443,8 +443,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _submitProfile() async {
     setState(() => _isLoading = true);
 
+    final prefs = await SharedPreferences.getInstance();
     final profile = UserProfile(
-      fcmToken:  'token_${DateTime.now().millisecondsSinceEpoch}', // Replace with real FCM token
+      fcmToken:  prefs.getString('fcm_token') ?? '',
       state:     _selectedState!,
       education: _selectedEducation!,
       category:  _selectedCategory!,
@@ -456,7 +457,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     if (userId != null && mounted) {
       // Mark onboarding done
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_done', true);
 
       Navigator.of(context).pushReplacement(

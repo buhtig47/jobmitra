@@ -63,6 +63,32 @@ class Job {
     );
   }
 
+  // ── Text cleaning — remove HTML junk from scraped data ──
+  static String _clean(String raw) {
+    if (raw.isEmpty) return raw;
+    var t = raw
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll(RegExp(r'&#\d+;'), '')
+        .replaceAll(RegExp(r'<[^>]+>'), '')       // strip HTML tags
+        .replaceAll(RegExp(r'\[.*?\]'), '')        // remove [tags]
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    // Convert ALL-CAPS titles to Title Case
+    final words = t.split(' ');
+    final upperCount = words.where((w) => w.length > 2 && w == w.toUpperCase() && RegExp(r'^[A-Z]+$').hasMatch(w)).length;
+    if (upperCount > words.length ~/ 2) {
+      t = words.map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+    }
+    return t;
+  }
+
+  String get cleanTitle      => _clean(title);
+  String get cleanDepartment => _clean(department);
+
   // Category display info
   String get categoryEmoji {
     const map = {

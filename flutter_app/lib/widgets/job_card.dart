@@ -116,7 +116,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        job.title,
+                        job.cleanTitle,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -128,7 +128,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      if (job.department.isNotEmpty)
+                      if (job.cleanDepartment.isNotEmpty)
                         Row(
                           children: [
                             Icon(Icons.account_balance_outlined,
@@ -136,7 +136,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                job.department,
+                                job.cleanDepartment,
                                 style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

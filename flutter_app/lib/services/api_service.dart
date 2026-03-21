@@ -148,6 +148,23 @@ class ApiService {
     return null;
   }
 
+  Future<bool> updateProfile(int userId, UserProfile profile) async {
+    try {
+      final res = await http.put(
+        Uri.parse('$kApiBase/users/$userId/profile'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(profile.toJson()),
+      ).timeout(_longTimeout);
+      if (res != null && res.statusCode == 200) {
+        // Keep local cache in sync
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_profile', jsonEncode(profile.toJson()));
+        return true;
+      }
+    } catch (e) { print('Update profile error: $e'); }
+    return false;
+  }
+
   Future<bool> saveJob(int userId, int jobId, String status) async {
     try {
       final res = await _post('$kApiBase/jobs/save', {'user_id': userId, 'job_id': jobId, 'status': status});

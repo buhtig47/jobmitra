@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import 'job_detail_screen.dart';
 import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
+import 'profile_edit_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -415,11 +416,13 @@ class _ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<_ProfileTab> {
   final _api = ApiService();
   UserProfile? _profile;
+  int? _userId;
 
   @override
   void initState() {
     super.initState();
     _api.getSavedProfile().then((p) => setState(() => _profile = p));
+    _api.getSavedUserId().then((id) => setState(() => _userId = id));
   }
 
   @override
@@ -498,6 +501,36 @@ class _ProfileTabState extends State<_ProfileTab> {
               Text(
                 'JobMitra aapke liye jobs filter karta hai',
                 style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () async {
+                  if (_userId == null) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfileEditScreen(api: _api, userId: _userId!),
+                    ),
+                  );
+                  // Reload profile after editing
+                  _api.getSavedProfile().then((p) { if (mounted) setState(() => _profile = p); });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                      SizedBox(width: 6),
+                      Text('Profile Edit Karo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               // Quick pills row
