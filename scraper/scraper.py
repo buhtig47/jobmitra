@@ -1,24 +1,21 @@
 """
 ╔══════════════════════════════════════════════════════════╗
-║       JobMitra - Sarkari Job Scraper  v7                ║
+║       JobMitra - Sarkari Job Scraper  v9                ║
 ╠══════════════════════════════════════════════════════════╣
-║  v6 (previous):                                         ║
-║  ✅ Fixed duplicate _is_job() bug                       ║
-║  ✅ Dead RSS replaced, fja feeds fixed                  ║
-║  ✅ Retry + caching + 16 workers                        ║
-║  ✅ Better dates, vacancies, states, categories         ║
+║  v7/v8 (previous):                                      ║
+║  ✅ Title cleaner, fuzzy dedup, salary extraction       ║
+║  ✅ Source trust score, notification/mode detection     ║
+║  ✅ 86+ sources (RSS + direct), 24 parallel workers     ║
 ║                                                         ║
-║  v7 NEW improvements:                                   ║
-║  ✅ Title cleaner — strips "[2026]", "» Apply" junk     ║
-║  ✅ Fuzzy dedup — edit-distance based (no near-dupes)   ║
-║  ✅ Salary extraction — pay level, grade pay, CTC       ║
-║  ✅ Source trust score — better jobs ranked higher      ║
-║  ✅ NLP-style dept normalisation — clean names          ║
-║  ✅ Job freshness score — newer pub = higher rank       ║
-║  ✅ Negative keyword filter — "result", "cut off" etc   ║
-║  ✅ Hindi title support — Devanagari vacancy patterns   ║
-║  ✅ notification_type field — new/extended/re-open      ║
-║  ✅ application_mode field — online/offline/walkin      ║
+║  v9 NEW improvements:                                   ║
+║  ✅ Fix: category Pass 2 — best-score match (not first) ║
+║  ✅ published_at field — ISO pub date stored in job     ║
+║  ✅ Freshness sort — newer pub ranks higher             ║
+║  ✅ ISO date (YYYY-MM-DD) in extract_last_date          ║
+║  ✅ Cleaner dept — strips year/noise from dept name     ║
+║  ✅ Fuzzy dedup window 200 → 500                        ║
+║  ✅ Workers: 24 → 32 RSS, 9 → 12 direct                ║
+║  ✅ description field — first 500 chars stored          ║
 ╚══════════════════════════════════════════════════════════╝
 """
 
@@ -803,13 +800,16 @@ def detect_category(text: str) -> str:
         if score > best_score:
             best_score = score
             best_cat = cat
-    # Pass 2: if still "others", try extra hints
+    # Pass 2: if still "others", try extra hints — pick BEST score, not first
     if best_cat == "others":
+        p2_best_cat, p2_best_score = "others", 0
         for cat, kws in _EXTRA_CATEGORY_HINTS.items():
             score = sum(1 for kw in kws if kw in t)
-            if score > 0:
-                best_cat = cat
-                break
+            if score > p2_best_score:
+                p2_best_score = score
+                p2_best_cat = cat
+        if p2_best_cat != "others":
+            best_cat = p2_best_cat
     return best_cat
 
 def detect_qualification(text: str) -> list:
@@ -854,6 +854,12 @@ def extract_vacancies(text: str) -> int:
 
 def _parse_date_str(raw: str) -> str | None:
     raw = raw.strip()
+    # v9: Handle ISO format YYYY-MM-DD before normalizing separators
+    m_iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", raw)
+    if m_iso:
+        y, mo, d = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
+        if 2024 <= y <= 2028:
+            return f"{d:02d}/{mo:02d}/{y}"
     # Normalize separators
     raw = re.sub(r"[\s]+", "/", raw)
     raw = re.sub(r"[.\-]", "/", raw)
@@ -894,6 +900,8 @@ def extract_last_date(text: str) -> str | None:
         # Bare date with year 2025-2028
         r"\b(\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]20(?:2[5-8]))\b",
         r"\b(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+20(?:2[5-8]))\b",
+        # ISO format YYYY-MM-DD (from structured sources)
+        r"\b(20(?:2[5-8])-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b",
     ]
     candidates = []
     for pat in PATTERNS:
@@ -943,13 +951,24 @@ def _parse_pubdate_to_lastdate(pub_date: str) -> str | None:
             return est.strftime("%d/%m/%Y")
     return None
 
+_DEPT_NOISE = re.compile(
+    r"\b20\d{2}\b"                    # year numbers
+    r"|\b(?:apply\s*(?:online|now|here)|official|latest|new|direct|link)\b"
+    r"|[\[\(][^\]\)]{0,40}[\]\)]",    # bracketed content
+    re.IGNORECASE,
+)
+
 def _extract_dept(title: str) -> str:
     m = re.match(
         r"^([A-Z][^–\-|:]{4,70}?)\s+"
         r"(?:Recruitment|Vacancy|Vacancies|Notification|Jobs?|Bharti)\b",
         title, re.IGNORECASE
     )
-    return m.group(1).strip() if m else title[:70]
+    dept = m.group(1).strip() if m else title[:70]
+    # v9: strip year and noise words from department name
+    dept = _DEPT_NOISE.sub(" ", dept).strip().rstrip(",-:")
+    dept = re.sub(r"\s{2,}", " ", dept).strip()
+    return dept[:80] if dept else title[:70]
 
 # ── v6: Expanded STATE_MAP with abbreviations ────────────
 STATE_MAP = {
@@ -1150,6 +1169,23 @@ def _is_job(text: str) -> bool:
     is_non_job = any(w in t for w in NON_JOB_WORDS)
     return has_job and not is_non_job
 
+def _parse_pub_date_iso(pub_date: str) -> str:
+    """v9: Parse RSS pubDate to ISO 8601 string for freshness ranking."""
+    if not pub_date:
+        return ""
+    for fmt in [
+        "%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z",
+        "%a, %d %b %Y %H:%M:%S", "%d %b %Y %H:%M:%S %z", "%d %b %Y",
+    ]:
+        try:
+            dt = datetime.strptime(pub_date[:31].strip(), fmt)
+            return dt.strftime("%Y-%m-%dT%H:%M:%S")
+        except (ValueError, TypeError):
+            continue
+    m = re.match(r"(\d{4}-\d{2}-\d{2})", pub_date)
+    return m.group(1) + "T00:00:00" if m else ""
+
+
 def build_job(title: str, url: str, source: str, extra: str = "",
               pub_date: str = "") -> dict | None:
     if "<" in title:
@@ -1220,6 +1256,9 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         "notification_type": notif_type,
         "application_mode":  app_mode,
         "trust_score":       SOURCE_TRUST.get(source, _DEFAULT_TRUST),
+        # v9: freshness tracking + description snippet
+        "published_at":      _parse_pub_date_iso(pub_date),
+        "description":       extra[:500].strip() if extra else "",
         "scraped_at":        datetime.now().isoformat(),
     }
 
@@ -1517,7 +1556,7 @@ def deduplicate(jobs: list) -> list:
         # v7 fuzzy pass — skip if very similar to existing title
         is_near_dupe = False
         if len(tfp) > 10:
-            for existing_fp in fp_list[-200:]:   # check recent 200
+            for existing_fp in fp_list[-500:]:   # v9: check recent 500 (was 200)
                 sim = _edit_distance_approx(tfp, existing_fp)
                 if sim >= 0.75:
                     is_near_dupe = True
@@ -1540,7 +1579,7 @@ def run_all() -> list:
     t0 = time.time()
 
     log.info("╔══════════════════════════════════════════╗")
-    log.info("║   JobMitra Scraper v8  Starting          ║")
+    log.info("║   JobMitra Scraper v9  Starting          ║")
     log.info(f"║   {len(RSS_SOURCES)} RSS + {len(DIRECT_SOURCES)} Direct sources          ║")
     log.info("╚══════════════════════════════════════════╝")
 
@@ -1561,7 +1600,7 @@ def run_all() -> list:
             log.warning(f"  ❌ {name:<22} failed: {e}")
             return name, []
 
-    with ThreadPoolExecutor(max_workers=24) as pool:
+    with ThreadPoolExecutor(max_workers=32) as pool:  # v9: 24 → 32
         futures = {pool.submit(_rss_task, item): item[0]
                    for item in RSS_SOURCES.items()}
         for f in as_completed(futures):
@@ -1599,7 +1638,7 @@ def run_all() -> list:
             log.warning(f"  ❌ {name:<22} failed: {e}")
             return name, []
 
-    with ThreadPoolExecutor(max_workers=9) as pool:
+    with ThreadPoolExecutor(max_workers=12) as pool:  # v9: 9 → 12
         futures = {pool.submit(_direct_task, item): item[0]
                    for item in direct_scrapers}
         for f in as_completed(futures):
@@ -1617,10 +1656,20 @@ def run_all() -> list:
             days = (datetime.strptime(j["last_date"], "%d/%m/%Y") - datetime.now()).days
         except Exception:
             days = 30
-        vac_score   = -(j.get("vacancies") or 0)
-        trust       = -(j.get("trust_score") or _DEFAULT_TRUST)
-        # Sort: urgent first, then high-vacancy, then trusted source
-        return (max(days, 0), vac_score, trust)
+        vac_score = -(j.get("vacancies") or 0)
+        trust     = -(j.get("trust_score") or _DEFAULT_TRUST)
+        # v9: freshness — how many days ago was this published (lower = newer)
+        pub_str = j.get("published_at", "")
+        if pub_str:
+            try:
+                pub_dt = datetime.strptime(pub_str[:19], "%Y-%m-%dT%H:%M:%S")
+                freshness = (datetime.now() - pub_dt).days
+            except Exception:
+                freshness = 30
+        else:
+            freshness = 30
+        # Sort: urgent deadline → newer publication → high vacancy → trusted source
+        return (max(days, 0), freshness, vac_score, trust)
 
     unique.sort(key=_sort_key)
 
