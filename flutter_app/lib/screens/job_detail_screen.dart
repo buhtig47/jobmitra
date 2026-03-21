@@ -521,12 +521,51 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   // ─── ACTIONS ───
   Future<void> _toggleSave() async {
+    final wasSaved = _isSaved;
     final success = await widget.api.saveJob(
       widget.userId,
       widget.jobId,
-      _isSaved ? 'unsaved' : 'saved',
+      wasSaved ? 'unsaved' : 'saved',
     );
-    if (success) setState(() => _isSaved = !_isSaved);
+    if (success) {
+      setState(() => _isSaved = !_isSaved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  wasSaved ? Icons.bookmark_remove_rounded : Icons.bookmark_added_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  wasSaved ? 'Saved jobs se hataya' : 'Job save ho gayi!',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: wasSaved ? Colors.grey[700] : AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Kuch error hua, dobara try karo'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _shareJob() {

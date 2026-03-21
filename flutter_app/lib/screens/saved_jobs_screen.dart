@@ -99,30 +99,38 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _savedJobs.isEmpty
-              ? _buildEmpty()
-              : RefreshIndicator(
-                  onRefresh: _loadSavedJobs,
-                  color: AppColors.primary,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _savedJobs.length,
-                    itemBuilder: (ctx, i) => JobCard(
-                      job: _savedJobs[i],
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => JobDetailScreen(
-                            jobId: _savedJobs[i].id,
-                            api: widget.api,
-                            userId: widget.userId,
-                          )),
-                        );
-                        _loadSavedJobs(); // Refresh after returning
-                      },
+          : RefreshIndicator(
+              onRefresh: _loadSavedJobs,
+              color: AppColors.primary,
+              child: _savedJobs.isEmpty
+                  ? ListView(
+                      // Wrap empty state in ListView so pull-to-refresh works
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.6,
+                          child: _buildEmpty(),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _savedJobs.length,
+                      itemBuilder: (ctx, i) => JobCard(
+                        job: _savedJobs[i],
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => JobDetailScreen(
+                              jobId: _savedJobs[i].id,
+                              api: widget.api,
+                              userId: widget.userId,
+                            )),
+                          );
+                          _loadSavedJobs(); // Refresh after returning
+                        },
+                      ),
                     ),
-                  ),
-                ),
+            ),
     );
   }
 

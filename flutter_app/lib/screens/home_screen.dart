@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTab = 0;
+  int _savedRefreshKey = 0; // Increments every time Saved tab is visited
   final _api = ApiService();
 
   @override
@@ -30,13 +31,17 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _FeedTab(userId: widget.userId, api: _api),
           SearchScreen(api: _api),
-          SavedJobsScreen(userId: widget.userId, api: _api),
+          SavedJobsScreen(key: ValueKey(_savedRefreshKey), userId: widget.userId, api: _api),
           _ProfileTab(userId: widget.userId),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTab,
-        onDestinationSelected: (i) => setState(() => _selectedTab = i),
+        onDestinationSelected: (i) {
+          // Force Saved tab to reload fresh data every time it's visited
+          if (i == 2 && _selectedTab != 2) _savedRefreshKey++;
+          setState(() => _selectedTab = i);
+        },
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primary.withOpacity(0.12),
         destinations: const [
@@ -332,8 +337,8 @@ class _FeedTabState extends State<_FeedTab> {
 
   Widget _buildShimmer() {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFD0D8DC),
-      highlightColor: const Color(0xFFF0F4F5),
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -346,6 +351,7 @@ class _FeedTabState extends State<_FeedTab> {
 
   Widget _shimmerCard() {
     return Container(
+      height: 160,
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -356,7 +362,7 @@ class _FeedTabState extends State<_FeedTab> {
         children: [
           // Colored top bar (shimmer target)
           Container(
-            height: 5,
+            height: 6,
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
