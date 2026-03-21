@@ -1,0 +1,26 @@
+name: Auto Scraper
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'   # Har 12 ghante — raat 12 aur dopahar 12 baje
+  workflow_dispatch:           # Manual run bhi kar sakte ho GitHub se
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake up Render server
+        run: curl -s "https://jobmitra-api.onrender.com/stats"
+
+      - name: Wait for server to wake (cold start)
+        run: sleep 60
+
+      - name: Run scraper
+        run: |
+          curl -s -X POST \
+            "https://jobmitra-api.onrender.com/admin/scrape?secret=${{ secrets.SCRAPER_SECRET }}" \
+            | tee result.json
+          cat result.json
+
+      - name: Show job count
+        run: curl -s "https://jobmitra-api.onrender.com/stats" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Total jobs: {d[\"total_jobs\"]}')"
