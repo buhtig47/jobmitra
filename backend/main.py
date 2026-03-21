@@ -490,6 +490,17 @@ def get_stats():
 # ─────────────────────────────────────────
 # SCRAPER TRIGGER
 # ─────────────────────────────────────────
+
+@app.post("/admin/fix_fees")
+def fix_fees(secret: str = Query(...)):
+    """Reset all fake ₹100 default fees to 0 (free/unknown) in existing DB records"""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    conn.execute("UPDATE jobs SET fee_general=0, fee_obc=0, fee_sc_st=0 WHERE fee_general=100")
+    return {"success": True, "message": "All fee_general=100 rows reset to 0"}
+
+
 @app.post("/admin/scrape")
 def trigger_scrape(secret: str = Query(...)):
     if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
