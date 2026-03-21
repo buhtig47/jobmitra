@@ -185,7 +185,8 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
         CREATE INDEX IF NOT EXISTS idx_jobs_active    ON jobs(is_active);
-        CREATE INDEX IF NOT EXISTS idx_saved_user     ON saved_jobs(user_id)
+        CREATE INDEX IF NOT EXISTS idx_saved_user     ON saved_jobs(user_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url ON jobs(source_url)
     """)
 
 init_db()
@@ -466,7 +467,44 @@ def trigger_scrape(secret: str = Query(...)):
         for job in jobs:
             try:
                 conn.execute("""
-                    INSERT INTO jobs
+                    INSERT OR IGNORE INTO jobs
+                    (title, department, source, source_url, category,
+                     qualifications, vacancies, last_date, states,
+                     age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    job["title"], job["department"], job["source"],
+                    job["source_url"], job["category"],
+                    json.dumps(job["qualifications"]),
+                    job["vacancies"], job["last_date"],
+                    json.dumps(job["states"]),
+                    job["age_min"], job["age_max"],
+                    job["fee_general"], job["fee_obc"], job["fee_sc_st"],
+                    job["scraped_at"]
+                ))
+                inserted += 1
+            except:
+                pass
+        return {"success": True, "jobs_inserted": inserted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/reset_jobs")
+def reset_jobs(secret: str = Query(...)):
+    """Delete all jobs and re-scrape fresh — fixes duplicates"""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM jobs")
+        from scraper import run_all as run_all_scrapers
+        jobs = run_all_scrapers()
+        inserted = 0
+        for job in jobs:
+            try:
+                conn.execute("""
+                    INSERT OR IGNORE INTO jobs
                     (title, department, source, source_url, category,
                      qualifications, vacancies, last_date, states,
                      age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
