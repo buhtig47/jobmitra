@@ -142,23 +142,31 @@ def init_db():
     conn = get_db()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS jobs (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            title       TEXT NOT NULL,
-            department  TEXT,
-            source      TEXT,
-            source_url  TEXT,
-            category    TEXT,
-            qualifications TEXT,
-            vacancies   INTEGER DEFAULT 0,
-            last_date   TEXT,
-            states      TEXT,
-            age_min     INTEGER DEFAULT 18,
-            age_max     INTEGER DEFAULT 40,
-            fee_general INTEGER DEFAULT 0,
-            fee_obc     INTEGER DEFAULT 0,
-            fee_sc_st   INTEGER DEFAULT 0,
-            scraped_at  TEXT,
-            is_active   INTEGER DEFAULT 1
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            title            TEXT NOT NULL,
+            department       TEXT,
+            source           TEXT,
+            source_url       TEXT,
+            category         TEXT,
+            qualifications   TEXT,
+            vacancies        INTEGER DEFAULT 0,
+            last_date        TEXT,
+            states           TEXT,
+            age_min          INTEGER DEFAULT 18,
+            age_max          INTEGER DEFAULT 40,
+            fee_general      INTEGER DEFAULT 0,
+            fee_obc          INTEGER DEFAULT 0,
+            fee_sc_st        INTEGER DEFAULT 0,
+            pay_scale        TEXT    DEFAULT '',
+            pay_level        INTEGER DEFAULT 0,
+            grade_pay        INTEGER DEFAULT 0,
+            notification_type TEXT   DEFAULT 'new',
+            application_mode TEXT    DEFAULT 'online',
+            trust_score      INTEGER DEFAULT 5,
+            published_at     TEXT    DEFAULT '',
+            description      TEXT    DEFAULT '',
+            scraped_at       TEXT,
+            is_active        INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS users (
@@ -190,6 +198,24 @@ def init_db():
     """)
 
 init_db()
+
+# ── Schema migration: safely add new columns to existing Turso DB ──
+# These ALTER TABLE calls fail silently if the column already exists.
+_MIGRATIONS = [
+    "ALTER TABLE jobs ADD COLUMN pay_scale TEXT DEFAULT ''",
+    "ALTER TABLE jobs ADD COLUMN pay_level INTEGER DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN grade_pay INTEGER DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN notification_type TEXT DEFAULT 'new'",
+    "ALTER TABLE jobs ADD COLUMN application_mode TEXT DEFAULT 'online'",
+    "ALTER TABLE jobs ADD COLUMN trust_score INTEGER DEFAULT 5",
+    "ALTER TABLE jobs ADD COLUMN published_at TEXT DEFAULT ''",
+    "ALTER TABLE jobs ADD COLUMN description TEXT DEFAULT ''",
+]
+for _sql in _MIGRATIONS:
+    try:
+        get_db().execute(_sql)
+    except Exception:
+        pass
 
 # ─────────────────────────────────────────
 # MODELS
@@ -577,8 +603,11 @@ def trigger_scrape(secret: str = Query(...)):
                     INSERT OR IGNORE INTO jobs
                     (title, department, source, source_url, category,
                      qualifications, vacancies, last_date, states,
-                     age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     age_min, age_max, fee_general, fee_obc, fee_sc_st,
+                     pay_scale, pay_level, grade_pay,
+                     notification_type, application_mode, trust_score,
+                     published_at, description, scraped_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     job["title"], job["department"], job["source"],
                     job["source_url"], job["category"],
@@ -587,6 +616,14 @@ def trigger_scrape(secret: str = Query(...)):
                     json.dumps(job["states"]),
                     job["age_min"], job["age_max"],
                     job["fee_general"], job["fee_obc"], job["fee_sc_st"],
+                    job.get("pay_scale", ""),
+                    job.get("pay_level", 0),
+                    job.get("grade_pay", 0),
+                    job.get("notification_type", "new"),
+                    job.get("application_mode", "online"),
+                    job.get("trust_score", 5),
+                    job.get("published_at", ""),
+                    job.get("description", ""),
                     job["scraped_at"]
                 ))
                 inserted += 1
@@ -626,8 +663,11 @@ def reset_jobs(secret: str = Query(...)):
                     INSERT OR IGNORE INTO jobs
                     (title, department, source, source_url, category,
                      qualifications, vacancies, last_date, states,
-                     age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     age_min, age_max, fee_general, fee_obc, fee_sc_st,
+                     pay_scale, pay_level, grade_pay,
+                     notification_type, application_mode, trust_score,
+                     published_at, description, scraped_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     job["title"], job["department"], job["source"],
                     job["source_url"], job["category"],
@@ -636,6 +676,14 @@ def reset_jobs(secret: str = Query(...)):
                     json.dumps(job["states"]),
                     job["age_min"], job["age_max"],
                     job["fee_general"], job["fee_obc"], job["fee_sc_st"],
+                    job.get("pay_scale", ""),
+                    job.get("pay_level", 0),
+                    job.get("grade_pay", 0),
+                    job.get("notification_type", "new"),
+                    job.get("application_mode", "online"),
+                    job.get("trust_score", 5),
+                    job.get("published_at", ""),
+                    job.get("description", ""),
                     job["scraped_at"]
                 ))
                 inserted += 1
@@ -659,8 +707,11 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
                 INSERT OR IGNORE INTO jobs
                 (title, department, source, source_url, category,
                  qualifications, vacancies, last_date, states,
-                 age_min, age_max, fee_general, fee_obc, fee_sc_st, scraped_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 age_min, age_max, fee_general, fee_obc, fee_sc_st,
+                 pay_scale, pay_level, grade_pay,
+                 notification_type, application_mode, trust_score,
+                 published_at, description, scraped_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 job.get("title", ""), job.get("department", ""),
                 job.get("source", ""), job.get("source_url", ""),
@@ -669,8 +720,17 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
                 job.get("vacancies", 0), job.get("last_date", ""),
                 json.dumps(job.get("states", ["all"])),
                 job.get("age_min", 18), job.get("age_max", 40),
-                job.get("fee_general", 100), job.get("fee_obc", 100),
-                job.get("fee_sc_st", 0), job.get("scraped_at", "")
+                job.get("fee_general", 0), job.get("fee_obc", 0),
+                job.get("fee_sc_st", 0),
+                job.get("pay_scale", ""),
+                job.get("pay_level", 0),
+                job.get("grade_pay", 0),
+                job.get("notification_type", "new"),
+                job.get("application_mode", "online"),
+                job.get("trust_score", 5),
+                job.get("published_at", ""),
+                job.get("description", ""),
+                job.get("scraped_at", "")
             ))
             inserted += 1
         except:
