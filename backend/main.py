@@ -475,10 +475,22 @@ def get_job_detail(job_id: int, user_category: str = "general"):
 @app.post("/jobs/save")
 def save_job(req: SaveJobRequest):
     conn = get_db()
-    conn.execute("""
-        INSERT OR REPLACE INTO saved_jobs (user_id, job_id, status)
-        VALUES (?, ?, ?)
-    """, (req.user_id, req.job_id, req.status))
+    # saved_jobs has no unique(user_id,job_id) constraint, so INSERT OR REPLACE
+    # would always insert a new row — instead, upsert manually.
+    existing = conn.execute(
+        "SELECT id FROM saved_jobs WHERE user_id=? AND job_id=? LIMIT 1",
+        (req.user_id, req.job_id)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE saved_jobs SET status=?, saved_at=CURRENT_TIMESTAMP WHERE id=?",
+            (req.status, existing["id"])
+        )
+    else:
+        conn.execute(
+            "INSERT INTO saved_jobs (user_id, job_id, status) VALUES (?, ?, ?)",
+            (req.user_id, req.job_id, req.status)
+        )
     return {"success": True}
 
 
@@ -492,7 +504,12 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
         SELECT j.*, s.status, s.saved_at
         FROM saved_jobs s
         JOIN jobs j ON s.job_id = j.id
-        WHERE s.user_id = ? AND s.status != 'unsaved'
+        WHERE s.user_id = ?
+          AND s.status != 'unsaved'
+          AND s.id = (
+              SELECT MAX(id) FROM saved_jobs
+              WHERE user_id = s.user_id AND job_id = s.job_id
+          )
         ORDER BY s.saved_at DESC
     """, (user_id,)).fetchall()
 
@@ -549,9 +566,11 @@ def update_profile(user_id: int, profile: UserProfile):
 @app.get("/users/{user_id}/job/{job_id}/status")
 def get_job_status(user_id: int, job_id: int):
     conn = get_db()
+    # Get LATEST status (multiple rows possible due to legacy inserts)
     row = conn.execute("""
         SELECT status FROM saved_jobs
         WHERE user_id = ? AND job_id = ?
+        ORDER BY id DESC LIMIT 1
     """, (user_id, job_id)).fetchone()
     return {"status": row["status"] if row else None}
 

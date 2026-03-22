@@ -1,5 +1,6 @@
 // lib/services/notification_service.dart
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
 
 class NotificationService {
@@ -11,7 +12,6 @@ class NotificationService {
     const initSettings = InitializationSettings(android: androidInit);
     await _plugin.initialize(initSettings);
 
-    // Create the deadline_channel notification channel
     const androidChannel = AndroidNotificationChannel(
       'deadline_channel',
       'Deadline Alerts',
@@ -24,7 +24,12 @@ class NotificationService {
   }
 
   static Future<void> checkDeadlines(List<Job> savedJobs) async {
-    // Find saved jobs with deadline within 0–3 days (inclusive)
+    // Only show once per day — prevent spam on every tab switch
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final lastShown = prefs.getString('last_deadline_notif_date') ?? '';
+    if (lastShown == today) return;
+
     final urgent = savedJobs
         .where((j) => j.daysLeft >= 0 && j.daysLeft <= 3)
         .toList();
@@ -55,5 +60,8 @@ class NotificationService {
       body,
       notificationDetails,
     );
+
+    // Mark as shown for today
+    await prefs.setString('last_deadline_notif_date', today);
   }
 }

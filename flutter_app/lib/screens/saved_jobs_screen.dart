@@ -115,20 +115,71 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _savedJobs.length,
-                      itemBuilder: (ctx, i) => JobCard(
-                        job: _savedJobs[i],
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => JobDetailScreen(
-                              jobId: _savedJobs[i].id,
-                              api: widget.api,
-                              userId: widget.userId,
-                            )),
-                          );
-                          _loadSavedJobs(); // Refresh after returning
-                        },
-                      ),
+                      itemBuilder: (ctx, i) {
+                        final job = _savedJobs[i];
+                        return Dismissible(
+                          key: ValueKey(job.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.red[400],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bookmark_remove_rounded, color: Colors.white, size: 28),
+                                SizedBox(height: 4),
+                                Text('Remove', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          confirmDismiss: (_) async {
+                            final success = await widget.api.saveJob(
+                              widget.userId, job.id, 'unsaved',
+                            );
+                            if (!success && mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Remove nahi hua, dobara try karo')),
+                              );
+                            }
+                            return success;
+                          },
+                          onDismissed: (_) {
+                            setState(() => _savedJobs.removeAt(i));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Saved list se hataya'),
+                                action: SnackBarAction(
+                                  label: 'Undo',
+                                  onPressed: () async {
+                                    await widget.api.saveJob(widget.userId, job.id, 'saved');
+                                    _loadSavedJobs();
+                                  },
+                                ),
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          },
+                          child: JobCard(
+                            job: job,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => JobDetailScreen(
+                                  jobId: job.id,
+                                  api: widget.api,
+                                  userId: widget.userId,
+                                )),
+                              );
+                              _loadSavedJobs();
+                            },
+                          ),
+                        );
+                      },
                     ),
             ),
     );
