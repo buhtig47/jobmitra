@@ -50,6 +50,23 @@ dev_dependencies:
   hive_generator: ^2.0.1
   build_runner: ^2.4.8
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#1A6B3C"
+  adaptive_icon_foreground: "assets/images/app_icon_fg.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#1A6B3C"
+  image: assets/images/app_icon.png
+  android_12:
+    color: "#1A6B3C"
+    image: assets/images/app_icon.png
 
 flutter:
   uses-material-design: true

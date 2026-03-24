@@ -96,6 +96,7 @@ class _FeedTabState extends State<_FeedTab> {
 
   String? _selectedFilter; // null = all
   bool _freeOnly = false;  // free jobs toggle
+  String _sortBy = 'deadline'; // deadline | vacancies | newest
   UserProfile? _profile;
   List<Job> _recentlyViewed = [];
 
@@ -142,10 +143,26 @@ class _FeedTabState extends State<_FeedTab> {
 
   List<Job> get _filteredJobs {
     var list = _selectedFilter == null
-        ? _jobs
+        ? List<Job>.from(_jobs)
         : _jobs.where((j) => j.category == _selectedFilter).toList();
     if (_freeOnly) list = list.where((j) => j.isFree).toList();
+    switch (_sortBy) {
+      case 'vacancies':
+        list.sort((a, b) => b.vacancies.compareTo(a.vacancies));
+        break;
+      case 'newest':
+        // Keep original order (backend returns newest-first)
+        break;
+      default: // deadline
+        list.sort((a, b) => a.daysLeft.compareTo(b.daysLeft));
+    }
     return list;
+  }
+
+  int _countForCategory(String? category) {
+    var list = category == null ? _jobs : _jobs.where((j) => j.category == category).toList();
+    if (_freeOnly) list = list.where((j) => j.isFree).toList();
+    return list.length;
   }
 
   void _refreshRecentlyViewed() {
@@ -228,6 +245,8 @@ class _FeedTabState extends State<_FeedTab> {
         children: [
           // Category filter chips + free toggle
           _buildFilterBar(),
+          // Sort bar
+          _buildSortBar(),
           // Offline cache banner
           if (_isCached) _buildCacheBanner(),
           // Jobs list
@@ -360,11 +379,12 @@ class _FeedTabState extends State<_FeedTab> {
           final label = key == null ? 'Sab' : cat?['label'];
           final emoji = key == null ? '🔍' : cat?['icon'];
           final selected = _selectedFilter == key;
+          final count = _countForCategory(key);
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text('$emoji $label'),
+              label: Text('$emoji $label${_jobs.isNotEmpty ? ' ($count)' : ''}'),
               selected: selected,
               onSelected: (_) => setState(() => _selectedFilter = key),
               selectedColor: AppColors.primary.withValues(alpha: 0.15),
@@ -376,6 +396,57 @@ class _FeedTabState extends State<_FeedTab> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSortBar() {
+    const options = [
+      ('deadline', '⏰ Deadline'),
+      ('vacancies', '👥 Vacancies'),
+      ('newest', '🆕 Newest'),
+    ];
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          const Text(
+            'Sort: ',
+            style: TextStyle(fontSize: 12, color: AppColors.textHint),
+          ),
+          ...options.map((opt) {
+            final selected = _sortBy == opt.$1;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () => setState(() => _sortBy = opt.$1),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : Colors.grey.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: selected
+                          ? AppColors.primary.withValues(alpha: 0.4)
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: Text(
+                    opt.$2,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
