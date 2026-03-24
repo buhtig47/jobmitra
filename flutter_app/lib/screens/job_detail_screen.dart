@@ -267,6 +267,27 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             _buildStatCard('🎂', 'Age Limit', '${job.ageMin}–${job.ageMax} yrs'),
           ],
         ),
+        if (_job!.payScale != null && _job!.payScale!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('💵 Pay Scale / Salary', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
+                  const SizedBox(height: 5),
+                  Text(_job!.payScale!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                ],
+              ),
+            ),
+          ),
         const SizedBox(height: 14),
 
         // Eligibility

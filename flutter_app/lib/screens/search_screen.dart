@@ -19,11 +19,16 @@ class _SearchScreenState extends State<SearchScreen> {
   final _controller  = TextEditingController();
   final _focusNode   = FocusNode();
   List<Job> _results = [];
+  String? _categoryFilter;
   bool _isSearching  = false;
   int? _userId;
   String _userCategory = 'general';
   List<String> _recentSearches = [];
   String? _lastQuery;
+
+  List<Job> get _filteredResults => _categoryFilter == null
+      ? _results
+      : _results.where((j) => j.category == _categoryFilter).toList();
 
   static const _kRecentKey = 'recent_searches';
 
@@ -87,7 +92,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _controller.text = q;
     _focusNode.unfocus();
     await _saveRecentSearch(q);
-    setState(() { _isSearching = true; _lastQuery = q; });
+    setState(() { _isSearching = true; _lastQuery = q; _categoryFilter = null; });
     final results = await widget.api.searchJobs(q, userCategory: _userCategory);
     setState(() { _results = results; _isSearching = false; });
   }
@@ -239,22 +244,105 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildResults() {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      itemCount: _results.length,
-      itemBuilder: (ctx, i) => JobCard(
-        job: _results[i],
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => JobDetailScreen(
-              jobId: _results[i].id,
-              api: widget.api,
-              userId: _userId ?? 0,
+    return Column(
+      children: [
+        if (_results.isNotEmpty)
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              children: [
+                // "All" chip
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _categoryFilter = null),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _categoryFilter == null
+                            ? AppColors.primary.withValues(alpha: 0.15)
+                            : Colors.grey.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _categoryFilter == null
+                              ? AppColors.primary.withValues(alpha: 0.4)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Text(
+                        '🔍 All (${_results.length})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _categoryFilter == null ? FontWeight.w700 : FontWeight.w500,
+                          color: _categoryFilter == null ? AppColors.primary : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Category chips - only show categories that appear in results
+                ..._results.map((j) => j.category).toSet().map((cat) {
+                  final count = _results.where((j) => j.category == cat).length;
+                  final selected = _categoryFilter == cat;
+                  final emoji = const {
+                    'railway': '🚂', 'banking': '🏦', 'ssc': '📋', 'teaching': '📚',
+                    'police': '👮', 'defence': '⭐', 'upsc': '🏛️', 'anganwadi': '🌸',
+                    'psu': '🏭', 'medical': '🏥', 'research': '🔬', 'engineering': '⚙️',
+                    'legal': '⚖️', 'postal': '📮', 'admin': '🗂️', 'it_tech': '💻',
+                    'accounts': '💰', 'forest': '🌳',
+                  }[cat] ?? '💼';
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _categoryFilter = selected ? null : cat),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.15)
+                              : Colors.grey.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selected ? AppColors.primary.withValues(alpha: 0.4) : Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          '$emoji $count',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            itemCount: _filteredResults.length,
+            itemBuilder: (ctx, i) => JobCard(
+              job: _filteredResults[i],
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => JobDetailScreen(
+                    jobId: _filteredResults[i].id,
+                    api: widget.api,
+                    userId: _userId ?? 0,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 

@@ -153,18 +153,60 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
               itemBuilder: (ctx, i) {
                 final job = jobs[i];
                 if (isApplied) {
-                  // Applied jobs: show as-is with green Applied badge, no swipe
-                  return _AppliedJobCard(
-                    job: job,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => JobDetailScreen(
-                          jobId: job.id, api: widget.api, userId: widget.userId,
-                        )),
+                  return Dismissible(
+                    key: ValueKey('applied_${job.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[700],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.undo_rounded, color: Colors.white, size: 28),
+                          SizedBox(height: 4),
+                          Text('Undo', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      final success = await widget.api.saveJob(widget.userId, job.id, 'saved');
+                      if (!success && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Kuch error hua, dobara try karo')),
+                        );
+                      }
+                      return success;
+                    },
+                    onDismissed: (_) {
+                      setState(() => _allJobs.removeWhere((j) => j.id == job.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Applied se Saved mein le aaya'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          duration: const Duration(seconds: 3),
+                        ),
                       );
                       _loadSavedJobs();
                     },
+                    child: _AppliedJobCard(
+                      job: job,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => JobDetailScreen(
+                            jobId: job.id, api: widget.api, userId: widget.userId,
+                          )),
+                        );
+                        _loadSavedJobs();
+                      },
+                    ),
                   );
                 }
                 // Saved jobs: swipe left to remove

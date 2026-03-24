@@ -19,6 +19,7 @@ class Job {
   final int    ageMax;
   final List<String>? documentsNeeded;
   final String? jobStatus; // 'saved' | 'applied' | null
+  final String? payScale;
 
   const Job({
     required this.id,
@@ -39,6 +40,7 @@ class Job {
     required this.ageMax,
     this.documentsNeeded,
     this.jobStatus,
+    this.payScale,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class Job {
           ? List<String>.from(json['documents_needed'])
           : null,
       jobStatus: json['job_status'] as String?,
+      payScale: json['pay_scale'] as String?,
     );
   }
 
@@ -73,6 +76,7 @@ class Job {
     'urgency': urgency, 'fee': fee, 'is_free': isFree,
     'qualifications': qualifications, 'states': states,
     'age_min': ageMin, 'age_max': ageMax,
+    'pay_scale': payScale,
   };
 
   // ── Eligibility match score (0-4) against user profile ──

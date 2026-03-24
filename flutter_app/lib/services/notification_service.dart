@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
+import '../main.dart' show navigatorKey;
 
 // Top-level handler — must be outside the class (FCM requirement)
 @pragma('vm:entry-point')
@@ -59,11 +60,17 @@ class NotificationService {
         payload: msg.data['screen'] ?? 'home',
       );
     });
+
+    // Handle notification tap when app opened from background/terminated
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    });
   }
 
   static void _onNotificationTap(NotificationResponse response) {
-    // Navigate to home — handled at app level via GlobalKey<NavigatorState> if needed.
-    // For now, tapping brings app to foreground (default behavior is sufficient).
+    final screen = response.payload ?? 'home';
+    // Navigate to saved tab (index 2) if payload is 'saved', else home (index 0)
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
   }
 
   static Future<void> _showLocalNotification({

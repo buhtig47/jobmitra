@@ -11,6 +11,8 @@ import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'utils/constants.dart';
 
+final navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -67,6 +69,7 @@ class JobMitraApp extends StatelessWidget {
     return MaterialApp(
       title: 'JobMitra',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       theme: appTheme(),
       home: showHome
           ? HomeScreen(userId: userId!)

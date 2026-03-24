@@ -469,6 +469,7 @@ def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
             "states":         json.loads(job["states"] or '["all"]'),
             "age_min":        job["age_min"],
             "age_max":        job["age_max"],
+            "pay_scale":      job["pay_scale"] or "",
         })
 
     eligible_jobs.sort(key=lambda x: (x["days_left"], -x["vacancies"]))
@@ -509,6 +510,9 @@ def search_jobs(
         except:
             days_left = 30
 
+        if days_left < 0:
+            continue
+
         if user_category == "obc":
             fee = job["fee_obc"]
         elif user_category in ("sc", "st"):
@@ -533,6 +537,7 @@ def search_jobs(
             "states":         json.loads(job["states"] or '["all"]'),
             "age_min":        job["age_min"],
             "age_max":        job["age_max"],
+            "pay_scale":      job["pay_scale"] or "",
         })
 
     return {"jobs": results, "query": q, "total": len(results)}
@@ -572,6 +577,7 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "fee":            fee,
         "is_free":        fee == 0,
         "states":         json.loads(job["states"] or '["all"]'),
+        "pay_scale":      job["pay_scale"] or "",
         "scraped_at":     job["scraped_at"],
         "documents_needed": [
             "Aadhar Card",
