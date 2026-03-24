@@ -1,21 +1,20 @@
 """
 ╔══════════════════════════════════════════════════════════╗
-║       JobMitra - Sarkari Job Scraper  v9                ║
+║       JobMitra - Sarkari Job Scraper  v10               ║
 ╠══════════════════════════════════════════════════════════╣
-║  v7/v8 (previous):                                      ║
-║  ✅ Title cleaner, fuzzy dedup, salary extraction       ║
-║  ✅ Source trust score, notification/mode detection     ║
-║  ✅ 86+ sources (RSS + direct), 24 parallel workers     ║
+║  v9 (previous):                                         ║
+║  ✅ Best-score category Pass 2, published_at, freshness ║
+║  ✅ 86+ sources, 32 RSS workers, 12 direct workers      ║
 ║                                                         ║
-║  v9 NEW improvements:                                   ║
-║  ✅ Fix: category Pass 2 — best-score match (not first) ║
-║  ✅ published_at field — ISO pub date stored in job     ║
-║  ✅ Freshness sort — newer pub ranks higher             ║
-║  ✅ ISO date (YYYY-MM-DD) in extract_last_date          ║
-║  ✅ Cleaner dept — strips year/noise from dept name     ║
-║  ✅ Fuzzy dedup window 200 → 500                        ║
-║  ✅ Workers: 24 → 32 RSS, 9 → 12 direct                ║
-║  ✅ description field — first 500 chars stored          ║
+║  v10 NEW improvements:                                  ║
+║  ✅ Salary: per-month / lakh-p.a. / fixed-pay patterns  ║
+║  ✅ Salary: "honorarium", "fellowship", "remuneration"  ║
+║  ✅ NON_JOB filter: 20+ new noise patterns              ║
+║  ✅ GARBAGE titles: result/admit/schedule titles        ║
+║  ✅ Fee: Gen/OBC/SC-ST split pattern, "/-" notation     ║
+║  ✅ Age: "age as on" cutoff date patterns               ║
+║  ✅ 8 new RSS sources (state + national)                ║
+║  ✅ Scraper stats: % salary extracted, % "others" cat   ║
 ╚══════════════════════════════════════════════════════════╝
 """
 
@@ -62,6 +61,10 @@ _TITLE_GARBAGE_SUFFIXES = re.compile(
     \s*\|\s*(?:check|read|click|download|official|direct|link)\b.*$
     |
     \s*-\s*(?:apply\s*(?:online|now)|official\s*website|last\s*date\s*extended)\s*$
+    |
+    \s*[\|\-–]\s*(?:admit\s*card|hall\s*ticket|answer\s*key|result\s*out|
+        syllabus|cut\s*off|scorecard|merit\s*list|selection\s*list|
+        exam\s*date|exam\s*pattern|mock\s*test|previous\s*paper).*$
     """,
     re.IGNORECASE | re.VERBOSE,
 )
@@ -93,19 +96,23 @@ def clean_title(title: str) -> str:
 
 def extract_salary(text: str) -> dict:
     """
-    v7: Extract salary info. Returns dict:
-      {pay_scale: str, grade_pay: int, pay_level: int, salary_est: str}
+    v10: Extract salary info. Returns dict:
+      {pay_scale: str, grade_pay: int, pay_level: int}
+    Patterns (priority order):
+      1. Pay Level (7th CPC)  2. Grade Pay (6th CPC)
+      3. Per-month / p.m.     4. Lakh per annum / LPA
+      5. Pay Band / Scale     6. Consolidated / Fixed
+      7. Honorarium/Fellowship/Stipend
     """
     t = text.lower()
     result = {}
 
-    # Pay Level (7th CPC)
+    # ── 1. Pay Level (7th CPC) ──────────────────────────
     m = re.search(r"pay\s*level[\s\-:]+(\d{1,2})\b", t)
     if m:
         level = int(m.group(1))
         if 1 <= level <= 18:
             result["pay_level"] = level
-            # Approximate salary from level
             level_salary = {
                 1: "18000-56900", 2: "19900-63200", 3: "21700-69100",
                 4: "25500-81100", 5: "29200-92300", 6: "35400-112400",
@@ -116,20 +123,61 @@ def extract_salary(text: str) -> dict:
             if level in level_salary:
                 result["pay_scale"] = f"₹{level_salary[level]}"
 
-    # Grade Pay (6th CPC legacy)
+    # ── 2. Grade Pay (6th CPC legacy) ───────────────────
     m = re.search(r"grade\s*pay[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)", t)
     if m:
         gp = int(m.group(1).replace(",", ""))
         if 1000 <= gp <= 12000:
             result["grade_pay"] = gp
 
-    # Pay Band / Scale
+    if result.get("pay_scale"):
+        return result  # already found from pay level
+
+    # ── 3. Per month / p.m. patterns ────────────────────
+    # "Rs. 25,000/- per month" / "₹25000 pm" / "25000/- p.m."
     m = re.search(
-        r"(?:pay\s*(?:scale|band)|salary|emoluments?|remuneration|ctc)"
-        r"[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)(?:\s*[-–]\s*([\d,]+))?",
+        r"(?:rs\.?\s*|₹\s*)?([\d,]+)\s*(?:/-|/-)?\s*(?:per\s*month|p\.?m\.?|per\s*mon|monthly)",
         t,
     )
-    if m and not result.get("pay_scale"):
+    if m:
+        amt = int(m.group(1).replace(",", ""))
+        if 5000 <= amt <= 500000:
+            result["pay_scale"] = f"₹{amt:,}/month"
+
+    if result.get("pay_scale"):
+        return result
+
+    # ── 4. Lakh per annum / LPA ─────────────────────────
+    # "6 lakh per annum" / "6.5 LPA" / "Rs. 6,00,000 per annum"
+    m = re.search(
+        r"([\d.]+)\s*(?:lakh|lac|l)\s*(?:per\s*(?:annum|year|p\.a\.?)|p\.?a\.?|lpa)\b",
+        t,
+    )
+    if m:
+        lpa = float(m.group(1))
+        if 0.5 <= lpa <= 100:
+            result["pay_scale"] = f"₹{lpa}L/year"
+
+    if result.get("pay_scale"):
+        return result
+
+    # Also catch "X LPA" directly
+    m = re.search(r"(\d+(?:\.\d+)?)\s*lpa\b", t)
+    if m:
+        lpa = float(m.group(1))
+        if 0.5 <= lpa <= 100:
+            result["pay_scale"] = f"₹{lpa}L/year"
+
+    if result.get("pay_scale"):
+        return result
+
+    # ── 5. Pay Band / Scale / Salary range ──────────────
+    m = re.search(
+        r"(?:pay\s*(?:scale|band)|salary|emoluments?|remuneration|ctc|package)"
+        r"[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)(?:\s*[-–/]\s*([\d,]+))?",
+        t,
+    )
+    if m:
         lo = int(m.group(1).replace(",", ""))
         if 5000 <= lo <= 300000:
             hi = m.group(2)
@@ -139,22 +187,32 @@ def extract_salary(text: str) -> dict:
             else:
                 result["pay_scale"] = f"₹{lo:,}+"
 
-    # Consolidated pay
+    if result.get("pay_scale"):
+        return result
+
+    # ── 6. Consolidated / Fixed pay ─────────────────────
+    # "consolidated pay of Rs. 35000" / "fixed pay Rs.18000/-"
     m = re.search(
-        r"consolidated\s*(?:pay|salary|amount)[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        r"(?:consolidated|fixed)\s*(?:pay|salary|amount|remuneration)[\s\-:of]+(?:rs\.?\s*|₹\s*)?([\d,]+)",
         t,
     )
-    if m and not result.get("pay_scale"):
+    if m:
         amt = int(m.group(1).replace(",", ""))
         if 5000 <= amt <= 300000:
-            result["pay_scale"] = f"₹{amt:,} (consolidated)"
+            result["pay_scale"] = f"₹{amt:,} (fixed)"
 
-    # Stipend
-    m = re.search(r"stipend[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)", t)
-    if m and not result.get("pay_scale"):
-        amt = int(m.group(1).replace(",", ""))
-        if 3000 <= amt <= 100000:
-            result["pay_scale"] = f"₹{amt:,} (stipend)"
+    if result.get("pay_scale"):
+        return result
+
+    # ── 7. Honorarium / Fellowship / Stipend ────────────
+    for label in ["honorarium", "fellowship", "stipend"]:
+        m = re.search(rf"{label}[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)", t)
+        if m:
+            amt = int(m.group(1).replace(",", ""))
+            lo, hi = (3000, 150000) if label != "honorarium" else (500, 50000)
+            if lo <= amt <= hi:
+                result["pay_scale"] = f"₹{amt:,} ({label})"
+                break
 
     return result
 
@@ -228,6 +286,10 @@ SOURCE_TRUST = {
     # Default tier
     "JobAlertsHub":5, "privatejobshub":5, "jobsalertguru":5,
     "sarkarijobsearcher":5, "sarkariresultnet":5,
+    # v10: official government RSS
+    "ibps_offical":10, "upsc_official":10, "ssc_official":10, "nhm_india":9,
+    # v10: new aggregators
+    "jobrecruitment":6, "govtjobsalert":6, "rojgardhund":5, "sarkarinaukrihub":5,
 }
 _DEFAULT_TRUST = 5
 
@@ -366,6 +428,16 @@ RSS_SOURCES = {
     "govtjobsdiary":     "https://govtjobsdiary.com/feed/",
     "sharmajobs":        "https://www.sharmajobs.com/feed/",
     "sarkarinaukri2025": "https://sarkarinaukri2025.com/feed/",
+
+    # ══ TIER 7: v10 new sources ══
+    "jobrecruitment":    "https://jobrecruitment.in/feed/",
+    "govtjobsalert":     "https://www.govtjobsalert.in/feeds/posts/default?alt=rss",
+    "rojgardhund":       "https://rojgardhund.com/feed/",
+    "sarkarinaukrihub":  "https://sarkarinaukrihub.com/feed/",
+    "ibps_offical":      "https://www.ibps.in/rss.xml",
+    "upsc_official":     "https://upsc.gov.in/rss.xml",
+    "ssc_official":      "https://ssc.gov.in/rss.xml",
+    "nhm_india":         "https://nhm.gov.in/New_Updates_2018/Recruitment/rss.xml",
 }
 
 DIRECT_SOURCES = {
@@ -720,15 +792,34 @@ JOB_SIGNAL_WORDS = {
 }
 
 NON_JOB_WORDS = {
-    "result out", "merit list", "answer key", "admit card", "final result",
-    "cut off", "cutoff", "scorecard", "score card", "interview schedule",
-    "document verification", "dv schedule", "hall ticket",
-    "exam date out", "exam city", "city intimation",
-    # v8: blog/about post noise filter
+    # Result / selection
+    "result out", "result declared", "result announced", "result released",
+    "final result", "merit list", "selection list", "waitlist released",
+    "provisionally selected", "shortlisted candidates",
+    # Answer key / cut-off
+    "answer key", "final answer key", "provisional answer key",
+    "cut off", "cutoff", "cut-off marks", "category wise cutoff",
+    # Admit card / hall ticket
+    "admit card", "hall ticket", "call letter download",
+    "interview call letter", "joining letter",
+    # Score / rank
+    "scorecard", "score card", "rank list", "marks obtained",
+    # Schedule
+    "interview schedule", "dv schedule", "document verification schedule",
+    "exam date out", "exam city", "city intimation", "exam postponed",
+    "exam cancelled", "exam rescheduled", "examination centre",
+    # Misc result noise
+    "final selection", "document verification", "physical test schedule",
+    "pst/pet schedule", "skill test schedule",
+    # Blog/article noise
     "what makes us special", "welcome to ", "about us", "privacy policy",
     "terms and conditions", "contact us", "your daily dose",
     "how to apply", "tips for", "best ways to", "top 10 ways",
     "why you should", "importance of", "career guidance",
+    "complete guide", "step by step", "all you need to know",
+    "frequently asked", "faq ", " faq", "mock test",
+    "previous year paper", "syllabus pdf", "exam pattern",
+    "books for ", "best book", "study material",
 }
 
 PRIVATE_JOB_BLOCKLIST = {
@@ -760,6 +851,24 @@ GARBAGE_TITLE_PATTERNS = [
     r"^final\s+call\s+for\s+neet",
     r"^neet\s+ug\s+\d{4}",
     r"^(page\s+\d|home|about|contact|privacy|menu|search|tag|category)",
+    # v10: result/admit card title patterns
+    r"\badmit\s*card\b",
+    r"\bhall\s*ticket\b",
+    r"\banswer\s*key\b",
+    r"\bresult\s*(?:out|declared|announced|released|2025|2026)\b",
+    r"\bcut\s*off\s*marks?\b",
+    r"\bscore\s*card\b",
+    r"\bmerit\s*list\b",
+    r"\bselection\s*list\b",
+    r"\bjoin(?:ing)?\s*letter\b",
+    r"\bdocument\s*verification\b",
+    r"\binterview\s*(?:schedule|letter|date)\b",
+    r"\bexam\s*(?:date|centre|city|postponed|cancelled)\b",
+    r"\bsyllabus\s*(?:pdf|download|2025|2026)\b",
+    r"\bprevious\s*(?:year|paper)\b",
+    r"\bprepare\s+for\b",
+    r"\bhow\s+to\s+(?:crack|prepare|apply)\b",
+    r"^\d+\s+(?:best|top|important)\b",
 ]
 _GARBAGE_RES = [re.compile(p, re.IGNORECASE) for p in GARBAGE_TITLE_PATTERNS]
 
@@ -1057,51 +1166,116 @@ def _extract_states(text: str) -> list:
     return found if found else ["all"]
 
 def _extract_age(text: str) -> tuple:
-    # Pattern 1: "18 to 35 years" / "18-40 years"
+    # Pattern 1: "18 to 35 years" / "18-40 years" / "18 – 35 yrs"
     m = re.search(r"(\d{2})\s*(?:to|–|-)\s*(\d{2})\s*(?:years?|yrs?)", text, re.IGNORECASE)
     if m:
         a, b = int(m.group(1)), int(m.group(2))
         if 14 <= a <= 35 and a < b <= 65:
             return a, b
-    # Pattern 2: "Age limit: 35" / "Maximum age: 45"
-    m = re.search(r"(?:max(?:imum)?\s*age|age\s*limit|upper\s*age)\s*[:\-–]?\s*(?:up\s*to\s*)?(\d{2})", text, re.IGNORECASE)
+
+    # Pattern 2: "Age limit: 35" / "Maximum age: 45" / "upper age limit: 40"
+    m = re.search(
+        r"(?:max(?:imum)?\s*age|age\s*limit|upper\s*age)\s*[:\-–]?\s*(?:up\s*to\s*)?(\d{2})",
+        text, re.IGNORECASE,
+    )
     if m:
         age = int(m.group(1))
         if 20 <= age <= 65:
             return 18, age
-    # Pattern 3: "Below 35" / "not exceeding 40"
-    m = re.search(r"(?:below|not\s+exceeding|under)\s+(\d{2})\s*(?:years?|yrs?)?", text, re.IGNORECASE)
+
+    # Pattern 3: "age as on XX/XX/XXXX: 18-35" — extract just the range
+    m = re.search(
+        r"age\s+as\s+on[^:]*:\s*(\d{2})\s*(?:to|–|-)\s*(\d{2})",
+        text, re.IGNORECASE,
+    )
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        if 14 <= a <= 35 and a < b <= 65:
+            return a, b
+
+    # Pattern 4: "Below 35" / "not exceeding 40" / "under 30 years"
+    m = re.search(
+        r"(?:below|not\s+exceeding|under)\s+(\d{2})\s*(?:years?|yrs?)?",
+        text, re.IGNORECASE,
+    )
     if m:
         age = int(m.group(1))
         if 20 <= age <= 65:
             return 18, age
+
+    # Pattern 5: "minimum age: 18" + "maximum age: 40"
+    min_m = re.search(r"min(?:imum)?\s*age\s*[:\-–]?\s*(\d{2})", text, re.IGNORECASE)
+    max_m = re.search(r"max(?:imum)?\s*age\s*[:\-–]?\s*(\d{2})", text, re.IGNORECASE)
+    if min_m and max_m:
+        a, b = int(min_m.group(1)), int(max_m.group(1))
+        if 14 <= a <= 35 and a < b <= 65:
+            return a, b
+
     return 18, 40
 
 def _extract_fee(text: str) -> tuple:
     t = text.lower()
-    if re.search(r"no\s*(?:application\s*)?fee|fee[:\s]*nil|zero\s*fee|fee[:\s]*0\b|fee\s*-\s*nil|application\s*fee\s*:\s*free", t):
+
+    # No fee at all
+    if re.search(
+        r"no\s*(?:application\s*)?fee|fee[:\s]*nil|zero\s*fee|fee[:\s]*0\b"
+        r"|fee\s*-\s*nil|application\s*fee\s*:\s*free|fee\s*waived",
+        t,
+    ):
         return 0, 0, 0
+
     sc_free = bool(re.search(
-        r"sc[/\s]?st[^\d]{0,40}(?:free|nil|exempt|no\s*fee|₹\s*0|rs\.?\s*0\b|waived)",
-        t, re.IGNORECASE
+        r"sc[/\s]?st[^\d]{0,60}(?:free|nil|exempt|no\s*fee|₹\s*0|rs\.?\s*0\b|waived|zero)",
+        t, re.IGNORECASE,
     ))
+
+    # v10: Try explicit Gen/OBC/SC split first
+    # "General: 500, OBC: 300, SC/ST: 0"  or  "UR-500 | OBC-300 | SC/ST-0"
+    gen_m = re.search(
+        r"(?:gen(?:eral)?|ur)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        t, re.IGNORECASE,
+    )
+    obc_m = re.search(
+        r"(?:obc|bc)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        t, re.IGNORECASE,
+    )
+    sc_m = re.search(
+        r"(?:sc[/\s]?st|st[/\s]?sc|sc|st)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        t, re.IGNORECASE,
+    )
+    if gen_m:
+        gen = int(gen_m.group(1).replace(",", ""))
+        obc = int(obc_m.group(1).replace(",", "")) if obc_m else gen
+        sc  = 0 if sc_free else (int(sc_m.group(1).replace(",", "")) if sc_m else 0)
+        if 50 <= gen <= 2500:
+            return gen, obc, sc
+
+    # Fallback: collect all Rs./₹ amounts in range
     amounts = []
-    for m in re.finditer(r"(?:rs\.?\s*|₹\s*)(\d{2,4})\b", text, re.IGNORECASE):
-        v = int(m.group(1))
+    for m in re.finditer(r"(?:rs\.?\s*|₹\s*)([\d,]+)\s*/?-?", text, re.IGNORECASE):
+        v = int(m.group(1).replace(",", ""))
         if 50 <= v <= 2500:
             amounts.append(v)
+
     if not amounts:
-        # Try "application fee: 500"
-        m2 = re.search(r"application\s+fee[:\s]+(\d{2,4})", text, re.IGNORECASE)
+        # "application fee: 500" or "fee – 500"
+        m2 = re.search(
+            r"(?:application\s+)?fee[\s:\-–]+(\d{2,4})\b",
+            text, re.IGNORECASE,
+        )
         if m2:
             v = int(m2.group(1))
             if 50 <= v <= 2500:
                 amounts = [v]
+
     if not amounts:
-        return 0, 0, 0  # unknown fee — treat as free rather than assuming ₹100
-    gen = amounts[0]
-    obc = amounts[1] if len(amounts) > 1 else gen
-    sc  = 0 if sc_free else (amounts[2] if len(amounts) > 2 else 0)
+        return 0, 0, 0  # unknown — treat as free
+
+    # Deduplicate (same value repeated via different mentions)
+    unique_amounts = sorted(set(amounts), reverse=True)
+    gen = unique_amounts[0]
+    obc = unique_amounts[1] if len(unique_amounts) > 1 else gen
+    sc  = 0 if sc_free else (unique_amounts[2] if len(unique_amounts) > 2 else 0)
     return gen, obc, sc
 
 # ════════════════════════════════════════════════════════
@@ -1579,7 +1753,7 @@ def run_all() -> list:
     t0 = time.time()
 
     log.info("╔══════════════════════════════════════════╗")
-    log.info("║   JobMitra Scraper v9  Starting          ║")
+    log.info("║   JobMitra Scraper v10  Starting         ║")
     log.info(f"║   {len(RSS_SOURCES)} RSS + {len(DIRECT_SOURCES)} Direct sources          ║")
     log.info("╚══════════════════════════════════════════╝")
 
