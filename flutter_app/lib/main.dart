@@ -7,7 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
-import 'services/api_service.dart';
+import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'utils/constants.dart';
 
@@ -21,22 +21,24 @@ void main() async {
   // Initialize local notifications
   await NotificationService.init();
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  // Initialize AdMob
+  await AdService.initialize();
+  AdService().loadInterstitial(); // preload first interstitial
 
-  // Request notification permission (Android 13+ / iOS)
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  // Initialize Firebase (requires google-services.json — skip gracefully if missing)
+  try {
+    await Firebase.initializeApp();
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true, badge: true, sound: true,
+    );
+    final fcmToken = await FirebaseMessaging.instance.getToken() ?? '';
+    if (fcmToken.isNotEmpty) {
+      final prefs2 = await SharedPreferences.getInstance();
+      await prefs2.setString('fcm_token', fcmToken);
+    }
+  } catch (_) {}
 
-  // Get FCM token and cache it for registration
-  final fcmToken = await FirebaseMessaging.instance.getToken() ?? '';
   final prefs = await SharedPreferences.getInstance();
-  if (fcmToken.isNotEmpty) {
-    await prefs.setString('fcm_token', fcmToken);
-  }
 
   // Wake up Render server (fire-and-forget — prevents 50s cold start delay)
   http.get(Uri.parse('$kApiBase/stats')).catchError((_) {});

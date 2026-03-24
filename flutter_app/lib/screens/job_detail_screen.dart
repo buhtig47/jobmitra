@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
+import '../services/ad_service.dart';
 import '../utils/constants.dart';
 
 class JobDetailScreen extends StatefulWidget {
@@ -589,8 +590,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _applyAndMark() async {
+    AdService().showInterstitial(); // show ad if ready (user is leaving the app)
     await _launchApplyUrl();
-    // Mark as applied in background
     final success = await widget.api.saveJob(widget.userId, widget.jobId, 'applied');
     if (success) setState(() { _isApplied = true; _isSaved = false; });
   }

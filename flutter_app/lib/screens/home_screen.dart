@@ -4,6 +4,7 @@ import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/job_card.dart';
+import '../widgets/banner_ad_widget.dart';
 import 'package:shimmer/shimmer.dart';
 import 'job_detail_screen.dart';
 import 'search_screen.dart';
@@ -240,38 +241,48 @@ class _FeedTabState extends State<_FeedTab> {
                         child: ListView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: _filteredJobs.length +
-                              (_recentlyViewed.isNotEmpty ? 1 : 0) +
+                          itemCount: (_recentlyViewed.isNotEmpty ? 1 : 0) +
+                              _filteredJobs.length +
+                              (_filteredJobs.length ~/ 5) + // ad slots
                               (_hasMore ? 1 : 0),
                           itemBuilder: (ctx, rawIdx) {
                             // Recently viewed strip as first item
+                            final offset = _recentlyViewed.isNotEmpty ? 1 : 0;
                             if (_recentlyViewed.isNotEmpty && rawIdx == 0) {
                               return _buildRecentlyViewed();
                             }
-                            final i = _recentlyViewed.isNotEmpty
-                                ? rawIdx - 1
-                                : rawIdx;
-                            if (i == _filteredJobs.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Center(child: CircularProgressIndicator()),
+                            // Map adjusted index → job or ad
+                            // Every 6th slot (pos 5 in a group of 6) is a banner ad
+                            final adj = rawIdx - offset;
+                            final group = adj ~/ 6;
+                            final pos   = adj % 6;
+                            final jobIdx = group * 5 + pos;
+
+                            if (pos == 5) return const BannerAdWidget();
+
+                            if (jobIdx < _filteredJobs.length) {
+                              final job = _filteredJobs[jobIdx];
+                              return JobCard(
+                                job: job,
+                                profile: _profile,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => JobDetailScreen(
+                                        jobId: job.id,
+                                        api: widget.api,
+                                        userId: widget.userId,
+                                      ),
+                                    ),
+                                  ).then((_) => _refreshRecentlyViewed());
+                                },
                               );
                             }
-                            return JobCard(
-                              job: _filteredJobs[i],
-                              profile: _profile,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => JobDetailScreen(
-                                      jobId: _filteredJobs[i].id,
-                                      api: widget.api,
-                                      userId: widget.userId,
-                                    ),
-                                  ),
-                                ).then((_) => _refreshRecentlyViewed());
-                              },
+                            // Load-more spinner
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
                             );
                           },
                         ),
