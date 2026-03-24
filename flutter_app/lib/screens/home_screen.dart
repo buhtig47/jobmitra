@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeedTab(userId: widget.userId, api: _api),
           SearchScreen(api: _api),
           SavedJobsScreen(key: ValueKey(_savedRefreshKey), userId: widget.userId, api: _api),
-          const ToolsScreen(),
+          ToolsScreen(api: _api),
           _ProfileTab(userId: widget.userId),
         ],
       ),

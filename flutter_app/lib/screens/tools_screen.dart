@@ -1,11 +1,16 @@
 // lib/screens/tools_screen.dart
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 import 'salary_calculator_screen.dart';
 import 'exam_calendar_screen.dart';
+import 'competition_screen.dart';
+import 'career_roadmap_screen.dart';
+import 'dept_profiles_screen.dart';
 
 class ToolsScreen extends StatelessWidget {
-  const ToolsScreen({super.key});
+  final ApiService api;
+  const ToolsScreen({super.key, required this.api});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +37,7 @@ class ToolsScreen extends StatelessWidget {
                     children: [
                       const Text('🛠️ Tools', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text('Salary calculate karo, exams track karo', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                      Text('Salary, exams, roadmap, departments — sab yahan', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
                     ],
                   ),
                 ),
@@ -67,6 +72,35 @@ class ToolsScreen extends StatelessWidget {
                   color: const Color(0xFF1565C0),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ExamCalendarScreen())),
+                ),
+                const SizedBox(height: 20),
+                _buildSectionLabel('📊 Analysis'),
+                const SizedBox(height: 10),
+                _ToolCard(
+                  emoji: '⚔️',
+                  title: 'Competition Analysis',
+                  subtitle: 'Kitne log apply karte hain? Ratio dekho',
+                  color: const Color(0xFFB71C1C),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CompetitionScreen())),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '🗺️',
+                  title: 'Career Roadmap',
+                  subtitle: 'Age + education ke hisaab se aapka exam path',
+                  color: const Color(0xFF4A148C),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => CareerRoadmapScreen(api: api))),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '🏢',
+                  title: 'Department Profiles',
+                  subtitle: 'DRDO, ISRO, Railways, Banks — salary & perks',
+                  color: const Color(0xFF1A237E),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const DeptProfilesScreen())),
                 ),
                 const SizedBox(height: 20),
                 _buildSectionLabel('🚀 Coming Soon'),
