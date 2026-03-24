@@ -81,7 +81,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: _job != null
-                  ? [_catColor, _catColor.withOpacity(0.75)]
+                  ? [_catColor, _catColor.withValues(alpha: 0.75)]
                   : [AppColors.primary, const Color(0xFF0D4A28)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -155,7 +155,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: _catColor.withOpacity(0.12),
+                color: _catColor.withValues(alpha: 0.12),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -170,7 +170,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   height: 5,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [_catColor, _catColor.withOpacity(0.5)],
+                      colors: [_catColor, _catColor.withValues(alpha: 0.5)],
                     ),
                   ),
                 ),
@@ -184,9 +184,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: _catColor.withOpacity(0.10),
+                              color: _catColor.withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: _catColor.withOpacity(0.25)),
+                              border: Border.all(color: _catColor.withValues(alpha: 0.25)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -346,7 +346,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -378,9 +378,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     final profile = _profile!;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -426,7 +426,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -465,7 +465,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -494,9 +494,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   child: Container(
                     height: 52,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32).withOpacity(0.10),
+                      color: const Color(0xFF2E7D32).withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.4)),
+                      border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.4)),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,

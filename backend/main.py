@@ -579,16 +579,6 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "states":         json.loads(job["states"] or '["all"]'),
         "pay_scale":      job["pay_scale"] or "",
         "scraped_at":     job["scraped_at"],
-        "documents_needed": [
-            "Aadhar Card",
-            "10th Marksheet",
-            "12th Marksheet (if required)",
-            "Graduation Certificate (if required)",
-            "Caste Certificate (OBC/SC/ST ke liye)",
-            "Passport Size Photo (recent)",
-            "Signature scan",
-            "Bank Account details",
-        ]
     }
 
 

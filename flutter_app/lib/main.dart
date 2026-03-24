@@ -17,7 +17,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 0. Wake Render server FIRST — fire-and-forget so cold start begins immediately
-  http.get(Uri.parse('$kApiBase/stats')).catchError((_) {});
+  http.get(Uri.parse('$kApiBase/stats')).then((_) {}, onError: (_) {});
 
   // 1. Offline cache
   await Hive.initFlutter();

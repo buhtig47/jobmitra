@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _selectedTab = i);
         },
         backgroundColor: Colors.white,
-        indicatorColor: AppColors.primary.withOpacity(0.12),
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.work_outline),
@@ -733,8 +733,8 @@ class _ProfileTabState extends State<_ProfileTab> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.2),
-                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2.5),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
                 ),
                 child: const Center(
                   child: Text('👤', style: TextStyle(fontSize: 38)),
@@ -752,7 +752,7 @@ class _ProfileTabState extends State<_ProfileTab> {
               const SizedBox(height: 4),
               Text(
                 'JobMitra aapke liye jobs filter karta hai',
-                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -770,9 +770,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -807,9 +807,9 @@ class _ProfileTabState extends State<_ProfileTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,
@@ -838,7 +838,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -846,7 +846,7 @@ class _ProfileTabState extends State<_ProfileTab> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -874,7 +874,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -885,7 +885,7 @@ class _ProfileTabState extends State<_ProfileTab> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.12),
+                  color: AppColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.work_rounded, color: AppColors.accent, size: 20),
@@ -907,9 +907,9 @@ class _ProfileTabState extends State<_ProfileTab> {
             children: _profile!.jobTypes.map((t) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Text(
                 t,

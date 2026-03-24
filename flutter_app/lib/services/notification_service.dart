@@ -68,8 +68,6 @@ class NotificationService {
   }
 
   static void _onNotificationTap(NotificationResponse response) {
-    final screen = response.payload ?? 'home';
-    // Navigate to saved tab (index 2) if payload is 'saved', else home (index 0)
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
   }
 

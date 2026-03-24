@@ -187,7 +187,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _selectedEducation == edu['key']
-                      ? AppColors.primary.withOpacity(0.1)
+                      ? AppColors.primary.withValues(alpha: 0.1)
                       : AppColors.cardBg,
                   border: Border.all(
                     color: _selectedEducation == edu['key']
@@ -271,7 +271,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -359,7 +359,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primary.withOpacity(0.12) : AppColors.cardBg,
+                    color: selected ? AppColors.primary.withValues(alpha: 0.12) : AppColors.cardBg,
                     border: Border.all(
                       color: selected ? AppColors.primary : AppColors.divider,
                       width: selected ? 2 : 1,
