@@ -192,10 +192,23 @@ def init_db():
             FOREIGN KEY(job_id)  REFERENCES jobs(id)
         );
 
+        CREATE TABLE IF NOT EXISTS current_affairs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL,
+            summary     TEXT DEFAULT '',
+            category    TEXT DEFAULT 'national',
+            pub_date    TEXT DEFAULT '',
+            source_name TEXT DEFAULT '',
+            source_url  TEXT UNIQUE,
+            scraped_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
         CREATE INDEX IF NOT EXISTS idx_jobs_active    ON jobs(is_active);
         CREATE INDEX IF NOT EXISTS idx_saved_user     ON saved_jobs(user_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url ON jobs(source_url)
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url ON jobs(source_url);
+        CREATE INDEX IF NOT EXISTS idx_ca_date        ON current_affairs(pub_date);
+        CREATE INDEX IF NOT EXISTS idx_ca_category    ON current_affairs(category)
     """)
 
 init_db()
@@ -844,6 +857,70 @@ def reset_jobs(secret: str = Query(...)):
             except:
                 pass
         return {"success": True, "jobs_inserted": inserted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/current-affairs")
+def get_current_affairs(
+    days: int = Query(7, ge=1, le=30),
+    category: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+):
+    conn = get_db()
+    since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    if category and category != "all":
+        rows = conn.execute(
+            """SELECT id, title, summary, category, pub_date, source_name, source_url
+               FROM current_affairs
+               WHERE pub_date >= ? AND category = ?
+               ORDER BY pub_date DESC, id DESC LIMIT ?""",
+            (since, category, limit)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT id, title, summary, category, pub_date, source_name, source_url
+               FROM current_affairs
+               WHERE pub_date >= ?
+               ORDER BY pub_date DESC, id DESC LIMIT ?""",
+            (since, limit)
+        ).fetchall()
+    return [
+        {
+            "id":          r["id"],
+            "title":       r["title"],
+            "summary":     r["summary"],
+            "category":    r["category"],
+            "pub_date":    r["pub_date"],
+            "source_name": r["source_name"],
+            "source_url":  r["source_url"],
+        }
+        for r in rows
+    ]
+
+
+@app.post("/admin/scrape-ca")
+def scrape_current_affairs_endpoint(secret: str = Query(...)):
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    try:
+        from scraper import scrape_current_affairs
+        articles = scrape_current_affairs()
+        conn = get_db()
+        inserted = 0
+        for a in articles:
+            try:
+                conn.execute(
+                    """INSERT OR IGNORE INTO current_affairs
+                       (title, summary, category, pub_date, source_name, source_url)
+                       VALUES (?,?,?,?,?,?)""",
+                    (a["title"], a["summary"], a["category"],
+                     a["pub_date"], a["source_name"], a["source_url"])
+                )
+                inserted += 1
+            except Exception:
+                pass
+        return {"success": True, "inserted": inserted, "total": len(articles)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

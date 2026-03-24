@@ -7,6 +7,7 @@ import 'exam_calendar_screen.dart';
 import 'competition_screen.dart';
 import 'career_roadmap_screen.dart';
 import 'dept_profiles_screen.dart';
+import 'current_affairs_screen.dart';
 
 class ToolsScreen extends StatelessWidget {
   final ApiService api;
@@ -37,7 +38,7 @@ class ToolsScreen extends StatelessWidget {
                     children: [
                       const Text('🛠️ Tools', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text('Salary, exams, roadmap, departments — sab yahan', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                      Text('Salary, GK, roadmap, departments — sab yahan', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
                     ],
                   ),
                 ),
@@ -102,6 +103,16 @@ class ToolsScreen extends StatelessWidget {
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const DeptProfilesScreen())),
                 ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '📰',
+                  title: 'Daily Current Affairs',
+                  subtitle: 'Aaj ka GK — SSC/Banking exam ke liye',
+                  color: const Color(0xFFE65100),
+                  tag: 'New!',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => CurrentAffairsScreen(api: api))),
+                ),
                 const SizedBox(height: 20),
                 _buildSectionLabel('🚀 Coming Soon'),
                 const SizedBox(height: 10),
@@ -112,15 +123,6 @@ class ToolsScreen extends StatelessWidget {
                   color: const Color(0xFF6A1B9A),
                   comingSoon: true,
                   onTap: () => _showComingSoon(context, 'Mock Tests'),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '📰',
-                  title: 'Daily Current Affairs',
-                  subtitle: 'Aaj ka GK — SSC/Banking exam ke liye',
-                  color: const Color(0xFFE65100),
-                  comingSoon: true,
-                  onTap: () => _showComingSoon(context, 'Current Affairs'),
                 ),
                 const SizedBox(height: 12),
                 _ToolCard(

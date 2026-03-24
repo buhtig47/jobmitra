@@ -372,3 +372,36 @@ class UserProfile {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// CurrentAffair
+// ─────────────────────────────────────────────────────────────
+class CurrentAffair {
+  final int    id;
+  final String title;
+  final String summary;
+  final String category;   // national / international / economy / science / sports / misc
+  final String pubDate;
+  final String sourceName;
+  final String sourceUrl;
+
+  const CurrentAffair({
+    required this.id,
+    required this.title,
+    required this.summary,
+    required this.category,
+    required this.pubDate,
+    required this.sourceName,
+    required this.sourceUrl,
+  });
+
+  factory CurrentAffair.fromJson(Map<String, dynamic> j) => CurrentAffair(
+    id:         j['id']          ?? 0,
+    title:      j['title']       ?? '',
+    summary:    j['summary']     ?? '',
+    category:   j['category']    ?? 'misc',
+    pubDate:    j['pub_date']    ?? '',
+    sourceName: j['source_name'] ?? '',
+    sourceUrl:  j['source_url']  ?? '',
+  );
+}

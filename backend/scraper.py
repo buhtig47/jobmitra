@@ -1746,6 +1746,114 @@ def deduplicate(jobs: list) -> list:
     return unique
 
 # ════════════════════════════════════════════════════════
+#  CURRENT AFFAIRS SCRAPER
+# ════════════════════════════════════════════════════════
+
+_CA_SOURCES = [
+    {"name": "GK Today",          "url": "https://www.gktoday.in/feed/"},
+    {"name": "Affairs Cloud",     "url": "https://www.affairscloud.com/feed/"},
+    {"name": "Adda247 CA",        "url": "https://currentaffairs.adda247.com/feed/"},
+    {"name": "Jagranjosh",        "url": "https://www.jagranjosh.com/current-affairs/rss-feed"},
+    {"name": "Onlymyhealth",      "url": "https://www.onlymyhealth.com/gk/feed/"},
+    {"name": "GK Quiz",           "url": "https://gkquiz.in/feed/"},
+    {"name": "Study IQ",          "url": "https://www.studyiq.com/articles/feed/"},
+]
+
+_CA_CATEGORY_RULES = [
+    (re.compile(r'\binternational|world|global|foreign|bilateral|treaty\b', re.I), "international"),
+    (re.compile(r'\beconomy|gdp|rbi|budget|inflation|fiscal|rupee|bank|finance\b', re.I), "economy"),
+    (re.compile(r'\bscience|tech|space|isro|nasa|ai|digital|robot|satellite|launch\b', re.I), "science"),
+    (re.compile(r'\bsport|cricket|football|olympics|medal|champion|cup|match\b', re.I), "sports"),
+    (re.compile(r'\baward|rank|honour|prize|padma|bharat\s*ratna\b', re.I), "awards"),
+    (re.compile(r'\bappointment|resigns?|elected|new\s+(chief|head|director|pm|cm|president)\b', re.I), "appointments"),
+    (re.compile(r'\bindia|national|state|centre|government|pm\s+modi|cabinet|lok\s+sabha\b', re.I), "national"),
+]
+
+
+def _classify_ca(title: str, summary: str) -> str:
+    text = title + " " + summary
+    for pattern, cat in _CA_CATEGORY_RULES:
+        if pattern.search(text):
+            return cat
+    return "misc"
+
+
+def scrape_current_affairs() -> list:
+    """Scrape GK/Current Affairs RSS feeds and return list of article dicts."""
+    articles = []
+    seen_urls: set = set()
+
+    def _fetch_ca(src):
+        raw = _fetch(src["url"], timeout=12)
+        if not raw:
+            return []
+        try:
+            root = ET.fromstring(raw.encode("utf-8"))
+        except ET.ParseError:
+            try:
+                raw2 = re.sub(r"&(?!(amp|lt|gt|apos|quot|#\d+);)", "&amp;", raw)
+                root = ET.fromstring(raw2.encode("utf-8"))
+            except Exception:
+                return []
+        NS_ATOM = {"a": "http://www.w3.org/2005/Atom"}
+        items = root.findall(".//item") or root.findall(".//a:entry", NS_ATOM)
+        results = []
+        for item in items:
+            t_el = item.find("title")
+            title = (t_el.text or "").strip() if t_el is not None else ""
+            if not title:
+                continue
+            l_el = item.find("link")
+            url = ""
+            if l_el is not None:
+                url = (l_el.text or l_el.get("href") or "").strip()
+            if not url:
+                continue
+            d_el = (item.find("description")
+                    or item.find("{http://www.w3.org/2005/Atom}summary")
+                    or item.find("{http://www.w3.org/2005/Atom}content"))
+            summary = ""
+            if d_el is not None and d_el.text:
+                summary = BeautifulSoup(d_el.text, "html.parser").get_text(" ", strip=True)[:400]
+            # parse pub_date
+            pub_el = (item.find("pubDate") or item.find("published")
+                      or item.find("{http://www.w3.org/2005/Atom}published"))
+            pub_date = ""
+            if pub_el is not None and pub_el.text:
+                for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z",
+                            "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"):
+                    try:
+                        pub_date = datetime.strptime(pub_el.text.strip(), fmt).strftime("%Y-%m-%d")
+                        break
+                    except Exception:
+                        pass
+            if not pub_date:
+                pub_date = datetime.utcnow().strftime("%Y-%m-%d")
+            category = _classify_ca(title, summary)
+            results.append({
+                "title":       title[:300],
+                "summary":     summary,
+                "category":    category,
+                "pub_date":    pub_date,
+                "source_name": src["name"],
+                "source_url":  url,
+            })
+        return results
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futures = {ex.submit(_fetch_ca, src): src for src in _CA_SOURCES}
+        for fut in as_completed(futures):
+            for art in fut.result():
+                if art["source_url"] not in seen_urls:
+                    seen_urls.add(art["source_url"])
+                    articles.append(art)
+
+    articles.sort(key=lambda a: a["pub_date"], reverse=True)
+    log.info(f"  Current Affairs: {len(articles)} articles from {len(_CA_SOURCES)} sources")
+    return articles
+
+
+# ════════════════════════════════════════════════════════
 #  MAIN RUNNER — v6: 16 workers, dead-source tracking
 # ════════════════════════════════════════════════════════
 

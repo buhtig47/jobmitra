@@ -328,4 +328,19 @@ class ApiService {
       await prefs.setStringList(_alertSeenKey, trimmed.map((i) => i.toString()).toList());
     } catch (_) {}
   }
+
+  // ── Current Affairs ──────────────────────────────────────────
+  Future<List<CurrentAffair>> getCurrentAffairs({String? category, int days = 7}) async {
+    try {
+      final params = <String, String>{'days': days.toString()};
+      if (category != null && category != 'all') params['category'] = category;
+      final uri = Uri.parse('$kApiBase/current-affairs').replace(queryParameters: params);
+      final res = await _get(uri.toString());
+      if (res == null) return [];
+      final data = jsonDecode(res.body) as List;
+      return data.map((j) => CurrentAffair.fromJson(j as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
 }
