@@ -94,11 +94,20 @@ class _FeedTabState extends State<_FeedTab> {
   DateTime? _cachedAt;
 
   String? _selectedFilter; // null = all
+  bool _freeOnly = false;  // free jobs toggle
+  UserProfile? _profile;
+  List<Job> _recentlyViewed = [];
 
   @override
   void initState() {
     super.initState();
     _loadJobs();
+    widget.api.getSavedProfile().then((p) {
+      if (mounted) setState(() => _profile = p);
+    });
+    widget.api.getRecentlyViewed().then((r) {
+      if (mounted) setState(() => _recentlyViewed = r);
+    });
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
         if (!_isLoading && _hasMore) _loadMore();
@@ -130,8 +139,17 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   List<Job> get _filteredJobs {
-    if (_selectedFilter == null) return _jobs;
-    return _jobs.where((j) => j.category == _selectedFilter).toList();
+    var list = _selectedFilter == null
+        ? _jobs
+        : _jobs.where((j) => j.category == _selectedFilter).toList();
+    if (_freeOnly) list = list.where((j) => j.isFree).toList();
+    return list;
+  }
+
+  void _refreshRecentlyViewed() {
+    widget.api.getRecentlyViewed().then((r) {
+      if (mounted) setState(() => _recentlyViewed = r);
+    });
   }
 
   @override
@@ -206,7 +224,7 @@ class _FeedTabState extends State<_FeedTab> {
       ),
       body: Column(
         children: [
-          // Category filter chips
+          // Category filter chips + free toggle
           _buildFilterBar(),
           // Offline cache banner
           if (_isCached) _buildCacheBanner(),
@@ -221,9 +239,18 @@ class _FeedTabState extends State<_FeedTab> {
                         color: AppColors.primary,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          itemCount: _filteredJobs.length + (_hasMore ? 1 : 0),
-                          itemBuilder: (ctx, i) {
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          itemCount: _filteredJobs.length +
+                              (_recentlyViewed.isNotEmpty ? 1 : 0) +
+                              (_hasMore ? 1 : 0),
+                          itemBuilder: (ctx, rawIdx) {
+                            // Recently viewed strip as first item
+                            if (_recentlyViewed.isNotEmpty && rawIdx == 0) {
+                              return _buildRecentlyViewed();
+                            }
+                            final i = _recentlyViewed.isNotEmpty
+                                ? rawIdx - 1
+                                : rawIdx;
                             if (i == _filteredJobs.length) {
                               return const Padding(
                                 padding: EdgeInsets.all(16),
@@ -232,16 +259,19 @@ class _FeedTabState extends State<_FeedTab> {
                             }
                             return JobCard(
                               job: _filteredJobs[i],
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => JobDetailScreen(
-                                    jobId: _filteredJobs[i].id,
-                                    api: widget.api,
-                                    userId: widget.userId,
+                              profile: _profile,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => JobDetailScreen(
+                                      jobId: _filteredJobs[i].id,
+                                      api: widget.api,
+                                      userId: widget.userId,
+                                    ),
                                   ),
-                                ),
-                              ),
+                                ).then((_) => _refreshRecentlyViewed());
+                              },
                             );
                           },
                         ),
@@ -292,10 +322,29 @@ class _FeedTabState extends State<_FeedTab> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: categories.length,
+        itemCount: categories.length + 1, // +1 for free toggle
         itemBuilder: (ctx, i) {
+          // Last chip: Free Jobs toggle
+          if (i == categories.length) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: const Text('💰 Free Only'),
+                selected: _freeOnly,
+                onSelected: (_) => setState(() => _freeOnly = !_freeOnly),
+                selectedColor: const Color(0xFF2E7D32).withValues(alpha: 0.15),
+                checkmarkColor: const Color(0xFF2E7D32),
+                labelStyle: TextStyle(
+                  color: _freeOnly ? const Color(0xFF2E7D32) : AppColors.textSecondary,
+                  fontWeight: _freeOnly ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            );
+          }
           final key = categories[i];
-          final cat = key == null ? null : JobCategories.all.firstWhere((c) => c['key'] == key);
+          final cat = key == null
+              ? null
+              : JobCategories.all.firstWhere((c) => c['key'] == key);
           final label = key == null ? 'Sab' : cat?['label'];
           final emoji = key == null ? '🔍' : cat?['icon'];
           final selected = _selectedFilter == key;
@@ -306,7 +355,7 @@ class _FeedTabState extends State<_FeedTab> {
               label: Text('$emoji $label'),
               selected: selected,
               onSelected: (_) => setState(() => _selectedFilter = key),
-              selectedColor: AppColors.primary.withOpacity(0.15),
+              selectedColor: AppColors.primary.withValues(alpha: 0.15),
               checkmarkColor: AppColors.primary,
               labelStyle: TextStyle(
                 color: selected ? AppColors.primary : AppColors.textSecondary,
@@ -316,6 +365,100 @@ class _FeedTabState extends State<_FeedTab> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildRecentlyViewed() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10, top: 4),
+          child: Row(
+            children: [
+              const Icon(Icons.history_rounded, size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              const Text(
+                'Haal hi mein dekha',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 96,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recentlyViewed.length,
+            itemBuilder: (ctx, i) {
+              final job = _recentlyViewed[i];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => JobDetailScreen(
+                        jobId: job.id,
+                        api: widget.api,
+                        userId: widget.userId,
+                      ),
+                    ),
+                  ).then((_) => _refreshRecentlyViewed());
+                },
+                child: Container(
+                  width: 180,
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE8E8E8)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        job.cleanTitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A1A),
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        children: [
+                          Text(job.categoryEmoji,
+                              style: const TextStyle(fontSize: 11)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              job.categoryLabel,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[500]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+      ],
     );
   }
 

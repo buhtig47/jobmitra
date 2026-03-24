@@ -67,6 +67,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       _isSaved   = status == 'saved';
       _isApplied = status == 'applied';
     });
+    if (job != null) widget.api.addRecentlyViewed(job);
   }
 
   @override
@@ -568,18 +569,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
-  void _shareJob() {
+  Future<void> _shareJob() async {
     if (_job == null) return;
-    Share.share(
-      '🇮🇳 Govt Job Alert!\n\n'
-      '${_job!.title}\n'
-      '${_job!.department}\n\n'
-      '📋 Vacancies: ${_job!.vacanciesText}\n'
-      '📅 Last Date: ${_job!.lastDate}\n'
-      '💰 Fee: ${_job!.feeText}\n\n'
-      'Apply: ${_job!.sourceUrl}\n\n'
-      'JobMitra app se dekho — sirf eligible jobs!',
-    );
+    final msg =
+        '🇮🇳 *Govt Job Alert!*\n\n'
+        '*${_job!.cleanTitle}*\n'
+        '${_job!.cleanDepartment}\n\n'
+        '📋 Vacancies: ${_job!.vacanciesText}\n'
+        '📅 Last Date: ${_job!.lastDate}\n'
+        '💰 Fee: ${_job!.feeText}\n\n'
+        'Apply here: ${_job!.sourceUrl}\n\n'
+        '_JobMitra se — apne eligible govt jobs track karo!_';
+    final waUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(msg)}');
+    if (await canLaunchUrl(waUrl)) {
+      await launchUrl(waUrl);
+    } else {
+      Share.share(msg);
+    }
   }
 
   Future<void> _applyAndMark() async {

@@ -8,9 +8,10 @@ import '../models/job_model.dart';
 import '../utils/constants.dart';
 
 class ApiService {
-  static const _userIdKey  = 'user_id';
-  static const _profileKey = 'user_profile';
-  static const _longTimeout  = Duration(seconds: 60);
+  static const _userIdKey     = 'user_id';
+  static const _profileKey    = 'user_profile';
+  static const _recentKey     = 'recently_viewed_jobs';
+  static const _longTimeout   = Duration(seconds: 60);
 
   Future<void> wakeUpServer() async {
     try {
@@ -189,5 +190,31 @@ class ApiService {
       if (res != null) return jsonDecode(res.body);
     } catch (e) { print('Stats error: $e'); }
     return null;
+  }
+
+  // ── Recently Viewed ─────────────────────────────────────
+  Future<void> addRecentlyViewed(Job job) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_recentKey) ?? [];
+      // Remove existing entry for same job
+      raw.removeWhere((s) {
+        try { return jsonDecode(s)['id'] == job.id; } catch (_) { return false; }
+      });
+      raw.insert(0, jsonEncode(job.toJson()));
+      if (raw.length > 10) raw.removeLast();
+      await prefs.setStringList(_recentKey, raw);
+    } catch (_) {}
+  }
+
+  Future<List<Job>> getRecentlyViewed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_recentKey) ?? [];
+      return raw
+          .map((s) { try { return Job.fromJson(jsonDecode(s)); } catch (_) { return null; } })
+          .whereType<Job>()
+          .toList();
+    } catch (_) { return []; }
   }
 }

@@ -18,6 +18,7 @@ class Job {
   final int    ageMin;
   final int    ageMax;
   final List<String>? documentsNeeded;
+  final String? jobStatus; // 'saved' | 'applied' | null
 
   const Job({
     required this.id,
@@ -37,6 +38,7 @@ class Job {
     required this.ageMin,
     required this.ageMax,
     this.documentsNeeded,
+    this.jobStatus,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -60,7 +62,47 @@ class Job {
       documentsNeeded: json['documents_needed'] != null
           ? List<String>.from(json['documents_needed'])
           : null,
+      jobStatus: json['job_status'] as String?,
     );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id, 'title': title, 'department': department,
+    'source': source, 'source_url': sourceUrl, 'category': category,
+    'vacancies': vacancies, 'last_date': lastDate, 'days_left': daysLeft,
+    'urgency': urgency, 'fee': fee, 'is_free': isFree,
+    'qualifications': qualifications, 'states': states,
+    'age_min': ageMin, 'age_max': ageMax,
+  };
+
+  // ── Eligibility match score (0-4) against user profile ──
+  // Criteria: state, education, age, job-type preference
+  int matchScore(UserProfile profile) {
+    int score = 0;
+    const eduLevels = {
+      '8th': 1, '10th': 2, '12th': 3, 'diploma': 3,
+      'graduate': 4, 'postgraduate': 5,
+    };
+    // 1. State
+    final statesLower = states.map((s) => s.toLowerCase()).toList();
+    if (statesLower.contains('all') || statesLower.isEmpty ||
+        profile.state.toLowerCase() == 'all india' ||
+        statesLower.contains(profile.state.toLowerCase())) {
+      score++;
+    }
+    // 2. Education
+    final userLevel = eduLevels[profile.education] ?? 4;
+    if (qualifications.isEmpty ||
+        qualifications.any((q) => userLevel >= (eduLevels[q] ?? 4))) {
+      score++;
+    }
+    // 3. Age
+    if (profile.age >= ageMin && profile.age <= ageMax) score++;
+    // 4. Job type preference
+    if (profile.jobTypes.isEmpty || profile.jobTypes.contains(category)) {
+      score++;
+    }
+    return score;
   }
 
   // ── Text cleaning — remove HTML junk from scraped data ──
@@ -73,15 +115,18 @@ class Job {
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
         .replaceAll(RegExp(r'&#\d+;'), '')
-        .replaceAll(RegExp(r'<[^>]+>'), '')       // strip HTML tags
-        .replaceAll(RegExp(r'\[.*?\]'), '')        // remove [tags]
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll(RegExp(r'\[.*?\]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-    // Convert ALL-CAPS titles to Title Case
     final words = t.split(' ');
-    final upperCount = words.where((w) => w.length > 2 && w == w.toUpperCase() && RegExp(r'^[A-Z]+$').hasMatch(w)).length;
+    final upperCount = words.where((w) =>
+        w.length > 2 && w == w.toUpperCase() &&
+        RegExp(r'^[A-Z]+$').hasMatch(w)).length;
     if (upperCount > words.length ~/ 2) {
-      t = words.map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+      t = words.map((w) =>
+          w.isEmpty ? w : w[0].toUpperCase() + w.substring(1).toLowerCase()
+      ).join(' ');
     }
     return t;
   }
@@ -89,12 +134,14 @@ class Job {
   String get cleanTitle      => _clean(title);
   String get cleanDepartment => _clean(department);
 
-  // Category display info
   String get categoryEmoji {
     const map = {
       'railway': '🚂', 'banking': '🏦', 'ssc': '📋',
       'teaching': '📚', 'police': '👮', 'defence': '⭐',
       'upsc': '🏛️', 'anganwadi': '🌸', 'psu': '🏭',
+      'medical': '🏥', 'research': '🔬', 'engineering': '⚙️',
+      'legal': '⚖️', 'postal': '📮', 'admin': '🗂️',
+      'it_tech': '💻', 'accounts': '💰', 'forest': '🌳',
     };
     return map[category] ?? '💼';
   }
@@ -104,11 +151,13 @@ class Job {
       'railway': 'Railway', 'banking': 'Banking', 'ssc': 'SSC',
       'teaching': 'Teaching', 'police': 'Police', 'defence': 'Defence',
       'upsc': 'UPSC/IAS', 'anganwadi': 'Anganwadi', 'psu': 'PSU',
+      'medical': 'Medical', 'research': 'Research', 'engineering': 'Engineering',
+      'legal': 'Legal', 'postal': 'Postal', 'admin': 'Admin',
+      'it_tech': 'IT/Tech', 'accounts': 'Accounts', 'forest': 'Forest',
     };
     return map[category] ?? 'Others';
   }
 
-  // Urgency label in Hinglish
   String get urgencyText {
     if (daysLeft <= 0)  return 'Expired';
     if (daysLeft == 1)  return 'Kal last date!';
@@ -118,13 +167,11 @@ class Job {
     return '$daysLeft din bache hain';
   }
 
-  // Fee display
   String get feeText => isFree ? 'Free' : '₹$fee';
 
-  // Vacancies display
   String get vacanciesText {
     if (vacancies == 0) return 'N/A';
-    if (vacancies >= 1000) return '${(vacancies / 1000).toStringAsFixed(1)}K+ posts';
+    if (vacancies >= 1000) return '${(vacancies / 1000).toStringAsFixed(1)}K+';
     return '$vacancies posts';
   }
 }
