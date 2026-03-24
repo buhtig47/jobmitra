@@ -408,56 +408,67 @@ def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
     user_age       = user["age"]
     user_job_types = json.loads(user["job_types"] or "[]")
 
-    jobs_raw = conn.execute("""
+    # Push age filter and optional category filter to SQL — reduces rows Python processes
+    cat_filter = ""
+    cat_params: list = [user_age, user_age]
+    if user_job_types:
+        placeholders = ",".join("?" * len(user_job_types))
+        cat_filter = f"AND category IN ({placeholders})"
+        cat_params += user_job_types
+
+    jobs_raw = conn.execute(f"""
         SELECT * FROM jobs
         WHERE is_active = 1
+          AND age_min <= ? AND age_max >= ?
+          {cat_filter}
         ORDER BY scraped_at DESC
-        LIMIT 500
-    """).fetchall()
+        LIMIT 300
+    """, cat_params).fetchall()
 
+    today = datetime.now()
     eligible_jobs = []
     for job in jobs_raw:
-        job_quals  = json.loads(job["qualifications"] or '["graduate"]')
         job_states = json.loads(job["states"] or '["all"]')
+        if "all" not in job_states and user_state.lower() not in [s.lower() for s in job_states]:
+            continue
 
+        job_quals = json.loads(job["qualifications"] or '["graduate"]')
         if not user_qualifies(user_education, job_quals):
-            continue
-        if user_age < job["age_min"] or user_age > job["age_max"]:
-            continue
-        if "all" not in job_states and user_state not in job_states:
-            continue
-        if user_job_types and job["category"] not in user_job_types:
             continue
 
         try:
             last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
-            days_left = (last_date - datetime.now()).days
+            days_left = (last_date - today).days
         except:
             days_left = 30
 
         if days_left < 0:
             continue
 
-        if user_category == "general":
-            fee = job["fee_general"]
-        elif user_category == "obc":
+        if user_category == "obc":
             fee = job["fee_obc"]
-        else:
+        elif user_category in ("sc", "st"):
             fee = job["fee_sc_st"]
+        else:
+            fee = job["fee_general"]
 
         eligible_jobs.append({
-            "id":         job["id"],
-            "title":      job["title"],
-            "department": job["department"],
-            "source":     job["source"],
-            "source_url": job["source_url"],
-            "category":   job["category"],
-            "vacancies":  job["vacancies"],
-            "last_date":  job["last_date"],
-            "days_left":  days_left,
-            "urgency":    "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
-            "fee":        fee,
-            "is_free":    fee == 0,
+            "id":             job["id"],
+            "title":          job["title"],
+            "department":     job["department"],
+            "source":         job["source"],
+            "source_url":     job["source_url"],
+            "category":       job["category"],
+            "vacancies":      job["vacancies"],
+            "last_date":      job["last_date"],
+            "days_left":      days_left,
+            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "fee":            fee,
+            "is_free":        fee == 0,
+            "qualifications": job_quals,
+            "states":         json.loads(job["states"] or '["all"]'),
+            "age_min":        job["age_min"],
+            "age_max":        job["age_max"],
         })
 
     eligible_jobs.sort(key=lambda x: (x["days_left"], -x["vacancies"]))

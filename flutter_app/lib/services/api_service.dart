@@ -80,6 +80,17 @@ class ApiService {
     );
   }
 
+  /// Load cached feed instantly (no network) — for stale-while-revalidate
+  Future<List<Job>> getCachedFeed() async {
+    try {
+      final box = Hive.box('jobs_cache');
+      final cached = box.get('feed_jobs') as String?;
+      if (cached == null) return [];
+      final data = jsonDecode(cached);
+      return (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+    } catch (_) { return []; }
+  }
+
   Future<Map<String, dynamic>> getJobFeed({required int userId, int page = 1}) async {
     final box = Hive.box('jobs_cache');
     try {

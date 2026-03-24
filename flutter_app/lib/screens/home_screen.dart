@@ -122,16 +122,33 @@ class _FeedTabState extends State<_FeedTab> {
     if (refresh) {
       setState(() { _jobs.clear(); _page = 1; _hasMore = true; _isCached = false; });
     }
-    setState(() => _isLoading = true);
+
+    // Page 1 first-load: show Hive cache immediately, then fetch fresh in background
+    if (_page == 1 && _jobs.isEmpty) {
+      final cached = await widget.api.getCachedFeed();
+      if (cached.isNotEmpty && mounted) {
+        setState(() { _jobs.addAll(cached); _isCached = true; _isLoading = false; });
+      } else {
+        setState(() => _isLoading = true);
+      }
+    } else {
+      setState(() => _isLoading = true);
+    }
 
     final data = await widget.api.getJobFeed(userId: widget.userId, page: _page);
+    if (!mounted) return;
+    final freshJobs = data['jobs'] as List<Job>;
+    final wasCached = data['is_cached'] as bool? ?? false;
     setState(() {
-      _jobs.addAll(data['jobs'] as List<Job>);
-      _hasMore   = data['has_more'] as bool;
+      if (_page == 1) _jobs.clear(); // Replace cache with fresh data
+      _jobs.addAll(freshJobs);
+      _hasMore  = data['has_more'] as bool;
       _isLoading = false;
-      _isCached  = data['is_cached'] as bool? ?? false;
-      if (_isCached && data['cached_at'] != null) {
+      _isCached  = wasCached;
+      if (wasCached && data['cached_at'] != null) {
         _cachedAt = DateTime.tryParse(data['cached_at'] as String);
+      } else {
+        _isCached = false;
       }
     });
   }
@@ -406,16 +423,18 @@ class _FeedTabState extends State<_FeedTab> {
       ('vacancies', '👥 Vacancies'),
       ('newest', '🆕 Newest'),
     ];
-    return Container(
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          const Text(
-            'Sort: ',
-            style: TextStyle(fontSize: 12, color: AppColors.textHint),
-          ),
-          ...options.map((opt) {
+    return SizedBox(
+      height: 36,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+        child: Row(
+          children: [
+            const Text(
+              'Sort: ',
+              style: TextStyle(fontSize: 12, color: AppColors.textHint),
+            ),
+            ...options.map((opt) {
             final selected = _sortBy == opt.$1;
             return Padding(
               padding: const EdgeInsets.only(right: 6),
@@ -447,6 +466,7 @@ class _FeedTabState extends State<_FeedTab> {
             );
           }),
         ],
+      ),
       ),
     );
   }

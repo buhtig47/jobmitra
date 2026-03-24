@@ -14,6 +14,9 @@ import 'utils/constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 0. Wake Render server FIRST — fire-and-forget so cold start begins immediately
+  http.get(Uri.parse('$kApiBase/stats')).catchError((_) {});
+
   // 1. Offline cache
   await Hive.initFlutter();
   await Hive.openBox('jobs_cache');
@@ -42,9 +45,6 @@ void main() async {
   // 4. AdMob
   await AdService.initialize();
   AdService().loadInterstitial();
-
-  // 5. Wake up Render server (fire-and-forget)
-  http.get(Uri.parse('$kApiBase/stats')).catchError((_) {});
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
