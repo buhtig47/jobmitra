@@ -242,4 +242,21 @@ class ApiService {
           .toList();
     } catch (_) { return []; }
   }
+
+  // ── Personal Info (stored locally only, never sent to server) ──
+  static const _personalInfoKey = 'personal_info_v1';
+
+  Future<PersonalInfo> getPersonalInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_personalInfoKey);
+      if (raw == null) return const PersonalInfo();
+      return PersonalInfo.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) { return const PersonalInfo(); }
+  }
+
+  Future<void> savePersonalInfo(PersonalInfo info) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_personalInfoKey, jsonEncode(info.toJson()));
+  }
 }

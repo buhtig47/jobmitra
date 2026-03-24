@@ -10,6 +10,7 @@ import 'job_detail_screen.dart';
 import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
 import 'profile_edit_screen.dart';
+import 'personal_info_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -703,6 +704,10 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildSectionTitle('Job Preferences'),
                       const SizedBox(height: 10),
                       _buildJobTypesTile(),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Form Fill Details'),
+                      const SizedBox(height: 10),
+                      _buildFormDetailsTile(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -923,6 +928,65 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFormDetailsTile() {
+    return FutureBuilder(
+      future: _api.getPersonalInfo(),
+      builder: (context, snap) {
+        final info    = snap.data;
+        final filled  = info?.filledCount ?? 0;
+        final isEmpty = info == null || info.isEmpty;
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PersonalInfoScreen(api: _api)),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A6B3C).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF1A6B3C), size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Form Bharne Ki Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 3),
+                      Text(
+                        isEmpty
+                            ? 'Naam, DOB, Category abhi fill nahi hai'
+                            : '$filled/11 fields filled — Apply karte time copy karo',
+                        style: TextStyle(fontSize: 11, color: isEmpty ? Colors.orange[700] : AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isEmpty ? Icons.warning_amber_rounded : Icons.chevron_right_rounded,
+                  color: isEmpty ? Colors.orange : Colors.grey[400],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

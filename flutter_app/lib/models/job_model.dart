@@ -181,6 +181,79 @@ class Job {
 }
 
 
+// ── Personal info — stored locally only, never sent to backend ──────────────
+class PersonalInfo {
+  final String name;
+  final String fatherName;
+  final String motherName;
+  final String dob;          // DD/MM/YYYY
+  final String gender;       // Male / Female / Other
+  final String category;     // General / OBC / SC / ST / EWS
+  final String phone;
+  final String email;
+  final String address;
+  final String district;
+  final String state;
+  final String pincode;
+  final String aadharLast4;  // Only last 4 digits for reference
+
+  const PersonalInfo({
+    this.name          = '',
+    this.fatherName    = '',
+    this.motherName    = '',
+    this.dob           = '',
+    this.gender        = '',
+    this.category      = '',
+    this.phone         = '',
+    this.email         = '',
+    this.address       = '',
+    this.district      = '',
+    this.state         = '',
+    this.pincode       = '',
+    this.aadharLast4   = '',
+  });
+
+  bool get isEmpty => name.isEmpty && phone.isEmpty && email.isEmpty;
+
+  int get filledCount => [
+    name, fatherName, dob, gender, category,
+    phone, email, address, district, state, pincode,
+  ].where((f) => f.isNotEmpty).length;
+
+  factory PersonalInfo.fromJson(Map<String, dynamic> j) => PersonalInfo(
+    name:         j['name']         as String? ?? '',
+    fatherName:   j['father_name']  as String? ?? '',
+    motherName:   j['mother_name']  as String? ?? '',
+    dob:          j['dob']          as String? ?? '',
+    gender:       j['gender']       as String? ?? '',
+    category:     j['category']     as String? ?? '',
+    phone:        j['phone']        as String? ?? '',
+    email:        j['email']        as String? ?? '',
+    address:      j['address']      as String? ?? '',
+    district:     j['district']     as String? ?? '',
+    state:        j['state']        as String? ?? '',
+    pincode:      j['pincode']      as String? ?? '',
+    aadharLast4:  j['aadhar_last4'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'name':         name,
+    'father_name':  fatherName,
+    'mother_name':  motherName,
+    'dob':          dob,
+    'gender':       gender,
+    'category':     category,
+    'phone':        phone,
+    'email':        email,
+    'address':      address,
+    'district':     district,
+    'state':        state,
+    'pincode':      pincode,
+    'aadhar_last4': aadharLast4,
+  };
+}
+
+
 class UserProfile {
   final int?   id;
   final String fcmToken;

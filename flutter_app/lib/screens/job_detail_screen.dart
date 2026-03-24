@@ -6,6 +6,7 @@ import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../utils/constants.dart';
+import '../widgets/profile_fill_sheet.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -611,10 +612,22 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _applyAndMark() async {
-    AdService().showInterstitial(); // show ad if ready (user is leaving the app)
+    if (!mounted) return;
+    // Load personal info & show profile card sheet
+    final info = await widget.api.getPersonalInfo();
+    if (!mounted) return;
+
+    final confirmed = await ProfileFillSheet.show(
+      context,
+      info: info,
+      api: widget.api,
+    );
+    if (!confirmed) return; // user dismissed without tapping "Form Kholo"
+
+    AdService().showInterstitial();
     await _launchApplyUrl();
     final success = await widget.api.saveJob(widget.userId, widget.jobId, 'applied');
-    if (success) setState(() { _isApplied = true; _isSaved = false; });
+    if (success && mounted) setState(() { _isApplied = true; _isSaved = false; });
   }
 
   Future<void> _launchApplyUrl() async {
