@@ -84,20 +84,28 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
 
     // updateProfile calls API and saves to SharedPreferences
-    await widget.api.updateProfile(widget.userId, newProfile);
+    final success = await widget.api.updateProfile(widget.userId, newProfile);
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile update ho gaya! ✅'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) Navigator.of(context).pop();
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile update ho gaya! ✅'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Save nahi hua — network check karo'),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    }
   }
 
   @override
@@ -250,6 +258,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               _buildCategoryOption('sc', 'SC'),
               const SizedBox(width: 8),
               _buildCategoryOption('st', 'ST'),
+              const SizedBox(width: 8),
+              _buildCategoryOption('ews', 'EWS'),
             ],
           ),
 

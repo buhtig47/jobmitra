@@ -41,7 +41,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
   bool _isLoading = true;
   late TabController _tabController;
 
-  List<Job> get _savedJobs   => _allJobs.where((j) => j.jobStatus != 'applied').toList();
+  List<Job> get _savedJobs   => _allJobs.where((j) => j.jobStatus == 'saved').toList();
   List<Job> get _appliedJobs => _allJobs.where((j) => j.jobStatus == 'applied').toList();
 
   @override
@@ -311,11 +311,12 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
   }
 
   Future<void> _showStageSheet(Job job) async {
-    final tracker   = _trackers[job.id] ?? {};
-    final curStage  = tracker['stage'] ?? 'applied';
-    final regCtrl   = TextEditingController(text: tracker['reg_no'] ?? '');
-    final examCtrl  = TextEditingController(text: tracker['exam_date'] ?? '');
-    final noteCtrl  = TextEditingController(text: tracker['note'] ?? '');
+    final tracker  = _trackers[job.id] ?? {};
+    // Use a mutable local so stage chips update visually without reopening the sheet
+    String localStage = tracker['stage'] ?? 'applied';
+    final regCtrl  = TextEditingController(text: tracker['reg_no'] ?? '');
+    final examCtrl = TextEditingController(text: tracker['exam_date'] ?? '');
+    final noteCtrl = TextEditingController(text: tracker['note'] ?? '');
 
     await showModalBottomSheet(
       context: context,
@@ -351,13 +352,13 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                   child: Wrap(
                     spacing: 8, runSpacing: 8,
                     children: _stages.map((s) {
-                      final stageIdx    = _stages.indexWhere((st) => st.key == s.key);
-                      final curIdx      = _stages.indexWhere((st) => st.key == curStage);
-                      final isDone      = stageIdx <= curIdx;
-                      final isCurrent   = s.key == curStage;
+                      final stageIdx  = _stages.indexWhere((st) => st.key == s.key);
+                      final curIdx    = _stages.indexWhere((st) => st.key == localStage);
+                      final isDone    = stageIdx <= curIdx;
+                      final isCurrent = s.key == localStage;
                       return GestureDetector(
                         onTap: () async {
-                          setS(() {});
+                          setS(() => localStage = s.key); // update chip immediately
                           await widget.api.updateTracker(job.id, {'stage': s.key});
                           if (mounted) setState(() { _trackers[job.id] = {...(_trackers[job.id] ?? {}), 'stage': s.key}; });
                         },

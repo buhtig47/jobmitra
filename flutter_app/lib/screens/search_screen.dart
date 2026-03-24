@@ -23,6 +23,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isSearching  = false;
   int? _userId;
   String _userCategory = 'general';
+  UserProfile? _profile;
   List<String> _recentSearches = [];
   String? _lastQuery;
 
@@ -48,8 +49,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    widget.api.getSavedUserId().then((id) => setState(() => _userId = id));
-    widget.api.getSavedProfile().then((p) { if (p != null) setState(() => _userCategory = p.category); });
+    widget.api.getSavedUserId().then((id) { if (mounted) setState(() => _userId = id); });
+    widget.api.getSavedProfile().then((p) {
+      if (p != null && mounted) setState(() { _profile = p; _userCategory = p.category; });
+    });
     _loadRecentSearches();
     _controller.addListener(() {
       if (_controller.text.isEmpty && _lastQuery != null) {
@@ -329,16 +332,20 @@ class _SearchScreenState extends State<SearchScreen> {
             itemCount: _filteredResults.length,
             itemBuilder: (ctx, i) => JobCard(
               job: _filteredResults[i],
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => JobDetailScreen(
-                    jobId: _filteredResults[i].id,
-                    api: widget.api,
-                    userId: _userId ?? 0,
+              profile: _profile,
+              onTap: () {
+                if (_userId == null) return; // not loaded yet
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => JobDetailScreen(
+                      jobId: _filteredResults[i].id,
+                      api: widget.api,
+                      userId: _userId!,
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),

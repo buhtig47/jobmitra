@@ -302,7 +302,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         // Qualifications
         _buildSection(
           '🎓 Qualification',
-          job.qualifications.map((q) => '• ${q.toUpperCase()} Pass required').join('\n'),
+          job.qualifications.isEmpty
+              ? 'As per official notification'
+              : job.qualifications.map((q) {
+                  final s = q.trim();
+                  return '• ${s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s} pass required';
+                }).join('\n'),
         ),
         const SizedBox(height: 80),
       ],

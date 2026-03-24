@@ -4,6 +4,26 @@ import '../utils/constants.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 
+// ── Category list derived from constants ──
+const _kAlertCategories = [
+  '',
+  'railway', 'banking', 'ssc', 'teaching', 'police',
+  'defence', 'upsc', 'anganwadi', 'psu', 'medical',
+  'research', 'engineering', 'postal', 'admin', 'it_tech',
+  'accounts', 'forest', 'legal', 'others',
+];
+
+const _kCatLabels = <String, String>{
+  '': 'Any Category',
+  'railway': '🚂 Railway', 'banking': '🏦 Banking', 'ssc': '📋 SSC',
+  'teaching': '📚 Teaching', 'police': '👮 Police', 'defence': '⭐ Defence',
+  'upsc': '🏛️ UPSC', 'anganwadi': '🌸 Anganwadi', 'psu': '🏭 PSU',
+  'medical': '🏥 Medical', 'research': '🔬 Research', 'engineering': '⚙️ Engineering',
+  'postal': '📮 Postal', 'admin': '🗂️ Admin', 'it_tech': '💻 IT/Tech',
+  'accounts': '💰 Accounts', 'forest': '🌳 Forest', 'legal': '⚖️ Legal',
+  'others': '💼 Others',
+};
+
 class AlertsScreen extends StatefulWidget {
   final ApiService api;
   const AlertsScreen({super.key, required this.api});
@@ -16,20 +36,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
   List<AlertRule> _rules = [];
   bool _loading = true;
 
-  static const _categories = [
-    '', 'railway', 'banking', 'ssc', 'teaching', 'police',
-    'defence', 'upsc', 'anganwadi', 'psu', 'medical',
-    'research', 'engineering', 'postal', 'admin', 'it_tech',
-  ];
-
-  static const _states = [
-    '', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
-    'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh',
-    'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra',
-    'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-    'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-    'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'All India',
-  ];
+  // Use centralized constants so these stay in sync
+  static const _categories = _kAlertCategories;
+  static final _states = ['', ...IndianStates.all]; // '' = Any State
 
   @override
   void initState() {
@@ -258,14 +267,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
   String _category = '';
   bool   _freeOnly = false;
 
-  static const _catLabels = {
-    '': 'Any Category',
-    'railway': '🚂 Railway', 'banking': '🏦 Banking', 'ssc': '📋 SSC',
-    'teaching': '📚 Teaching', 'police': '👮 Police', 'defence': '⭐ Defence',
-    'upsc': '🏛️ UPSC', 'anganwadi': '🌸 Anganwadi', 'psu': '🏭 PSU',
-    'medical': '🏥 Medical', 'research': '🔬 Research', 'engineering': '⚙️ Engineering',
-    'postal': '📮 Postal', 'admin': '🗂️ Admin', 'it_tech': '💻 IT/Tech',
-  };
+  static const _catLabels = _kCatLabels;
 
   @override
   void initState() {
@@ -346,7 +348,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
             ),
             items: widget.states.map((s) => DropdownMenuItem(
               value: s,
-              child: Text(s.isEmpty ? 'Any State' : s),
+              child: Text(s.isEmpty ? '🌍 Any State' : s),
             )).toList(),
             onChanged: (v) => setState(() => _state = v ?? ''),
           ),
