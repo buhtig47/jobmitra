@@ -289,4 +289,43 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_personalInfoKey, jsonEncode(info.toJson()));
   }
+
+  // ── Alert Rules (stored locally only) ──────────────────────
+  static const _alertsKey   = 'alert_rules_v1';
+  static const _alertSeenKey = 'alert_seen_ids_v1';
+
+  Future<List<AlertRule>> getAlertRules() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_alertsKey);
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((j) => AlertRule.fromJson(j as Map<String, dynamic>)).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<void> saveAlertRules(List<AlertRule> rules) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_alertsKey, jsonEncode(rules.map((r) => r.toJson()).toList()));
+  }
+
+  Future<Set<int>> getSeenJobIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_alertSeenKey) ?? [];
+      return raw.map((s) => int.tryParse(s) ?? -1).where((i) => i >= 0).toSet();
+    } catch (_) { return {}; }
+  }
+
+  Future<void> markJobsSeen(Set<int> ids) async {
+    try {
+      final existing = await getSeenJobIds();
+      final merged = {...existing, ...ids};
+      // Keep only last 2000 to prevent unbounded growth
+      final trimmed = merged.toList();
+      if (trimmed.length > 2000) trimmed.removeRange(0, trimmed.length - 2000);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_alertSeenKey, trimmed.map((i) => i.toString()).toList());
+    } catch (_) {}
+  }
 }

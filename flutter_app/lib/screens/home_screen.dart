@@ -12,6 +12,8 @@ import 'saved_jobs_screen.dart';
 import 'profile_edit_screen.dart';
 import 'personal_info_screen.dart';
 import 'tools_screen.dart';
+import 'alerts_screen.dart';
+import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -158,6 +160,10 @@ class _FeedTabState extends State<_FeedTab> {
         _isCached = false;
       }
     });
+    // Check smart alert rules against fresh (non-cached) jobs
+    if (!wasCached && _page == 1) {
+      NotificationService.checkAlerts(freshJobs, widget.api);
+    }
   }
 
   void _loadMore() {
@@ -259,6 +265,20 @@ class _FeedTabState extends State<_FeedTab> {
                         ),
                       ),
                     ),
+                  const SizedBox(width: 8),
+                  // Bell / Alerts button
+                  GestureDetector(
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => AlertsScreen(api: widget.api))),
+                    child: Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                    ),
+                  ),
                 ],
               ),
             ),

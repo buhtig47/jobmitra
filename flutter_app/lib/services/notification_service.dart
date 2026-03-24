@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
+import '../services/api_service.dart';
 import '../main.dart' show navigatorKey;
 
 // Top-level handler — must be outside the class (FCM requirement)
@@ -127,5 +128,44 @@ class NotificationService {
     );
 
     await prefs.setString('last_deadline_notif_date', today);
+  }
+
+  // ── Smart Alerts — check new jobs against user alert rules ──
+  static Future<void> checkAlerts(List<Job> freshJobs, ApiService api) async {
+    try {
+      final rules = await api.getAlertRules();
+      if (rules.isEmpty) return;
+
+      final seenIds = await api.getSeenJobIds();
+      final newJobs = freshJobs.where((j) => !seenIds.contains(j.id)).toList();
+      if (newJobs.isEmpty) return;
+
+      // Mark all new jobs as seen regardless of rule match
+      await api.markJobsSeen(newJobs.map((j) => j.id).toSet());
+
+      // Group matches by rule
+      int notifId = 100;
+      for (final rule in rules.where((r) => r.isActive)) {
+        final matches = newJobs.where((j) => rule.matches(j)).toList();
+        if (matches.isEmpty) continue;
+
+        final title = '🔔 JobMitra Alert: ${rule.label}';
+        final String body;
+        if (matches.length == 1) {
+          body = '${matches.first.cleanTitle} — ${matches.first.vacanciesText}';
+        } else {
+          body = '${matches.length} naye jobs match kiye: "${matches.first.cleanTitle}" and more';
+        }
+
+        await _showLocalNotification(
+          id: notifId++,
+          title: title,
+          body: body,
+          channelId: _newJobsChannelId,
+          channelName: 'New Jobs',
+          payload: 'home',
+        );
+      }
+    } catch (_) {}
   }
 }

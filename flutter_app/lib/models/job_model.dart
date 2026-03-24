@@ -254,6 +254,77 @@ class PersonalInfo {
 }
 
 
+// ── Alert Rule — stored locally, never sent to backend ───────────────────────
+class AlertRule {
+  final String id;        // timestamp-based unique ID
+  final String keyword;   // '' = any keyword
+  final String state;     // '' = any state
+  final String category;  // '' = any category
+  final bool   freeOnly;
+  final bool   isActive;
+
+  const AlertRule({
+    required this.id,
+    this.keyword  = '',
+    this.state    = '',
+    this.category = '',
+    this.freeOnly = false,
+    this.isActive = true,
+  });
+
+  bool get isEmpty => keyword.isEmpty && state.isEmpty && category.isEmpty;
+
+  String get label {
+    final parts = <String>[];
+    if (keyword.isNotEmpty)  parts.add('"$keyword"');
+    if (state.isNotEmpty)    parts.add(state);
+    if (category.isNotEmpty) parts.add(category);
+    if (freeOnly)            parts.add('Free');
+    return parts.isEmpty ? 'All Jobs' : parts.join(' + ');
+  }
+
+  bool matches(Job job) {
+    if (!isActive) return false;
+    if (freeOnly && !job.isFree) return false;
+    if (keyword.isNotEmpty &&
+        !job.title.toLowerCase().contains(keyword.toLowerCase()) &&
+        !job.department.toLowerCase().contains(keyword.toLowerCase())) return false;
+    if (state.isNotEmpty) {
+      final jobStates = job.states.map((s) => s.toLowerCase()).toList();
+      if (!jobStates.contains('all') && !jobStates.contains(state.toLowerCase())) return false;
+    }
+    if (category.isNotEmpty && job.category != category) return false;
+    return true;
+  }
+
+  factory AlertRule.fromJson(Map<String, dynamic> j) => AlertRule(
+    id:       j['id']       as String? ?? '',
+    keyword:  j['keyword']  as String? ?? '',
+    state:    j['state']    as String? ?? '',
+    category: j['category'] as String? ?? '',
+    freeOnly: j['free_only'] as bool?  ?? false,
+    isActive: j['is_active'] as bool?  ?? true,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id, 'keyword': keyword, 'state': state,
+    'category': category, 'free_only': freeOnly, 'is_active': isActive,
+  };
+
+  AlertRule copyWith({
+    String? keyword, String? state, String? category,
+    bool? freeOnly, bool? isActive,
+  }) => AlertRule(
+    id:       id,
+    keyword:  keyword  ?? this.keyword,
+    state:    state    ?? this.state,
+    category: category ?? this.category,
+    freeOnly: freeOnly ?? this.freeOnly,
+    isActive: isActive ?? this.isActive,
+  );
+}
+
+
 class UserProfile {
   final int?   id;
   final String fcmToken;
