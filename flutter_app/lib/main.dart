@@ -14,18 +14,11 @@ import 'utils/constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive offline cache
+  // 1. Offline cache
   await Hive.initFlutter();
   await Hive.openBox('jobs_cache');
 
-  // Initialize local notifications
-  await NotificationService.init();
-
-  // Initialize AdMob
-  await AdService.initialize();
-  AdService().loadInterstitial(); // preload first interstitial
-
-  // Initialize Firebase (requires google-services.json — skip gracefully if missing)
+  // 2. Firebase (needs to be before NotificationService which uses FirebaseMessaging)
   try {
     await Firebase.initializeApp();
     await FirebaseMessaging.instance.requestPermission(
@@ -36,14 +29,24 @@ void main() async {
       final prefs2 = await SharedPreferences.getInstance();
       await prefs2.setString('fcm_token', fcmToken);
     }
+    // Refresh token when it changes
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+      final prefs2 = await SharedPreferences.getInstance();
+      await prefs2.setString('fcm_token', token);
+    });
   } catch (_) {}
 
-  final prefs = await SharedPreferences.getInstance();
+  // 3. Local notifications + FCM foreground handler
+  await NotificationService.init();
 
-  // Wake up Render server (fire-and-forget — prevents 50s cold start delay)
+  // 4. AdMob
+  await AdService.initialize();
+  AdService().loadInterstitial();
+
+  // 5. Wake up Render server (fire-and-forget)
   http.get(Uri.parse('$kApiBase/stats')).catchError((_) {});
 
-  // Check if onboarding done
+  final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final userId = prefs.getInt('user_id');
 

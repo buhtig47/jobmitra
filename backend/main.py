@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional
 import json
 import os
+import base64
 import requests as _requests
 from datetime import datetime, timedelta
 
@@ -251,6 +252,108 @@ def user_qualifies(user_education: str, job_qualifications: list) -> bool:
         if user_level >= required_level:
             return True
     return False
+
+# ─────────────────────────────────────────
+# FIREBASE PUSH NOTIFICATIONS
+# ─────────────────────────────────────────
+
+def _get_fcm_access_token() -> Optional[str]:
+    """
+    Get OAuth2 access token for FCM v1 API.
+    Requires FIREBASE_CREDENTIALS_B64 env var — base64-encoded service account JSON.
+    Get it: Firebase Console → Project Settings → Service accounts → Generate new private key
+    Then: base64 -w0 serviceAccountKey.json
+    """
+    creds_b64 = os.getenv("FIREBASE_CREDENTIALS_B64", "")
+    if not creds_b64:
+        return None
+    try:
+        creds_json = json.loads(base64.b64decode(creds_b64).decode())
+        # Use google-auth to get access token
+        import google.oauth2.service_account as sa
+        import google.auth.transport.requests as ga_requests
+        credentials = sa.Credentials.from_service_account_info(
+            creds_json,
+            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+        )
+        credentials.refresh(ga_requests.Request())
+        return credentials.token
+    except Exception as e:
+        print(f"FCM token error: {e}")
+        return None
+
+
+def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = None) -> int:
+    """
+    Send FCM notification to a list of FCM tokens via HTTP v1 API.
+    Returns number of successful sends.
+    """
+    if not tokens:
+        return 0
+    access_token = _get_fcm_access_token()
+    if not access_token:
+        return 0
+
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "jobmitra-17db0")
+    url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    sent = 0
+    for token in tokens:
+        if not token or token == "test":
+            continue
+        payload = {
+            "message": {
+                "token": token,
+                "notification": {"title": title, "body": body},
+                "android": {
+                    "notification": {
+                        "channel_id": "new_jobs_channel",
+                        "sound": "default",
+                    }
+                },
+                "data": {k: str(v) for k, v in (data or {}).items()},
+            }
+        }
+        try:
+            r = _requests.post(url, headers=headers, json=payload, timeout=10)
+            if r.status_code == 200:
+                sent += 1
+        except Exception:
+            pass
+    return sent
+
+
+def notify_users_new_jobs(conn, new_count: int, categories: list[str]):
+    """Send push notification to all users with valid FCM tokens."""
+    if new_count == 0:
+        return 0
+    tokens = [
+        row["fcm_token"]
+        for row in conn.execute(
+            "SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND fcm_token != 'test'"
+        ).fetchall()
+        if row["fcm_token"]
+    ]
+    if not tokens:
+        return 0
+
+    # Build a catchy body
+    cat_str = ", ".join(categories[:3]) if categories else "Govt"
+    if len(categories) > 3:
+        cat_str += f" +{len(categories)-3} more"
+    body = f"{new_count} nai sarkari jobs: {cat_str}"
+
+    return send_fcm_to_tokens(
+        tokens,
+        title="🇮🇳 JobMitra — Nai Jobs Aayi!",
+        body=body,
+        data={"screen": "home"},
+    )
+
 
 # ─────────────────────────────────────────
 # ROUTES
@@ -660,9 +763,34 @@ def trigger_scrape(secret: str = Query(...)):
                     expired += 1
             except:
                 pass
-        return {"success": True, "jobs_inserted": inserted, "jobs_expired": expired}
+        # Send push notifications about new jobs
+        notified = 0
+        if inserted > 0:
+            try:
+                new_cats = list({j["category"] for j in jobs})
+                notified = notify_users_new_jobs(conn, inserted, new_cats)
+            except Exception:
+                pass
+        return {"success": True, "jobs_inserted": inserted, "jobs_expired": expired, "notified": notified}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/notify")
+def manual_notify(secret: str = Query(...), title: str = Query("🇮🇳 JobMitra"), body: str = Query(...)):
+    """Manually send a push notification to all users. For testing."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    tokens = [
+        row["fcm_token"]
+        for row in conn.execute(
+            "SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND fcm_token != 'test'"
+        ).fetchall()
+        if row["fcm_token"]
+    ]
+    sent = send_fcm_to_tokens(tokens, title=title, body=body, data={"screen": "home"})
+    return {"sent": sent, "total_users": len(tokens)}
 
 
 @app.post("/admin/reset_jobs")

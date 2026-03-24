@@ -166,6 +166,20 @@ class ApiService {
     return false;
   }
 
+  /// Sync the latest FCM token to the backend if it changed
+  Future<void> syncFcmToken(int userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('fcm_token') ?? '';
+      if (token.isEmpty || token == 'test') return;
+      final profile = await getSavedProfile();
+      if (profile == null || profile.fcmToken == token) return;
+      final updated = profile.copyWith(fcmToken: token);
+      await updateProfile(userId, updated);
+      await prefs.setString(_profileKey, jsonEncode(updated.toJson()));
+    } catch (_) {}
+  }
+
   Future<bool> saveJob(int userId, int jobId, String status) async {
     try {
       final res = await _post('$kApiBase/jobs/save', {'user_id': userId, 'job_id': jobId, 'status': status});

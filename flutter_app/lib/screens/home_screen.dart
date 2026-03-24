@@ -109,6 +109,7 @@ class _FeedTabState extends State<_FeedTab> {
     widget.api.getRecentlyViewed().then((r) {
       if (mounted) setState(() => _recentlyViewed = r);
     });
+    widget.api.syncFcmToken(widget.userId);
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
         if (!_isLoading && _hasMore) _loadMore();
