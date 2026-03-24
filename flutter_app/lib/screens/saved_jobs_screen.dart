@@ -7,6 +7,24 @@ import '../widgets/job_card.dart';
 import '../services/notification_service.dart';
 import 'job_detail_screen.dart';
 
+// ── Application stages ─────────────────────────────────────
+class _Stage {
+  final String key;
+  final String label;
+  final String emoji;
+  final Color  color;
+  const _Stage(this.key, this.label, this.emoji, this.color);
+}
+
+const _stages = [
+  _Stage('applied',        'Applied',         '📝', Color(0xFF1565C0)),
+  _Stage('fee_paid',       'Fee Paid',         '💳', Color(0xFF7B1FA2)),
+  _Stage('form_submitted', 'Form Submitted',   '✅', Color(0xFF2E7D32)),
+  _Stage('admit_card',     'Admit Card',       '🪪', Color(0xFFE65100)),
+  _Stage('exam_appeared',  'Exam Appeared',    '✍️', Color(0xFF00695C)),
+  _Stage('result',         'Result',           '🏆', Color(0xFFC62828)),
+];
+
 class SavedJobsScreen extends StatefulWidget {
   final int userId;
   final ApiService api;
@@ -19,10 +37,11 @@ class SavedJobsScreen extends StatefulWidget {
 class _SavedJobsScreenState extends State<SavedJobsScreen>
     with SingleTickerProviderStateMixin {
   List<Job> _allJobs = [];
+  Map<int, Map<String, String>> _trackers = {};
   bool _isLoading = true;
   late TabController _tabController;
 
-  List<Job> get _savedJobs  => _allJobs.where((j) => j.jobStatus != 'applied').toList();
+  List<Job> get _savedJobs   => _allJobs.where((j) => j.jobStatus != 'applied').toList();
   List<Job> get _appliedJobs => _allJobs.where((j) => j.jobStatus == 'applied').toList();
 
   @override
@@ -40,8 +59,13 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
 
   Future<void> _loadSavedJobs() async {
     setState(() => _isLoading = true);
-    final jobs = await widget.api.getSavedJobs(widget.userId);
-    setState(() { _allJobs = jobs; _isLoading = false; });
+    final results = await Future.wait([
+      widget.api.getSavedJobs(widget.userId),
+      widget.api.getAllTrackers(),
+    ]);
+    final jobs     = results[0] as List<Job>;
+    final trackers = results[1] as Map<int, Map<String, String>>;
+    setState(() { _allJobs = jobs; _trackers = trackers; _isLoading = false; });
     NotificationService.checkDeadlines(jobs);
   }
 
@@ -197,6 +221,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                     },
                     child: _AppliedJobCard(
                       job: job,
+                      tracker: _trackers[job.id],
                       onTap: () async {
                         await Navigator.push(
                           context,
@@ -204,6 +229,10 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                             jobId: job.id, api: widget.api, userId: widget.userId,
                           )),
                         );
+                        _loadSavedJobs();
+                      },
+                      onUpdateStage: () async {
+                        await _showStageSheet(job);
                         _loadSavedJobs();
                       },
                     ),
@@ -281,6 +310,135 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
     );
   }
 
+  Future<void> _showStageSheet(Job job) async {
+    final tracker   = _trackers[job.id] ?? {};
+    final curStage  = tracker['stage'] ?? 'applied';
+    final regCtrl   = TextEditingController(text: tracker['reg_no'] ?? '');
+    final examCtrl  = TextEditingController(text: tracker['exam_date'] ?? '');
+    final noteCtrl  = TextEditingController(text: tracker['note'] ?? '');
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                  child: Row(
+                    children: [
+                      Text(job.categoryEmoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(job.cleanTitle, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
+                ),
+                // Stage stepper
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: _stages.map((s) {
+                      final stageIdx    = _stages.indexWhere((st) => st.key == s.key);
+                      final curIdx      = _stages.indexWhere((st) => st.key == curStage);
+                      final isDone      = stageIdx <= curIdx;
+                      final isCurrent   = s.key == curStage;
+                      return GestureDetector(
+                        onTap: () async {
+                          setS(() {});
+                          await widget.api.updateTracker(job.id, {'stage': s.key});
+                          if (mounted) setState(() { _trackers[job.id] = {...(_trackers[job.id] ?? {}), 'stage': s.key}; });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: isDone ? s.color : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(20),
+                            border: isCurrent ? Border.all(color: s.color, width: 2) : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(s.emoji, style: const TextStyle(fontSize: 13)),
+                              const SizedBox(width: 5),
+                              Text(s.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDone ? Colors.white : Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                // Extra fields
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      _miniField(regCtrl,  'Registration No.',  Icons.numbers_rounded),
+                      const SizedBox(height: 8),
+                      _miniField(examCtrl, 'Exam Date (DD/MM/YYYY)', Icons.calendar_today_rounded, keyboard: TextInputType.datetime),
+                      const SizedBox(height: 8),
+                      _miniField(noteCtrl, 'Note (optional)', Icons.note_rounded),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await widget.api.updateTracker(job.id, {
+                        'reg_no':    regCtrl.text.trim(),
+                        'exam_date': examCtrl.text.trim(),
+                        'note':      noteCtrl.text.trim(),
+                      });
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    regCtrl.dispose(); examCtrl.dispose(); noteCtrl.dispose();
+  }
+
+  Widget _miniField(TextEditingController ctrl, String hint, IconData icon, {TextInputType keyboard = TextInputType.text}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 13),
+        prefixIcon: Icon(icon, size: 18, color: AppColors.primary),
+        filled: true, fillColor: AppColors.background,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
+      ),
+    );
+  }
+
   Widget _buildEmpty(bool isApplied) {
     return Center(
       child: Padding(
@@ -323,11 +481,13 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
   }
 }
 
-// ── Applied Job Card (green Applied badge) ───────────────
+// ── Applied Job Card (with stage tracker) ────────────────
 class _AppliedJobCard extends StatelessWidget {
-  final Job job;
-  final VoidCallback onTap;
-  const _AppliedJobCard({required this.job, required this.onTap});
+  final Job                   job;
+  final Map<String, String>?  tracker;
+  final VoidCallback          onTap;
+  final VoidCallback          onUpdateStage;
+  const _AppliedJobCard({required this.job, this.tracker, required this.onTap, required this.onUpdateStage});
 
   @override
   Widget build(BuildContext context) {
@@ -405,30 +565,61 @@ class _AppliedJobCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today_outlined,
-                            size: 12, color: Colors.grey[500]),
+                        Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey[500]),
                         const SizedBox(width: 4),
-                        Text(
-                          'Last date: ${job.lastDate}',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[600]),
-                        ),
+                        Text('Last date: ${job.lastDate}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                         const SizedBox(width: 12),
-                        Icon(Icons.people_outline,
-                            size: 12, color: Colors.grey[500]),
+                        Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
                         const SizedBox(width: 4),
-                        Text(
-                          job.vacanciesText,
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey[600]),
-                        ),
+                        Text(job.vacanciesText, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    // ── Stage tracker row ──
+                    _buildStageRow(context),
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStageRow(BuildContext context) {
+    final curStage = tracker?['stage'] ?? 'applied';
+    final curIdx   = _stages.indexWhere((s) => s.key == curStage);
+    final stage    = curIdx >= 0 ? _stages[curIdx] : _stages[0];
+    return GestureDetector(
+      onTap: onUpdateStage,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: stage.color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: stage.color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Text(stage.emoji, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 6),
+            Text(stage.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: stage.color)),
+            const Spacer(),
+            // Mini step dots
+            Row(
+              children: List.generate(_stages.length, (i) => Container(
+                width: 7, height: 7,
+                margin: const EdgeInsets.only(left: 3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i <= curIdx ? stage.color : Colors.grey[300],
+                ),
+              )),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.edit_rounded, size: 14, color: stage.color.withValues(alpha: 0.6)),
+          ],
         ),
       ),
     );

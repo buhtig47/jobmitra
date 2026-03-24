@@ -243,6 +243,36 @@ class ApiService {
     } catch (_) { return []; }
   }
 
+  // ── Application Stage Tracker ──────────────────────────────
+  static const _trackerKey = 'app_stage_tracker_v1';
+
+  // Returns Map<jobId, Map<field, value>>
+  // Fields: stage, reg_no, exam_date, note
+  Future<Map<int, Map<String, String>>> getAllTrackers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_trackerKey);
+      if (raw == null) return {};
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) =>
+          MapEntry(int.parse(k), Map<String, String>.from(v as Map)));
+    } catch (_) { return {}; }
+  }
+
+  Future<Map<String, String>?> getTracker(int jobId) async {
+    final all = await getAllTrackers();
+    return all[jobId];
+  }
+
+  Future<void> updateTracker(int jobId, Map<String, String> data) async {
+    final all = await getAllTrackers();
+    all[jobId] = {...(all[jobId] ?? {}), ...data};
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _trackerKey,
+        jsonEncode(all.map((k, v) => MapEntry(k.toString(), v))));
+  }
+
   // ── Personal Info (stored locally only, never sent to server) ──
   static const _personalInfoKey = 'personal_info_v1';
 

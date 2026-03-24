@@ -11,6 +11,7 @@ import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
 import 'profile_edit_screen.dart';
 import 'personal_info_screen.dart';
+import 'tools_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -34,13 +35,13 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeedTab(userId: widget.userId, api: _api),
           SearchScreen(api: _api),
           SavedJobsScreen(key: ValueKey(_savedRefreshKey), userId: widget.userId, api: _api),
+          const ToolsScreen(),
           _ProfileTab(userId: widget.userId),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTab,
         onDestinationSelected: (i) {
-          // Force Saved tab to reload fresh data every time it's visited
           if (i == 2 && _selectedTab != 2) _savedRefreshKey++;
           setState(() => _selectedTab = i);
         },
@@ -61,6 +62,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.bookmark_outline),
             selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
             label: 'Saved',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.handyman_outlined),
+            selectedIcon: Icon(Icons.handyman, color: AppColors.primary),
+            label: 'Tools',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
