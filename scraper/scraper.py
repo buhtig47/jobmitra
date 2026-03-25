@@ -1854,9 +1854,8 @@ def scrape_current_affairs() -> list:
                         pass
             if not pub_date:
                 pub_date = datetime.utcnow().strftime("%Y-%m-%d")
-            # Only keep exam-relevant articles (targeted sectioned feeds keep all)
-            is_targeted = "Sports" in src["name"] or "Economy" in src["name"] or "Sci" in src["name"]
-            if not is_targeted and not _CA_EXAM_RELEVANCE.search(title + " " + summary):
+            # Only keep exam-relevant articles
+            if not _CA_EXAM_RELEVANCE.search(title + " " + summary):
                 continue
             category = _classify_ca(title, summary)
             results.append({
