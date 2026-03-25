@@ -8,6 +8,7 @@ import 'competition_screen.dart';
 import 'career_roadmap_screen.dart';
 import 'dept_profiles_screen.dart';
 import 'current_affairs_screen.dart';
+import 'mock_test_screen.dart';
 
 class ToolsScreen extends StatelessWidget {
   final ApiService api;
@@ -119,10 +120,11 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '📝',
                   title: 'Mock Tests',
-                  subtitle: 'SSC, Railway, Banking — free practice questions',
+                  subtitle: 'SSC, Railway, Banking, Polity — 75 free questions',
                   color: const Color(0xFF6A1B9A),
-                  comingSoon: true,
-                  onTap: () => _showComingSoon(context, 'Mock Tests'),
+                  tag: 'New!',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const MockTestScreen())),
                 ),
                 const SizedBox(height: 12),
                 _ToolCard(
