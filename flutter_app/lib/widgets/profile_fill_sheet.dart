@@ -73,7 +73,7 @@ class ProfileFillSheet extends StatelessWidget {
                       children: [
                         Text('Application Card',
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                        Text('Copy & paste into your application forms',
+                        Text('Tap Copy → paste in govt form fields',
                             style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ],
                     ),
@@ -104,12 +104,26 @@ class ProfileFillSheet extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       children: [
                         _buildGroup(context, '👤 Personal', [
-                          if (info.name.isNotEmpty)       _row(context, 'Name',       info.name),
-                          if (info.fatherName.isNotEmpty) _row(context, "Father",     info.fatherName),
-                          if (info.motherName.isNotEmpty) _row(context, 'Mother',     info.motherName),
-                          if (info.dob.isNotEmpty)        _row(context, 'DOB',        info.dob),
-                          if (info.gender.isNotEmpty)     _row(context, 'Gender',     info.gender),
-                          if (info.category.isNotEmpty)   _row(context, 'Category',   info.category),
+                          if (info.name.isNotEmpty) ...[
+                            _row(context, 'Name',         info.name),
+                            _row(context, 'Name (CAPS)',  info.name.toUpperCase()),
+                          ],
+                          if (info.fatherName.isNotEmpty) ...[
+                            _row(context, 'Father',       info.fatherName),
+                            _row(context, 'Father (CAPS)',info.fatherName.toUpperCase()),
+                          ],
+                          if (info.motherName.isNotEmpty)
+                            _row(context, 'Mother',       info.motherName),
+                          if (info.dob.isNotEmpty)
+                            _row(context, 'DOB',          info.dob),
+                          if (info.gender.isNotEmpty)
+                            _row(context, 'Gender',       info.gender),
+                          if (info.category.isNotEmpty) ...[
+                            _row(context, 'Category',     info.category),
+                            // OBC-NCL is also written as OBC on some portals
+                            if (info.category == 'OBC-NCL')
+                              _row(context, 'Category (alt)', 'OBC'),
+                          ],
                         ]),
                         _buildGroup(context, '📞 Contact', [
                           if (info.phone.isNotEmpty) _row(context, 'Mobile', info.phone),
@@ -168,7 +182,7 @@ class ProfileFillSheet extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context, true),
                       icon: const Icon(Icons.open_in_new_rounded, color: Colors.white, size: 18),
-                      label: const Text('Form Kholo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                      label: const Text('Portal Kholo →', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 48),
                         backgroundColor: AppColors.accent,

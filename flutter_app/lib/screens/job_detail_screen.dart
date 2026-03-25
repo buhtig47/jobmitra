@@ -31,6 +31,91 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   bool  _isApplied  = false;
   UserProfile? _profile;
 
+  // ── Official govt portal lookup ──────────────────────────────
+  // Keys are lowercase substrings checked against "title dept"
+  static const Map<String, String> _orgPortals = {
+    'ssc':          'https://ssc.gov.in',
+    'upsc':         'https://upsconline.nic.in',
+    'ibps':         'https://www.ibps.in',
+    'sbi po':       'https://bank.sbi/web/careers',
+    'sbi clerk':    'https://bank.sbi/web/careers',
+    'sbi':          'https://bank.sbi/web/careers',
+    'rbi':          'https://opportunities.rbi.org.in',
+    'rrb':          'https://rrbapply.gov.in',
+    'drdo':         'https://rac.gov.in',
+    'rac':          'https://rac.gov.in',
+    'isro':         'https://www.isro.gov.in/careers',
+    'aiims':        'https://aiimsexams.ac.in',
+    'join indian army': 'https://joinindianarmy.nic.in',
+    'indian army':  'https://joinindianarmy.nic.in',
+    'indian navy':  'https://joinindiannavy.gov.in',
+    'air force':    'https://careerairforce.nic.in',
+    'indian coast': 'https://joinindiancoastguard.cdac.in',
+    'lic':          'https://licindia.in',
+    'ongc':         'https://ongcindia.com',
+    'bhel':         'https://bhel.com',
+    'npcil':        'https://npcilcareers.co.in',
+    'india post':   'https://indiapostgdsonline.gov.in',
+    'postal':       'https://indiapostgdsonline.gov.in',
+    'navodaya':     'https://navodaya.gov.in',
+    'nvs':          'https://navodaya.gov.in',
+    'kvs':          'https://kvsangathan.nic.in',
+    'kendriya vidyalaya': 'https://kvsangathan.nic.in',
+    'csir':         'https://csirhrdg.res.in',
+    'icmr':         'https://icmr.gov.in',
+    'nabard':       'https://www.nabard.org',
+    'sebi':         'https://www.sebi.gov.in',
+    'bsnl':         'https://www.bsnl.co.in',
+    'nhm':          'https://nhm.gov.in',
+    'nrhm':         'https://nhm.gov.in',
+    'fci':          'https://www.fci.gov.in',
+    'food corporation': 'https://www.fci.gov.in',
+    'high court':   'https://njdg.ecourts.gov.in',
+    'district court': 'https://njdg.ecourts.gov.in',
+  };
+
+  static const Map<String, String> _categoryPortals = {
+    'ssc':      'https://ssc.gov.in',
+    'upsc':     'https://upsconline.nic.in',
+    'railway':  'https://rrbapply.gov.in',
+    'banking':  'https://www.ibps.in',
+    'defence':  'https://joinindianarmy.nic.in',
+    'postal':   'https://indiapostgdsonline.gov.in',
+    'teaching': 'https://ctet.nic.in',
+  };
+
+  /// Returns (url, portalName) — best apply URL we can determine.
+  (String, String?) _resolveApply() {
+    if (_job == null) return ('', null);
+
+    // If sourceUrl is already an official domain → use it directly
+    final srcHost = Uri.tryParse(_job!.sourceUrl)?.host ?? '';
+    if (srcHost.endsWith('.gov.in') || srcHost.endsWith('.nic.in')) {
+      return (_job!.sourceUrl, srcHost);
+    }
+
+    final combined = '${_job!.title} ${_job!.department}'.toLowerCase();
+
+    // Org keyword match (longest key first for specificity)
+    final sortedKeys = _orgPortals.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final key in sortedKeys) {
+      if (combined.contains(key)) {
+        final host = Uri.tryParse(_orgPortals[key]!)?.host ?? key;
+        return (_orgPortals[key]!, host);
+      }
+    }
+
+    // Category fallback
+    final cat = _categoryPortals[_job!.category];
+    if (cat != null) {
+      final host = Uri.tryParse(cat)?.host ?? cat;
+      return (cat, host);
+    }
+
+    return (_job!.sourceUrl, null); // last resort: news article
+  }
+
   static const Map<String, Color> _catColors = {
     'railway':   Color(0xFF1565C0),
     'banking':   Color(0xFF2E7D32),
@@ -487,6 +572,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Widget _buildApplyButton() {
+    final (applyUrl, portalName) = _resolveApply();
+    final isOfficialUrl = applyUrl != _job!.sourceUrl;
+    final portalLabel   = portalName != null
+        ? portalName.replaceFirst('www.', '')
+        : 'Official Portal';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
       decoration: const BoxDecoration(
@@ -494,6 +585,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
       ),
       child: _isApplied
+          // ── Already applied state ──
           ? Row(
               children: [
                 Expanded(
@@ -515,35 +607,89 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
+                // Notification button
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: _launchSourceUrl,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: const Icon(Icons.article_outlined, color: Colors.grey, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Re-open official portal
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _launchApplyUrl,
+                    onPressed: () => _launchUrl(applyUrl),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
                     child: const Icon(Icons.open_in_new_rounded, color: Colors.white, size: 20),
                   ),
                 ),
               ],
             )
-          : ElevatedButton(
-              onPressed: _applyAndMark,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 52),
-                backgroundColor: AppColors.accent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Apply Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
-                  SizedBox(width: 8),
-                  Icon(Icons.open_in_new_rounded, color: Colors.white, size: 18),
-                ],
-              ),
+          // ── Not applied yet ──
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    // View Notification (news article)
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _launchSourceUrl,
+                        icon: const Icon(Icons.article_outlined, size: 16),
+                        label: const Text('Notification', style: TextStyle(fontSize: 13)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          side: BorderSide(color: Colors.grey[300]!),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Apply at official portal
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: _applyAndMark,
+                          icon: const Icon(Icons.open_in_new_rounded, color: Colors.white, size: 16),
+                          label: Text(
+                            isOfficialUrl ? 'Apply at $portalLabel' : 'Apply / View',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (isOfficialUrl)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      '🔒 Official govt portal — copy your details from the card above',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
             ),
     );
   }
@@ -618,7 +764,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   Future<void> _applyAndMark() async {
     if (!mounted) return;
-    // Load personal info & show profile card sheet
     final info = await widget.api.getPersonalInfo();
     if (!mounted) return;
 
@@ -627,18 +772,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       info: info,
       api: widget.api,
     );
-    if (!confirmed) return; // user dismissed without tapping "Form Kholo"
+    if (!confirmed) return;
 
+    final (applyUrl, _) = _resolveApply();
     AdService().showInterstitial();
-    await _launchApplyUrl();
+    await _launchUrl(applyUrl);
     final success = await widget.api.saveJob(widget.userId, widget.jobId, 'applied');
     if (success && mounted) setState(() { _isApplied = true; _isSaved = false; });
   }
 
-  Future<void> _launchApplyUrl() async {
-    final url = Uri.parse(_job!.sourceUrl);
+  Future<void> _launchUrl(String rawUrl) async {
+    final url = Uri.parse(rawUrl);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
+
+  Future<void> _launchSourceUrl() async => _launchUrl(_job!.sourceUrl);
 }
