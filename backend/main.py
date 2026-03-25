@@ -925,6 +925,28 @@ def scrape_current_affairs_endpoint(secret: str = Query(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/admin/import-ca")
+def import_current_affairs(secret: str = Query(...), payload: dict = Body(...)):
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    articles = payload.get("articles", [])
+    conn = get_db()
+    inserted = 0
+    for a in articles:
+        try:
+            conn.execute(
+                """INSERT OR REPLACE INTO current_affairs
+                   (title, summary, category, pub_date, source_name, source_url)
+                   VALUES (?,?,?,?,?,?)""",
+                (a.get("title",""), a.get("summary",""), a.get("category","misc"),
+                 a.get("pub_date",""), a.get("source_name",""), a.get("source_url",""))
+            )
+            inserted += 1
+        except Exception:
+            pass
+    return {"success": True, "inserted": inserted, "total": len(articles)}
+
+
 @app.post("/admin/bulk_import")
 def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
     if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
