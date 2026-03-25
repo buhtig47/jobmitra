@@ -175,11 +175,11 @@ class Job {
 
   String get urgencyText {
     if (daysLeft <= 0)  return 'Expired';
-    if (daysLeft == 1)  return 'Kal last date!';
-    if (daysLeft <= 3)  return '$daysLeft din bacha hai!';
-    if (daysLeft <= 7)  return '$daysLeft din bache hain';
-    if (daysLeft <= 14) return '$daysLeft din bacha hai';
-    return '$daysLeft din bache hain';
+    if (daysLeft == 1)  return 'Last day!';
+    if (daysLeft <= 3)  return '$daysLeft days left!';
+    if (daysLeft <= 7)  return '$daysLeft days left';
+    if (daysLeft <= 14) return '$daysLeft days left';
+    return '$daysLeft days left';
   }
 
   String get feeText => isFree ? 'Free' : '₹$fee';

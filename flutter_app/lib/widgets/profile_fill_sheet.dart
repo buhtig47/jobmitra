@@ -73,7 +73,7 @@ class ProfileFillSheet extends StatelessWidget {
                       children: [
                         Text('Application Card',
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                        Text('Tap Copy → paste in govt form fields',
+                        Text('Tap Copy next to each field, paste in form',
                             style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ],
                     ),
@@ -154,7 +154,7 @@ class ProfileFillSheet extends StatelessWidget {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '"Portal Kholo" tap karte hi saari details clipboard mein copy ho jaayengi. Form mein field touch karo → Paste',
+                                  'Tapping "Open Portal" copies all details to clipboard. In the form, long-press any field → Paste.',
                                   style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.4),
                                 ),
                               ),
@@ -196,7 +196,7 @@ class ProfileFillSheet extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
-                    child: const Text('Baad Mein', style: TextStyle(color: Colors.grey)),
+                    child: const Text('Later', style: TextStyle(color: Colors.grey)),
                   ),
                   const SizedBox(width: 12),
                   // Open form button
@@ -204,7 +204,7 @@ class ProfileFillSheet extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context, true),
                       icon: const Icon(Icons.open_in_new_rounded, color: Colors.white, size: 18),
-                      label: const Text('Portal Kholo →', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                      label: const Text('Open Portal →', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 48),
                         backgroundColor: AppColors.accent,
@@ -231,12 +231,12 @@ class ProfileFillSheet extends StatelessWidget {
           const Text('📝', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
           const Text(
-            'Form Details Nahi Hain',
+            'No Details Saved',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
-            'Apna naam, DOB, category aadi fill karo. Fir ek tap se copy karke form bhar sakte ho.',
+            'Add your name, DOB, category etc. once. Copy field-by-field into any govt application form.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5),
           ),

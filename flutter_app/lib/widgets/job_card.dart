@@ -183,7 +183,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Dekho',
+                                Text('View',
                                     style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,

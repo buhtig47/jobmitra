@@ -163,7 +163,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       _isSaved   = status == 'saved';
       _isApplied = status == 'applied';
     });
-    if (job != null) widget.api.addRecentlyViewed(job);
+    // addRecentlyViewed removed — recently viewed feature removed
   }
 
   @override
@@ -395,12 +395,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
         // Qualifications
         _buildSection(
-          '🎓 Qualification',
+          '🎓 Qualifications',
           job.qualifications.isEmpty
               ? 'As per official notification'
               : job.qualifications.map((q) {
                   final s = q.trim();
-                  return '• ${s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s} pass required';
+                  return '• ${s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s}';
                 }).join('\n'),
         ),
         const SizedBox(height: 80),
@@ -693,7 +693,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      '🔒 Official govt portal — copy your details from the card above',
+                      '🔒 Official portal — your details will be copied to clipboard automatically',
                       style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                       textAlign: TextAlign.center,
                     ),

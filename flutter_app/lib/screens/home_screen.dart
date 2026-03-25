@@ -107,7 +107,6 @@ class _FeedTabState extends State<_FeedTab> {
   bool _freeOnly = false;  // free jobs toggle
   String _sortBy = 'deadline'; // deadline | vacancies | newest
   UserProfile? _profile;
-  List<Job> _recentlyViewed = [];
 
   @override
   void initState() {
@@ -115,9 +114,6 @@ class _FeedTabState extends State<_FeedTab> {
     _loadJobs();
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
-    });
-    widget.api.getRecentlyViewed().then((r) {
-      if (mounted) setState(() => _recentlyViewed = r);
     });
     widget.api.syncFcmToken(widget.userId);
     _scrollController.addListener(() {
@@ -193,12 +189,6 @@ class _FeedTabState extends State<_FeedTab> {
     var list = category == null ? _jobs : _jobs.where((j) => j.category == category).toList();
     if (_freeOnly) list = list.where((j) => j.isFree).toList();
     return list.length;
-  }
-
-  void _refreshRecentlyViewed() {
-    widget.api.getRecentlyViewed().then((r) {
-      if (mounted) setState(() => _recentlyViewed = r);
-    });
   }
 
   @override
@@ -305,21 +295,13 @@ class _FeedTabState extends State<_FeedTab> {
                         child: ListView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: (_recentlyViewed.isNotEmpty ? 1 : 0) +
-                              _filteredJobs.length +
+                          itemCount: _filteredJobs.length +
                               (_filteredJobs.length ~/ 5) + // ad slots
                               (_hasMore ? 1 : 0),
                           itemBuilder: (ctx, rawIdx) {
-                            // Recently viewed strip as first item
-                            final offset = _recentlyViewed.isNotEmpty ? 1 : 0;
-                            if (_recentlyViewed.isNotEmpty && rawIdx == 0) {
-                              return _buildRecentlyViewed();
-                            }
-                            // Map adjusted index → job or ad
                             // Every 6th slot (pos 5 in a group of 6) is a banner ad
-                            final adj = rawIdx - offset;
-                            final group = adj ~/ 6;
-                            final pos   = adj % 6;
+                            final group  = rawIdx ~/ 6;
+                            final pos    = rawIdx % 6;
                             final jobIdx = group * 5 + pos;
 
                             if (pos == 5) return const BannerAdWidget();
@@ -329,18 +311,16 @@ class _FeedTabState extends State<_FeedTab> {
                               return JobCard(
                                 job: job,
                                 profile: _profile,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => JobDetailScreen(
-                                        jobId: job.id,
-                                        api: widget.api,
-                                        userId: widget.userId,
-                                      ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => JobDetailScreen(
+                                      jobId: job.id,
+                                      api: widget.api,
+                                      userId: widget.userId,
                                     ),
-                                  ).then((_) => _refreshRecentlyViewed());
-                                },
+                                  ),
+                                ),
                               );
                             }
                             // Load-more spinner
@@ -495,100 +475,6 @@ class _FeedTabState extends State<_FeedTab> {
         ],
       ),
       ),
-    );
-  }
-
-  Widget _buildRecentlyViewed() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10, top: 4),
-          child: Row(
-            children: [
-              const Icon(Icons.history_rounded, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              const Text(
-                'Recently Viewed',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 96,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _recentlyViewed.length,
-            itemBuilder: (ctx, i) {
-              final job = _recentlyViewed[i];
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => JobDetailScreen(
-                        jobId: job.id,
-                        api: widget.api,
-                        userId: widget.userId,
-                      ),
-                    ),
-                  ).then((_) => _refreshRecentlyViewed());
-                },
-                child: Container(
-                  width: 180,
-                  margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE8E8E8)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        job.cleanTitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Row(
-                        children: [
-                          Text(job.categoryEmoji,
-                              style: const TextStyle(fontSize: 11)),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              job.categoryLabel,
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey[500]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 14),
-      ],
     );
   }
 
