@@ -1750,13 +1750,12 @@ def deduplicate(jobs: list) -> list:
 # ════════════════════════════════════════════════════════
 
 _CA_SOURCES = [
-    {"name": "GK Today",          "url": "https://www.gktoday.in/feed/"},
     {"name": "Affairs Cloud",     "url": "https://www.affairscloud.com/feed/"},
-    {"name": "Adda247 CA",        "url": "https://currentaffairs.adda247.com/feed/"},
-    {"name": "Jagranjosh",        "url": "https://www.jagranjosh.com/current-affairs/rss-feed"},
-    {"name": "Onlymyhealth",      "url": "https://www.onlymyhealth.com/gk/feed/"},
-    {"name": "GK Quiz",           "url": "https://gkquiz.in/feed/"},
-    {"name": "Study IQ",          "url": "https://www.studyiq.com/articles/feed/"},
+    {"name": "The Hindu",         "url": "https://www.thehindu.com/news/national/feeder/default.rss"},
+    {"name": "NDTV India",        "url": "https://feeds.feedburner.com/ndtvnews-india-news"},
+    {"name": "Indian Express",    "url": "https://indianexpress.com/section/india/feed/"},
+    {"name": "LiveMint",          "url": "https://www.livemint.com/rss/news"},
+    {"name": "PIB",               "url": "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"},
 ]
 
 _CA_CATEGORY_RULES = [
@@ -1802,6 +1801,9 @@ def scrape_current_affairs() -> list:
             t_el = item.find("title")
             title = (t_el.text or "").strip() if t_el is not None else ""
             if not title:
+                continue
+            # Skip non-English titles (Devanagari / Hindi)
+            if any('\u0900' <= ch <= '\u097F' for ch in title):
                 continue
             l_el = item.find("link")
             url = ""
