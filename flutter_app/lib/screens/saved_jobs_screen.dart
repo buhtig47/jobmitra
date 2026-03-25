@@ -57,16 +57,21 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
     super.dispose();
   }
 
-  Future<void> _loadSavedJobs() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadSavedJobs({bool showSpinner = true}) async {
+    if (showSpinner) setState(() => _isLoading = true);
     final results = await Future.wait([
       widget.api.getSavedJobs(widget.userId),
       widget.api.getAllTrackers(),
     ]);
     final jobs     = results[0] as List<Job>;
     final trackers = results[1] as Map<int, Map<String, String>>;
-    setState(() { _allJobs = jobs; _trackers = trackers; _isLoading = false; });
+    if (mounted) setState(() { _allJobs = jobs; _trackers = trackers; _isLoading = false; });
     NotificationService.checkDeadlines(jobs);
+  }
+
+  Future<void> _refreshTrackers() async {
+    final trackers = await widget.api.getAllTrackers();
+    if (mounted) setState(() => _trackers = trackers);
   }
 
   @override
@@ -74,7 +79,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
+        preferredSize: const Size.fromHeight(110),
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -83,66 +88,64 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
               end: Alignment.bottomRight,
             ),
           ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              '🔖 Saved Jobs',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                            Text(
-                              'Track your applications',
-                              style: TextStyle(color: Colors.white70, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_allJobs.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF9933),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${_allJobs.length} Total',
-                            style: const TextStyle(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '🔖 Saved Jobs',
+                            style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w700),
                           ),
+                          Text(
+                            'Track your applications',
+                            style: TextStyle(color: Colors.white70, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_allJobs.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF9933),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                    ],
-                  ),
-                ),
-                // Tabs
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: const Color(0xFFFF9933),
-                  indicatorWeight: 3,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white54,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  tabs: [
-                    Tab(text: '🔖 Saved (${_savedJobs.length})'),
-                    Tab(text: '✅ Applied (${_appliedJobs.length})'),
+                        child: Text(
+                          '${_allJobs.length} Total',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              // Tabs
+              TabBar(
+                controller: _tabController,
+                indicatorColor: const Color(0xFFFF9933),
+                indicatorWeight: 3,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white54,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                tabs: [
+                  Tab(text: '🔖 Saved (${_savedJobs.length})'),
+                  Tab(text: '✅ Applied (${_appliedJobs.length})'),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -207,7 +210,10 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                       return success;
                     },
                     onDismissed: (_) {
-                      setState(() => _allJobs.removeWhere((j) => j.id == job.id));
+                      setState(() {
+                        final idx = _allJobs.indexWhere((j) => j.id == job.id);
+                        if (idx >= 0) _allJobs[idx] = _allJobs[idx].copyWith(jobStatus: 'saved');
+                      });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Text('Moved from Applied to Saved'),
@@ -217,7 +223,6 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                           duration: const Duration(seconds: 3),
                         ),
                       );
-                      _loadSavedJobs();
                     },
                     child: _AppliedJobCard(
                       job: job,
@@ -233,7 +238,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                       },
                       onUpdateStage: () async {
                         await _showStageSheet(job);
-                        _loadSavedJobs();
+                        _refreshTrackers();
                       },
                     ),
                   );
@@ -283,9 +288,8 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                         action: SnackBarAction(
                           label: 'Undo',
                           onPressed: () async {
-                            await widget.api.saveJob(
-                                widget.userId, job.id, 'saved');
-                            _loadSavedJobs();
+                            await widget.api.saveJob(widget.userId, job.id, 'saved');
+                            _loadSavedJobs(showSpinner: false);
                           },
                         ),
                         duration: const Duration(seconds: 4),

@@ -69,6 +69,17 @@ class Job {
     );
   }
 
+  Job copyWith({String? jobStatus}) => Job(
+    id: id, title: title, department: department, source: source,
+    sourceUrl: sourceUrl, category: category, vacancies: vacancies,
+    lastDate: lastDate, daysLeft: daysLeft, urgency: urgency,
+    fee: fee, isFree: isFree, qualifications: qualifications,
+    states: states, ageMin: ageMin, ageMax: ageMax,
+    documentsNeeded: documentsNeeded,
+    jobStatus: jobStatus ?? this.jobStatus,
+    payScale: payScale,
+  );
+
   Map<String, dynamic> toJson() => {
     'id': id, 'title': title, 'department': department,
     'source': source, 'source_url': sourceUrl, 'category': category,
