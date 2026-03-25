@@ -1,6 +1,7 @@
 // lib/screens/mock_test_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
@@ -13,20 +14,26 @@ class _Q {
 }
 
 class _Pack {
-  final String title, subtitle, emoji;
+  final String id, title, subtitle, emoji;
   final Color color;
+  final bool isPyq;
   final List<_Q> questions;
   const _Pack({
-    required this.title, required this.subtitle,
-    required this.emoji, required this.color,
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.emoji,
+    required this.color,
     required this.questions,
+    this.isPyq = false,
   });
 }
 
 // ── Question Banks ────────────────────────────────────────────────────────────
 
-const _packs = [
+const _practicePacks = [
   _Pack(
+    id: 'ssc_gk',
     title: 'SSC General Knowledge',
     subtitle: 'Static GK for SSC CGL, CHSL, MTS',
     emoji: '🏛️',
@@ -65,6 +72,7 @@ const _packs = [
     ],
   ),
   _Pack(
+    id: 'banking',
     title: 'Banking & Finance',
     subtitle: 'For SBI PO, IBPS PO, RBI Grade B',
     emoji: '🏦',
@@ -97,19 +105,19 @@ const _packs = [
            'Banks lend to customers', 'Government borrows from RBI'], 1),
       _Q('UPI was launched by which organization?',
           ['RBI', 'SBI', 'NPCI', 'SEBI'], 2),
-      _Q('Which instrument is used to transfer funds without physical cash?',
-          ['Cheque', 'Demand Draft', 'NEFT / RTGS', 'All of these'], 3),
-      _Q('The base rate system of lending was replaced by?',
-          ['Prime Lending Rate', 'MCLR (Marginal Cost of Funds based Lending Rate)',
-           'Repo Linked Lending Rate', 'Bank Rate'], 1),
-      _Q('Priority sector lending target for domestic banks is what % of ANBC?',
-          ['30%', '35%', '40%', '45%'], 2),
       _Q('Which is NOT a function of RBI?',
           ['Issuing currency notes', 'Banker to government',
            'Granting retail loans to public', 'Regulating banking sector'], 2),
+      _Q('SEBI was established as a statutory body in which year?',
+          ['1988', '1990', '1992', '1994'], 2),
+      _Q('KYC stands for?',
+          ['Keep Your Cash', 'Know Your Customer', 'Know Your Credit', 'Keep Your Credit'], 1),
+      _Q('The headquarters of NABARD is in?',
+          ['New Delhi', 'Chennai', 'Mumbai', 'Kolkata'], 2),
     ],
   ),
   _Pack(
+    id: 'railway',
     title: 'Railway GK',
     subtitle: 'For RRB NTPC, Group D, ALP',
     emoji: '🚂',
@@ -141,11 +149,11 @@ const _packs = [
           ['Delhi', 'Mumbai', 'Chennai', 'Kolkata'], 3),
       _Q('Indian Railways mainly uses which gauge for broad gauge tracks?',
           ['762 mm', '1000 mm', '1676 mm', '1435 mm'], 2),
-      _Q('Mission Raftaar was launched by Indian Railways to?',
+      _Q('Mission Raftaar was launched to?',
           ['Reduce accidents', 'Double freight and passenger speed',
            'Build new stations', 'Electrify all routes'], 1),
       _Q('The Konkan Railway connects Roha (Maharashtra) to?',
-          ['Goa', 'Thivim', 'Mangaluru (Karnataka)', 'Kochi'], 2),
+          ['Goa', 'Thivim (Goa)', 'Mangaluru (Karnataka)', 'Kochi'], 2),
       _Q('Rail Vikas Nigam Limited (RVNL) is under which ministry?',
           ['Finance Ministry', 'Commerce Ministry',
            'Ministry of Railways', 'Ministry of Transport'], 2),
@@ -155,6 +163,7 @@ const _packs = [
     ],
   ),
   _Pack(
+    id: 'reasoning',
     title: 'Reasoning Ability',
     subtitle: 'Logical & verbal reasoning basics',
     emoji: '🧠',
@@ -168,7 +177,7 @@ const _packs = [
           ['Apple', 'Mango', 'Potato', 'Banana'], 2),
       _Q('Dog is to Kennel as Bird is to?',
           ['Hole', 'Cage', 'Nest', 'Tree'], 2),
-      _Q('Complete the series: 3, 6, 11, 18, 27, ?\n(Hint: differences are 3, 5, 7, 9, 11)',
+      _Q('Complete: 3, 6, 11, 18, 27, ?\n(differences: 3, 5, 7, 9, 11)',
           ['36', '38', '35', '40'], 1),
       _Q('Which number does NOT belong: 1, 4, 9, 16, 24, 36?',
           ['4', '9', '24', '36'], 2),
@@ -179,25 +188,25 @@ const _packs = [
           ['JLNP', 'JLNO', 'ILNP', 'KLMP'], 0),
       _Q('Complete the Fibonacci series: 1, 1, 2, 3, 5, 8, ?',
           ['11', '12', '13', '14'], 2),
-      _Q('If + means ×, − means +, ÷ means −, × means ÷\n'
-         'Find: 15 + 3 − 20 ÷ 5',
+      _Q('If + means ×, − means +, ÷ means −, × means ÷\nFind: 15 + 3 − 20 ÷ 5',
           ['55', '60', '65', '70'], 1),
-      _Q('Missing number: 8, 27, 64, 125, ?  (cubes: 2³, 3³, 4³, 5³...)',
+      _Q('Missing number: 8, 27, 64, 125, ?  (pattern: 2³, 3³, 4³, 5³...)',
           ['196', '216', '225', '243'], 1),
-      _Q('A is 3 ranks above C in class. B is 2 ranks below A. '
-         'If C is 15th from the bottom and there are 40 students, what is B\'s rank from top?',
-          ['16', '17', '15', '14'], 0),
-      _Q('Find the odd one out: January, March, June, August',
+      _Q('Find the odd one out: January, March, June, August\n(Hint: months with 31 days)',
           ['January', 'March', 'June', 'August'], 2),
-      _Q('If ZONE is coded by position values: Z=26, O=15, N=14, E=5; '
-         'what is the total?',
+      _Q('ZONE → Z=26, O=15, N=14, E=5. Total = ?',
           ['55', '58', '60', '62'], 2),
       _Q('In a row of boys, Ravi is 7th from left and 13th from right. '
-         'How many boys are in the row?',
+         'Total boys in the row?',
           ['18', '19', '20', '21'], 1),
+      _Q('A man walks 5 km North, turns right and walks 3 km, '
+         'then turns right again and walks 5 km. '
+         'How far is he from starting point?',
+          ['2 km', '3 km', '5 km', '13 km'], 1),
     ],
   ),
   _Pack(
+    id: 'polity',
     title: 'Indian Polity',
     subtitle: 'Constitution & governance — UPSC / SSC',
     emoji: '⚖️',
@@ -222,7 +231,7 @@ const _packs = [
           ['Mandamus', 'Certiorari', 'Habeas Corpus', 'Quo Warranto'], 2),
       _Q('Zero Hour in Parliament begins at?',
           ['9:00 AM', '11:00 AM', '12:00 Noon', '2:00 PM'], 2),
-      _Q('The concept of "Directive Principles of State Policy" was borrowed from?',
+      _Q('The concept of "Directive Principles" was borrowed from?',
           ['USA', 'UK', 'Ireland', 'Canada'], 2),
       _Q('Under which Article can the President declare National Emergency?',
           ['Article 352', 'Article 356', 'Article 360', 'Article 370'], 0),
@@ -234,9 +243,194 @@ const _packs = [
           ['Part III', 'Part IV', 'Part IVA', 'Part V'], 2),
       _Q('The minimum age to become a member of Rajya Sabha is?',
           ['21 years', '25 years', '30 years', '35 years'], 2),
-      _Q('Which committee examines the estimates of expenditure of the Government?',
+      _Q('Which committee examines the estimates of government expenditure?',
           ['Public Accounts Committee', 'Estimates Committee',
            'Committee on Public Undertakings', 'Finance Committee'], 1),
+    ],
+  ),
+];
+
+const _pyqPacks = [
+  _Pack(
+    id: 'pyq_ssc',
+    title: 'SSC CGL / CHSL — PYQ',
+    subtitle: 'Frequently repeated questions from past papers',
+    emoji: '📋',
+    color: Color(0xFF2E7D32),
+    isPyq: true,
+    questions: [
+      _Q('"Jai Jawan, Jai Kisan" slogan was given by?',
+          ['Mahatma Gandhi', 'Jawaharlal Nehru', 'Lal Bahadur Shastri', 'Indira Gandhi'], 2),
+      _Q('Chipko Movement is associated with?',
+          ['Water conservation', 'Conservation of forests', 'Soil conservation', 'Wildlife protection'], 1),
+      _Q('The Battle of Plassey was fought in?',
+          ['1747', '1757', '1764', '1775'], 1),
+      _Q('Which is the largest gland in the human body?',
+          ['Pancreas', 'Thyroid', 'Liver', 'Kidney'], 2),
+      _Q('"Wings of Fire" is the autobiography of?',
+          ['Manmohan Singh', 'Narendra Modi', 'A.P.J. Abdul Kalam', 'Atal Bihari Vajpayee'], 2),
+      _Q('Vitamin D is also known as?',
+          ['Beauty Vitamin', 'Sunshine Vitamin', 'Energy Vitamin', 'Blood Vitamin'], 1),
+      _Q('Durand Line is the border between?',
+          ['India and Pakistan', 'India and China', 'Afghanistan and Pakistan', 'China and Tibet'], 2),
+      _Q('The headquarters of WTO is located in?',
+          ['New York', 'London', 'Paris', 'Geneva'], 3),
+      _Q('The Munda Ulgulan (revolt) was led by?',
+          ['Tantia Tope', 'Mangal Pandey', 'Birsa Munda', 'Alluri Sitarama Raju'], 2),
+      _Q('"Do or Die" slogan was associated with which movement?',
+          ['Non-Cooperation Movement', 'Civil Disobedience Movement',
+           'Quit India Movement 1942', 'Swadeshi Movement'], 2),
+      _Q('Palk Strait separates India from?',
+          ['Maldives', 'Bangladesh', 'Sri Lanka', 'Myanmar'], 2),
+      _Q('Who discovered Penicillin?',
+          ['Louis Pasteur', 'Alexander Fleming', 'Robert Koch', 'Edward Jenner'], 1),
+      _Q('The smallest bone in the human body is?',
+          ['Femur', 'Stapes (in ear)', 'Patella', 'Radius'], 1),
+      _Q('International Yoga Day is celebrated on?',
+          ['June 5', 'June 21', 'July 11', 'August 12'], 1),
+      _Q('India\'s first artificial satellite was?',
+          ['Bhaskara', 'INSAT-1A', 'Aryabhata', 'Rohini'], 2),
+    ],
+  ),
+  _Pack(
+    id: 'pyq_rrb',
+    title: 'RRB NTPC / Group D — PYQ',
+    subtitle: 'Frequently repeated questions from past papers',
+    emoji: '🚆',
+    color: Color(0xFFC62828),
+    isPyq: true,
+    questions: [
+      _Q('The "Hornbill Festival" is celebrated in which state?',
+          ['Manipur', 'Assam', 'Meghalaya', 'Nagaland'], 3),
+      _Q('Who invented the telephone?',
+          ['Thomas Edison', 'Nikola Tesla', 'Alexander Graham Bell', 'James Watt'], 2),
+      _Q('"Jai Hind" slogan was popularized by?',
+          ['Mahatma Gandhi', 'Jawaharlal Nehru', 'Bhagat Singh', 'Subhas Chandra Bose'], 3),
+      _Q('Swaraj Party was co-founded by?',
+          ['Gandhi and Nehru', 'C.R. Das and Motilal Nehru',
+           'Tilak and Gokhale', 'Jinnah and Ambedkar'], 1),
+      _Q('Blood group system was discovered by?',
+          ['Louis Pasteur', 'Robert Koch', 'Karl Landsteiner', 'Alexander Fleming'], 2),
+      _Q('India\'s National Aquatic Animal is?',
+          ['Irrawaddy Dolphin', 'Blue Whale', 'Gangetic River Dolphin', 'Great White Shark'], 2),
+      _Q('The National Tree of India is?',
+          ['Neem', 'Peepal', 'Ashoka', 'Banyan'], 3),
+      _Q('Khajuraho temples are located in which state?',
+          ['Rajasthan', 'Uttar Pradesh', 'Madhya Pradesh', 'Bihar'], 2),
+      _Q('INS Vikrant is India\'s?',
+          ['Nuclear submarine', 'Destroyer', 'Aircraft carrier', 'Frigate'], 2),
+      _Q('India won its first Olympic gold medal (team sport) in?',
+          ['1924 Paris (Hockey)', '1928 Amsterdam (Hockey)',
+           '1932 Los Angeles (Hockey)', '1936 Berlin (Hockey)'], 1),
+      _Q('"Godan" (गोदान), a famous Hindi novel, was written by?',
+          ['Premchand', 'Jaishankar Prasad', 'Mahadevi Verma', 'Suryakant Tripathi'], 0),
+      _Q('Hydrogen bomb works on the principle of?',
+          ['Nuclear fission', 'Nuclear fusion', 'Chemical reaction', 'Radioactive decay'], 1),
+      _Q('The largest ocean in the world is?',
+          ['Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean', 'Pacific Ocean'], 3),
+      _Q('The height of Mount Everest is approximately?',
+          ['8611 m', '8586 m', '8849 m', '8091 m'], 2),
+      _Q('Which is the highest civilian award in India?',
+          ['Padma Vibhushan', 'Padma Bhushan', 'Bharat Ratna', 'Param Vir Chakra'], 2),
+    ],
+  ),
+  _Pack(
+    id: 'pyq_banking',
+    title: 'SBI / IBPS PO — PYQ',
+    subtitle: 'Frequently repeated Banking Awareness questions',
+    emoji: '💳',
+    color: Color(0xFF1565C0),
+    isPyq: true,
+    questions: [
+      _Q('SWIFT stands for?',
+          ['Secure Worldwide Interbank Finance Transfer',
+           'Society for Worldwide Interbank Financial Telecommunication',
+           'System for Worldwide Interbank Fund Transfer',
+           'Standard Worldwide Interbank Finance Transaction'], 1),
+      _Q('Basel III norms are related to?',
+          ['Insurance regulations', 'Capital requirements of banks',
+           'Stock market regulations', 'Foreign exchange rules'], 1),
+      _Q('CPI (Consumer Price Index) measures?',
+          ['Industrial production', 'Stock market performance',
+           'Changes in price level of consumer goods & services', 'GDP growth'], 2),
+      _Q('MUDRA stands for?',
+          ['Micro Units Development and Refinance Agency',
+           'Micro Urban Development and Rural Agency',
+           'Monetary Unit Development and Regulatory Authority',
+           'None of these'], 0),
+      _Q('PM SVANidhi scheme was launched to help?',
+          ['Farmers', 'Street vendors', 'Small industries', 'Tribal communities'], 1),
+      _Q('NEFT operates on a _____ basis (from December 2019)?',
+          ['8 hours a day, 5 days a week', '12 hours a day, 6 days a week',
+           '24×7 basis', 'Only on bank working days'], 2),
+      _Q('World Bank headquarters is located in?',
+          ['Geneva', 'New York', 'Washington D.C.', 'London'], 2),
+      _Q('"Ease of Doing Business" index is published by?',
+          ['IMF', 'WTO', 'World Bank', 'UNCTAD'], 2),
+      _Q('RBI is also called the "Banker\'s Bank" because it?',
+          ['Gives loans to individuals', 'Acts as banker to commercial banks',
+           'Prints currency', 'Manages stock exchanges'], 1),
+      _Q('India\'s first bank was?',
+          ['Bank of Bombay', 'Bank of Bengal', 'Bank of Hindustan', 'Imperial Bank'], 2),
+      _Q('CAMELS rating is used to evaluate?',
+          ['Real estate companies', 'Automobile companies',
+           'Banks and financial institutions', 'Insurance companies'], 2),
+      _Q('Priority Sector Lending (PSL) target for domestic banks is what % of ANBC?',
+          ['30%', '35%', '40%', '45%'], 2),
+      _Q('Bancassurance refers to?',
+          ['Bank mergers', 'Banks selling insurance products',
+           'Insurance companies acquiring banks', 'Government bank guarantee'], 1),
+      _Q('The Payment and Settlement Systems Act was enacted in?',
+          ['2001', '2005', '2007', '2010'], 2),
+      _Q('Under Pradhan Mantri MUDRA Yojana, maximum loan amount is?',
+          ['₹5 lakh', '₹10 lakh', '₹20 lakh', '₹50 lakh'], 1),
+    ],
+  ),
+  _Pack(
+    id: 'pyq_upsc',
+    title: 'UPSC Prelims GS — PYQ',
+    subtitle: 'General Studies questions from past papers',
+    emoji: '🎯',
+    color: Color(0xFF4527A0),
+    isPyq: true,
+    questions: [
+      _Q('Project Snow Leopard was launched by which ministry?',
+          ['Ministry of Defence', 'Ministry of Agriculture',
+           'Ministry of Environment, Forest & Climate Change', 'Ministry of Tribal Affairs'], 2),
+      _Q('"The Great Indian Bustard" bird is mainly found in?',
+          ['Gujarat', 'Rajasthan', 'Madhya Pradesh', 'Assam'], 1),
+      _Q('Madhubani painting is a traditional art form of?',
+          ['Rajasthan', 'Odisha', 'Bihar', 'Gujarat'], 2),
+      _Q('The Asiatic Lion is found only in?',
+          ['Sariska National Park, Rajasthan', 'Gir National Park, Gujarat',
+           'Corbett National Park, Uttarakhand', 'Bandipur National Park, Karnataka'], 1),
+      _Q('"Silambam" is a traditional martial art associated with?',
+          ['Kerala', 'Karnataka', 'Andhra Pradesh', 'Tamil Nadu'], 3),
+      _Q('The concept of UNESCO Biosphere Reserves aims to?',
+          ['Protect only wildlife', 'Only forest conservation',
+           'Reconcile conservation and sustainable use', 'Prevent human habitation'], 2),
+      _Q('The term "Stagflation" means?',
+          ['Rapid economic growth', 'Deflation in rural areas',
+           'High inflation with stagnant economic growth', 'Only stagnant wages'], 2),
+      _Q('"Panchayati Raj" in India was introduced based on recommendations of?',
+          ['Ashok Mehta Committee', 'Balwant Rai Mehta Committee',
+           'G.V.K. Rao Committee', 'L.M. Singhvi Committee'], 1),
+      _Q('Which Constitutional Amendment lowered the voting age from 21 to 18?',
+          ['44th Amendment', '52nd Amendment', '61st Amendment', '73rd Amendment'], 2),
+      _Q('CAMPA (Compensatory Afforestation Fund) is used for?',
+          ['Compensation to farmers', 'Plantation and afforestation activities',
+           'Pollution control', 'Tribal welfare'], 1),
+      _Q('Mt. Everest is located on the international border of?',
+          ['India and China', 'Nepal and China (Tibet)', 'Nepal and India', 'Tibet and Bhutan'], 1),
+      _Q('Kovalam Beach is located in which state?',
+          ['Goa', 'Maharashtra', 'Tamil Nadu', 'Kerala'], 3),
+      _Q('How many Schedules are there in the Indian Constitution (as amended)?',
+          ['10', '11', '12', '14'], 2),
+      _Q('Article 370 (now abrogated) was related to special status of?',
+          ['Nagaland', 'Sikkim', 'Mizoram', 'Jammu & Kashmir'], 3),
+      _Q('Pradhan Mantri Vaya Vandana Yojana is a pension scheme for?',
+          ['Below Poverty Line families', 'Government employees',
+           'Senior citizens (60+ years)', 'Disabled persons'], 2),
     ],
   ),
 ];
@@ -254,19 +448,44 @@ class MockTestScreen extends StatefulWidget {
 class _MockTestScreenState extends State<MockTestScreen> {
   _Stage _stage   = _Stage.list;
   late _Pack _pack;
+  Map<String, int> _bestScores = {};
 
   // quiz state
   int  _qIndex    = 0;
-  int  _selected  = -1;  // chosen option (-1 = none)
+  int  _selected  = -1;
   bool _answered  = false;
   int  _score     = 0;
   List<int> _userAnswers = [];
 
   // timer
-  static const _secsPerQ = 30;
-  int  _secsLeft  = _secsLeft0;
-  static const _secsLeft0 = _secsPerQ;
+  static const _secsPerQ  = 30;
+  int  _secsLeft  = _secsPerQ;
   Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBestScores();
+  }
+
+  Future<void> _loadBestScores() async {
+    final prefs = await SharedPreferences.getInstance();
+    final all = {..._practicePacks, ..._pyqPacks};
+    final map = <String, int>{};
+    for (final p in [..._practicePacks, ..._pyqPacks]) {
+      map[p.id] = prefs.getInt('mock_best_${p.id}') ?? -1;
+    }
+    if (mounted) setState(() => _bestScores = map);
+  }
+
+  Future<void> _saveBestScore(String id, int score) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prev = prefs.getInt('mock_best_$id') ?? -1;
+    if (score > prev) {
+      await prefs.setInt('mock_best_$id', score);
+      setState(() => _bestScores[id] = score);
+    }
+  }
 
   void _startPack(_Pack pack) {
     setState(() {
@@ -275,7 +494,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _selected  = -1;
       _answered  = false;
       _score     = 0;
-      _secsLeft  = _secsLeft0;
+      _secsLeft  = _secsPerQ;
       _userAnswers = [];
       _stage     = _Stage.quiz;
     });
@@ -287,7 +506,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_secsLeft <= 1) {
         _timer?.cancel();
-        if (!_answered) _submitAnswer(-1); // auto-submit as wrong
+        if (!_answered) _submitAnswer(-1);
       } else {
         setState(() => _secsLeft--);
       }
@@ -308,6 +527,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   void _nextQuestion() {
     if (_qIndex + 1 >= _pack.questions.length) {
+      _saveBestScore(_pack.id, _score);
       setState(() => _stage = _Stage.result);
       return;
     }
@@ -315,7 +535,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _qIndex++;
       _selected  = -1;
       _answered  = false;
-      _secsLeft  = _secsLeft0;
+      _secsLeft  = _secsPerQ;
     });
     _startTimer();
   }
@@ -343,18 +563,49 @@ class _MockTestScreenState extends State<MockTestScreen> {
   // ── Test List ─────────────────────────────────────────────────────────────
 
   Widget _buildList() {
+    final totalPacks = _practicePacks.length + _pyqPacks.length;
+    final attempted  = _bestScores.values.where((s) => s >= 0).length;
+
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildHeader()),
+        SliverToBoxAdapter(child: _buildHeader(totalPacks, attempted)),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          sliver: SliverToBoxAdapter(child: _sectionLabel('📚 Practice Tests', '${_practicePacks.length} sets')),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _PackCard(pack: _packs[i], onTap: () => _startPack(_packs[i])),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _PackCard(
+                  pack: _practicePacks[i],
+                  bestScore: _bestScores[_practicePacks[i].id] ?? -1,
+                  onTap: () => _startPack(_practicePacks[i]),
+                ),
               ),
-              childCount: _packs.length,
+              childCount: _practicePacks.length,
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          sliver: SliverToBoxAdapter(child: _sectionLabel('🏆 Previous Year Papers', '${_pyqPacks.length} exams')),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _PackCard(
+                  pack: _pyqPacks[i],
+                  bestScore: _bestScores[_pyqPacks[i].id] ?? -1,
+                  onTap: () => _startPack(_pyqPacks[i]),
+                ),
+              ),
+              childCount: _pyqPacks.length,
             ),
           ),
         ),
@@ -362,7 +613,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(int total, int attempted) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -372,30 +623,86 @@ class _MockTestScreenState extends State<MockTestScreen> {
       ),
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 16, 20),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('📝 Mock Tests',
+                            style: TextStyle(color: Colors.white, fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                        SizedBox(height: 2),
+                        Text('SSC · RRB · Banking · UPSC — free practice',
+                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('📝 Mock Tests',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                    SizedBox(height: 2),
-                    Text('SSC · Banking · Railway · Polity — free practice',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
-                ),
+            ),
+            // Stats bar
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _statItem('${_practicePacks.length + _pyqPacks.length}', 'Test Sets'),
+                  Container(width: 1, height: 30, color: Colors.white38),
+                  _statItem('${_practicePacks.length * 15 + _pyqPacks.length * 15}', 'Questions'),
+                  Container(width: 1, height: 30, color: Colors.white38),
+                  _statItem('$attempted/$total', 'Attempted'),
+                ],
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _statItem(String val, String label) {
+    return Column(
+      children: [
+        Text(val, style: const TextStyle(color: Colors.white, fontSize: 18,
+            fontWeight: FontWeight.w800)),
+        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _sectionLabel(String title, String sub) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(sub, style: const TextStyle(fontSize: 11,
+                color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
   }
@@ -405,8 +712,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
   Widget _buildQuiz() {
     final q = _pack.questions[_qIndex];
     final total = _pack.questions.length;
-    final progress = (_qIndex + 1) / total;
-    final timeProgress = _secsLeft / _secsLeft0;
+    final timeProgress = _secsLeft / _secsPerQ;
     final timerColor = _secsLeft <= 10
         ? Colors.red
         : _secsLeft <= 20 ? Colors.orange : AppColors.primary;
@@ -416,12 +722,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header bar
+            // Header
             Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
-              ),
+              color: Colors.white,
               padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
               child: Column(
                 children: [
@@ -429,17 +732,31 @@ class _MockTestScreenState extends State<MockTestScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.close_rounded, color: Colors.grey),
-                        onPressed: () => setState(() {
-                          _timer?.cancel();
-                          _stage = _Stage.list;
-                        }),
+                        onPressed: () => setState(() { _timer?.cancel(); _stage = _Stage.list; }),
                       ),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_pack.title,
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                            Row(
+                              children: [
+                                Text(_pack.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                if (_pack.isPyq) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF9933),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('PYQ',
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800,
+                                            color: Colors.white)),
+                                  ),
+                                ],
+                              ],
+                            ),
                             Text('Q${_qIndex + 1} of $total',
                                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                           ],
@@ -447,7 +764,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
                       ),
                       // Timer
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: timerColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -456,53 +773,42 @@ class _MockTestScreenState extends State<MockTestScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.timer_outlined, size: 14, color: timerColor),
-                            const SizedBox(width: 4),
-                            Text('${_secsLeft}s',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: timerColor)),
+                            Icon(Icons.timer_outlined, size: 13, color: timerColor),
+                            const SizedBox(width: 3),
+                            Text('${_secsLeft}s', style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700, color: timerColor)),
                           ],
                         ),
                       ),
-                      // Score
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text('$_score ✓',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
+                        child: Text('$_score ✓', style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // Progress bars
-                  Row(
-                    children: [
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ClipRRect(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
-                            value: progress,
+                            value: (_qIndex + 1) / total,
                             minHeight: 4,
                             backgroundColor: Colors.grey[200],
                             valueColor: AlwaysStoppedAnimation(_pack.color),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 3),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
                           child: LinearProgressIndicator(
                             value: timeProgress,
                             minHeight: 3,
@@ -510,40 +816,37 @@ class _MockTestScreenState extends State<MockTestScreen> {
                             valueColor: AlwaysStoppedAnimation(timerColor),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                 ],
               ),
             ),
 
-            // Question
+            // Question + Options
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Question number badge + text
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
+                        border: Border.all(color: _pack.color.withValues(alpha: 0.2)),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 8, offset: const Offset(0, 2))],
                       ),
-                      child: Text(q.q,
-                          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.45)),
+                      child: Text(q.q, style: const TextStyle(
+                          fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.45)),
                     ),
-                    const SizedBox(height: 16),
-                    // Options
+                    const SizedBox(height: 14),
                     ...List.generate(4, (i) => _OptionTile(
-                      label: String.fromCharCode(65 + i), // A, B, C, D
+                      label: String.fromCharCode(65 + i),
                       text: q.opts[i],
                       state: !_answered
                           ? _OptionState.normal
@@ -555,9 +858,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
                       selected: _selected == i,
                       onTap: _answered ? null : () => _submitAnswer(i),
                     )),
-                    // Explanation area when answered
                     if (_answered) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -575,7 +877,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
                           children: [
                             Text(
                               _selected == q.ans ? '🎉' : (_selected == -1 ? '⏰' : '❌'),
-                              style: const TextStyle(fontSize: 22),
+                              style: const TextStyle(fontSize: 20),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -583,9 +885,10 @@ class _MockTestScreenState extends State<MockTestScreen> {
                                 _selected == q.ans
                                     ? 'Correct! Well done.'
                                     : _selected == -1
-                                        ? 'Time up! Correct answer: ${q.opts[q.ans]}'
-                                        : 'Wrong. Correct answer: ${q.opts[q.ans]}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                        ? 'Time up!\nCorrect: ${q.opts[q.ans]}'
+                                        : 'Wrong.\nCorrect: ${q.opts[q.ans]}',
+                                style: const TextStyle(fontSize: 13,
+                                    fontWeight: FontWeight.w600, height: 1.4),
                               ),
                             ),
                           ],
@@ -597,14 +900,12 @@ class _MockTestScreenState extends State<MockTestScreen> {
               ),
             ),
 
-            // Next button
             if (_answered)
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
                 color: Colors.white,
                 child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
+                  width: double.infinity, height: 52,
                   child: ElevatedButton(
                     onPressed: _nextQuestion,
                     style: ElevatedButton.styleFrom(
@@ -612,8 +913,11 @@ class _MockTestScreenState extends State<MockTestScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: Text(
-                      _qIndex + 1 < _pack.questions.length ? 'Next Question →' : 'See Results',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                      _qIndex + 1 < _pack.questions.length
+                          ? 'Next Question →'
+                          : 'See Results',
+                      style: const TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.w700, fontSize: 16),
                     ),
                   ),
                 ),
@@ -630,12 +934,14 @@ class _MockTestScreenState extends State<MockTestScreen> {
     final total = _pack.questions.length;
     final pct = _score / total;
     final (grade, msg, gradeColor) = pct >= 0.8
-        ? ('Excellent!', 'Outstanding performance! You are exam-ready.', const Color(0xFF1A6B3C))
+        ? ('Excellent! 🏆', 'Outstanding! You are exam-ready.', const Color(0xFF1A6B3C))
         : pct >= 0.6
-            ? ('Good', 'Nice work! Review the ones you missed.', const Color(0xFF1565C0))
+            ? ('Good! 👍', 'Nice work! Review the ones you missed.', const Color(0xFF1565C0))
             : pct >= 0.4
-                ? ('Average', 'Keep practicing — you\'re improving.', const Color(0xFFE65100))
-                : ('Needs Work', 'Don\'t give up — practice makes perfect!', const Color(0xFFB71C1C));
+                ? ('Average 📈', 'Keep practicing — you\'re improving!', const Color(0xFFE65100))
+                : ('Needs Work 💪', 'Don\'t give up — practice daily!', const Color(0xFFB71C1C));
+
+    final best = _bestScores[_pack.id] ?? _score;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -645,41 +951,30 @@ class _MockTestScreenState extends State<MockTestScreen> {
             // Result header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [gradeColor, gradeColor.withValues(alpha: 0.75)],
+                  colors: [gradeColor, gradeColor.withValues(alpha: 0.7)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                 ),
               ),
               child: Column(
                 children: [
-                  Text(grade,
-                      style: const TextStyle(color: Colors.white, fontSize: 28,
-                          fontWeight: FontWeight.w900)),
+                  Text(grade, style: const TextStyle(color: Colors.white,
+                      fontSize: 26, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 4),
-                  Text(msg,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
-                  const SizedBox(height: 20),
-                  // Score circle
-                  Container(
-                    width: 110, height: 110,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.15),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 3),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('$_score/$total',
-                            style: const TextStyle(color: Colors.white, fontSize: 28,
-                                fontWeight: FontWeight.w900)),
-                        Text('${(pct * 100).round()}%',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14)),
-                      ],
-                    ),
+                  Text(msg, textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _resultStat('$_score/$total', 'Score', Colors.white),
+                      const SizedBox(width: 32),
+                      _resultStat('${(pct * 100).round()}%', 'Accuracy', Colors.white),
+                      const SizedBox(width: 32),
+                      _resultStat('$best/${total}', 'Best', const Color(0xFFFFD700)),
+                    ],
                   ),
                 ],
               ),
@@ -687,30 +982,28 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
             // Review list
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
                 itemCount: _pack.questions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
                   final q = _pack.questions[i];
                   final userAns = i < _userAnswers.length ? _userAnswers[i] : -1;
                   final correct = userAns == q.ans;
                   return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: correct
-                            ? const Color(0xFF81C784)
-                            : const Color(0xFFEF9A9A),
+                        color: correct ? const Color(0xFF81C784) : const Color(0xFFEF9A9A),
                       ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 28, height: 28,
+                          width: 26, height: 26,
                           decoration: BoxDecoration(
                             color: correct ? const Color(0xFF1A6B3C) : const Color(0xFFB71C1C),
                             shape: BoxShape.circle,
@@ -718,7 +1011,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
                           child: Center(
                             child: Icon(
                               correct ? Icons.check_rounded : Icons.close_rounded,
-                              color: Colors.white, size: 16,
+                              color: Colors.white, size: 15,
                             ),
                           ),
                         ),
@@ -728,16 +1021,18 @@ class _MockTestScreenState extends State<MockTestScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Q${i + 1}. ${q.q}',
-                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600,
-                                      height: 1.4)),
+                                  style: const TextStyle(fontSize: 12.5,
+                                      fontWeight: FontWeight.w600, height: 1.4)),
                               const SizedBox(height: 4),
-                              if (!correct) ...[
-                                Text('Your answer: ${userAns == -1 ? "Skipped (time up)" : q.opts[userAns]}',
-                                    style: const TextStyle(fontSize: 11.5, color: Color(0xFFB71C1C))),
-                              ],
+                              if (!correct)
+                                Text(
+                                  'Your answer: ${userAns == -1 ? "Skipped (time up)" : q.opts[userAns]}',
+                                  style: const TextStyle(fontSize: 11.5,
+                                      color: Color(0xFFB71C1C)),
+                                ),
                               Text('Correct: ${q.opts[q.ans]}',
-                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF1A6B3C),
-                                      fontWeight: FontWeight.w600)),
+                                  style: const TextStyle(fontSize: 11.5,
+                                      color: Color(0xFF1A6B3C), fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -748,7 +1043,6 @@ class _MockTestScreenState extends State<MockTestScreen> {
               ),
             ),
 
-            // Action buttons
             Container(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
               color: Colors.white,
@@ -775,8 +1069,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
                         backgroundColor: _pack.color,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Retry', style: TextStyle(color: Colors.white,
-                          fontWeight: FontWeight.w700)),
+                      child: const Text('Retry',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -787,67 +1081,105 @@ class _MockTestScreenState extends State<MockTestScreen> {
       ),
     );
   }
+
+  Widget _resultStat(String val, String label, Color color) {
+    return Column(
+      children: [
+        Text(val, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w900)),
+        Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
+      ],
+    );
+  }
 }
 
 // ── Pack Card ─────────────────────────────────────────────────────────────────
 
 class _PackCard extends StatelessWidget {
   final _Pack pack;
+  final int bestScore;  // -1 = never attempted
   final VoidCallback onTap;
-  const _PackCard({required this.pack, required this.onTap});
+  const _PackCard({required this.pack, required this.bestScore, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final total = pack.questions.length;
+    final hasBest = bestScore >= 0;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: pack.color.withValues(alpha: 0.15)),
-          boxShadow: [BoxShadow(
-              color: pack.color.withValues(alpha: 0.08),
-              blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: pack.color.withValues(alpha: 0.07),
+              blurRadius: 8, offset: const Offset(0, 3))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Row(
             children: [
-              Container(width: 6, height: 90, color: pack.color),
-              const SizedBox(width: 16),
+              Container(width: 5, height: 82, color: pack.color),
+              const SizedBox(width: 14),
               Container(
-                width: 52, height: 52,
+                width: 48, height: 48,
                 decoration: BoxDecoration(
                   color: pack.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Center(child: Text(pack.emoji, style: const TextStyle(fontSize: 26))),
+                child: Center(child: Text(pack.emoji, style: const TextStyle(fontSize: 24))),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(pack.title,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                      const SizedBox(height: 3),
-                      Text(pack.subtitle,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.quiz_outlined, size: 13, color: pack.color),
+                          Flexible(
+                            child: Text(pack.title,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                          ),
+                          if (pack.isPyq) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF9933),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('PYQ', style: TextStyle(
+                                  fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(pack.subtitle,
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Icon(Icons.quiz_outlined, size: 12, color: pack.color),
                           const SizedBox(width: 3),
-                          Text('${pack.questions.length} questions',
+                          Text('$total Q  •  30s each',
                               style: TextStyle(fontSize: 11, color: pack.color,
                                   fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 10),
-                          Icon(Icons.timer_outlined, size: 13, color: pack.color),
-                          const SizedBox(width: 3),
-                          Text('30s/question',
-                              style: TextStyle(fontSize: 11, color: pack.color)),
+                          if (hasBest) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: pack.color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text('Best: $bestScore/$total',
+                                  style: TextStyle(fontSize: 10, color: pack.color,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -855,8 +1187,8 @@ class _PackCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: Icon(Icons.play_circle_fill_rounded, color: pack.color, size: 30),
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(Icons.play_circle_fill_rounded, color: pack.color, size: 28),
               ),
             ],
           ),
@@ -894,14 +1226,14 @@ class _OptionTile extends StatelessWidget {
           ? (const Color(0xFFE3F2FD), const Color(0xFF1565C0),
              const Color(0xFF1565C0), const Color(0xFF1565C0))
           : (Colors.white, const Color(0xFFE0E0E0),
-             AppColors.textPrimary, Colors.grey),
+             AppColors.textPrimary, const Color(0xFF9E9E9E)),
     };
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(12),
@@ -913,15 +1245,14 @@ class _OptionTile extends StatelessWidget {
               width: 28, height: 28,
               decoration: BoxDecoration(color: labelBg, shape: BoxShape.circle),
               child: Center(
-                child: Text(label,
-                    style: const TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.w800, fontSize: 12)),
+                child: Text(label, style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(text,
-                  style: TextStyle(fontSize: 14, color: textColor, fontWeight: FontWeight.w500)),
+              child: Text(text, style: TextStyle(
+                  fontSize: 14, color: textColor, fontWeight: FontWeight.w500)),
             ),
             if (state == _OptionState.correct)
               const Icon(Icons.check_circle_rounded, color: Color(0xFF1A6B3C), size: 20),
