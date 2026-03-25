@@ -1,5 +1,6 @@
 // lib/screens/job_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
@@ -141,14 +142,22 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _loadData() async {
-    _profile = await widget.api.getSavedProfile();
+    // getSavedProfile is a SharedPrefs read — run in parallel with network calls
+    final profileFuture = widget.api.getSavedProfile();
+    final statusFuture  = widget.api.getJobStatus(widget.userId, widget.jobId);
+
+    final profile = await profileFuture;
+    // Now fetch detail with the correct user category
     final results = await Future.wait([
-      widget.api.getJobDetail(widget.jobId, _profile?.category ?? 'general'),
-      widget.api.getJobStatus(widget.userId, widget.jobId),
+      widget.api.getJobDetail(widget.jobId, profile?.category ?? 'general'),
+      statusFuture,
     ]);
     final job    = results[0] as Job?;
     final status = results[1] as String?;
+
+    if (!mounted) return; // guard against dispose during async gap
     setState(() {
+      _profile   = profile;
       _job       = job;
       _isLoading = false;
       _isSaved   = status == 'saved';
@@ -774,11 +783,58 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
     if (!confirmed) return;
 
+    // Auto-copy all details to clipboard before opening browser.
+    // Clipboard persists across apps on Android — user can paste
+    // each field directly in the govt form without switching back.
+    if (!info.isEmpty) {
+      await Clipboard.setData(ClipboardData(text: _buildClipboardText(info)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(children: [
+              Icon(Icons.copy_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Expanded(child: Text(
+                'Details clipboard mein copy ho gaye! Form mein paste karo',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              )),
+            ]),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+
     final (applyUrl, _) = _resolveApply();
     AdService().showInterstitial();
     await _launchUrl(applyUrl);
     final success = await widget.api.saveJob(widget.userId, widget.jobId, 'applied');
     if (success && mounted) setState(() { _isApplied = true; _isSaved = false; });
+  }
+
+  String _buildClipboardText(PersonalInfo info) {
+    final lines = <String>[];
+    if (info.name.isNotEmpty) {
+      lines.add('Name: ${info.name}');
+      lines.add('Name (CAPS): ${info.name.toUpperCase()}');
+    }
+    if (info.fatherName.isNotEmpty) {
+      lines.add("Father's Name: ${info.fatherName.toUpperCase()}");
+    }
+    if (info.motherName.isNotEmpty) lines.add("Mother's Name: ${info.motherName.toUpperCase()}");
+    if (info.dob.isNotEmpty)        lines.add('Date of Birth: ${info.dob}');
+    if (info.gender.isNotEmpty)     lines.add('Gender: ${info.gender}');
+    if (info.category.isNotEmpty)   lines.add('Category: ${info.category}');
+    if (info.phone.isNotEmpty)      lines.add('Mobile No.: ${info.phone}');
+    if (info.email.isNotEmpty)      lines.add('Email: ${info.email}');
+    if (info.address.isNotEmpty)    lines.add('Address: ${info.address}');
+    if (info.district.isNotEmpty)   lines.add('District: ${info.district}');
+    if (info.state.isNotEmpty)      lines.add('State: ${info.state}');
+    if (info.pincode.isNotEmpty)    lines.add('Pincode: ${info.pincode}');
+    return lines.join('\n');
   }
 
   Future<void> _launchUrl(String rawUrl) async {

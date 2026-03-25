@@ -140,6 +140,28 @@ class ProfileFillSheet extends StatelessWidget {
                             _row(context, 'Aadhar (last 4)', info.aadharLast4),
                           ]),
                         const SizedBox(height: 8),
+                        // Clipboard hint
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A6B3C).withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF1A6B3C).withValues(alpha: 0.2)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Text('💡', style: TextStyle(fontSize: 14)),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '"Portal Kholo" tap karte hi saari details clipboard mein copy ho jaayengi. Form mein field touch karo → Paste',
+                                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         // Edit details link
                         TextButton.icon(
                           onPressed: () async {
@@ -200,45 +222,44 @@ class ProfileFillSheet extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('📝', style: TextStyle(fontSize: 52)),
-            const SizedBox(height: 16),
-            const Text(
-              'Form Details Nahi Hain',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Apna naam, DOB, category aadi fill karo.\nFir ek tap se copy karke form bhar sakte ho.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => PersonalInfoScreen(api: api),
-                  ));
-                  Navigator.pop(context, false);
-                },
-                icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
-                label: const Text('Fill Details', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+    // SingleChildScrollView prevents RenderFlex overflow on small screens
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('📝', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
+          const Text(
+            'Form Details Nahi Hain',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Apna naam, DOB, category aadi fill karo. Fir ek tap se copy karke form bhar sakte ho.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => PersonalInfoScreen(api: api),
+                ));
+                Navigator.pop(context, false);
+              },
+              icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+              label: const Text('Fill Details', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
