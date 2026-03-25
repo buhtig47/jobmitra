@@ -1750,23 +1750,43 @@ def deduplicate(jobs: list) -> list:
 # ════════════════════════════════════════════════════════
 
 _CA_SOURCES = [
-    {"name": "Affairs Cloud",     "url": "https://www.affairscloud.com/feed/"},
+    # Targeted category feeds from The Hindu — individual factual news
     {"name": "The Hindu",         "url": "https://www.thehindu.com/news/national/feeder/default.rss"},
+    {"name": "The Hindu Sports",  "url": "https://www.thehindu.com/sport/feeder/default.rss"},
+    {"name": "The Hindu Economy", "url": "https://www.thehindu.com/business/economy/feeder/default.rss"},
+    {"name": "The Hindu Sci-Tech","url": "https://www.thehindu.com/sci-tech/science/feeder/default.rss"},
     {"name": "NDTV India",        "url": "https://feeds.feedburner.com/ndtvnews-india-news"},
-    {"name": "Indian Express",    "url": "https://indianexpress.com/section/india/feed/"},
     {"name": "LiveMint",          "url": "https://www.livemint.com/rss/news"},
-    {"name": "PIB",               "url": "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"},
 ]
 
 _CA_CATEGORY_RULES = [
-    (re.compile(r'\b(international|world|global|foreign|bilateral|treaty)\b', re.I), "international"),
-    (re.compile(r'\b(economy|gdp|rbi|budget|inflation|fiscal|rupee|bank|finance)\b', re.I), "economy"),
-    (re.compile(r'\b(science|tech|space|isro|nasa|ai|digital|robot|satellite|launch)\b', re.I), "science"),
-    (re.compile(r'\b(sport|cricket|football|olympics|medal|champion|cup|match)\b', re.I), "sports"),
-    (re.compile(r'\b(award|rank|honour|prize|padma|bharat\s*ratna)\b', re.I), "awards"),
-    (re.compile(r'\b(appointment|resigns?|elected)\b|new\s+(chief|head|director|pm|cm|president)\b', re.I), "appointments"),
-    (re.compile(r'\b(india|national|state|centre|government|cabinet)\b|pm\s+modi|lok\s+sabha', re.I), "national"),
+    (re.compile(r'\b(international|world|global|foreign|bilateral|treaty|diplomatic)\b', re.I), "international"),
+    (re.compile(r'\b(economy|gdp|rbi|budget|inflation|fiscal|rupee|repo\s*rate|trade|export|import|tariff|revenue)\b', re.I), "economy"),
+    (re.compile(r'\b(science|technology|space|isro|nasa|satellite|launch|mission|robot|ai\b|artificial\s+intelligence)\b', re.I), "science"),
+    (re.compile(r'\b(sport|cricket|football|hockey|chess|tennis|badminton|kabaddi|wrestling|olympics|medal|champion|cup|trophy|tournament|gold|silver|bronze)\b', re.I), "sports"),
+    (re.compile(r'\b(award|prize|honour|padma|bharat\s*ratna|ranked|ranking|index|survey|report\s+rank)\b', re.I), "awards"),
+    (re.compile(r'\b(appointed|appoints?|takes?\s+charge|sworn|new\s+chief|new\s+head|new\s+director|new\s+cm|new\s+governor|resigns?|steps?\s+down|elected\s+as)\b', re.I), "appointments"),
+    (re.compile(r'\b(india|indian|national|government|ministry|cabinet|parliament|scheme|yojana|inaugurate|launches?|approves?|passes?|bill|act|policy)\b', re.I), "national"),
 ]
+
+# Keywords that make a news article relevant for competitive exam prep
+_CA_EXAM_RELEVANCE = re.compile(
+    r'\b(appoint|sworn|inaugurate|launch|rank|award|medal|scheme|treaty|accord|gdp|rbi|'
+    r'rate|policy|bill|pass|elect|summit|committee|report|index|survey|record|'
+    r'first|largest|highest|win|gold|silver|bronze|signed|approved|declared|selected|'
+    r'nominated|flagship|mission|yojana|inaugurat|scheme|isro|nasa|space|satellite|'
+    r'rupee|budget|inflation|export|import|tariff|minister|governor|'
+    r'chief\s+justice|president|prime\s+minister|cabinet|parliament)\b',
+    re.I
+)
+
+# Titles to skip — editorial opinions, crime, entertainment, local politics
+_CA_SKIP = re.compile(
+    r'\b(opinion|editorial|interview|review|analysis|column|obituary|'
+    r'murder|rape|arrest|accused|killed|dead|death|crash|accident|fire|flood|'
+    r'actor|actress|film|movie|celebrity|bollywood|cricket\s+match\s+score|ipl\s+match)\b',
+    re.I
+)
 
 
 def _classify_ca(title: str, summary: str) -> str:
@@ -1778,7 +1798,7 @@ def _classify_ca(title: str, summary: str) -> str:
 
 
 def scrape_current_affairs() -> list:
-    """Scrape GK/Current Affairs RSS feeds and return list of article dicts."""
+    """Scrape GK/Current Affairs RSS feeds — only exam-relevant articles."""
     articles = []
     seen_urls: set = set()
 
@@ -1802,8 +1822,11 @@ def scrape_current_affairs() -> list:
             title = (t_el.text or "").strip() if t_el is not None else ""
             if not title:
                 continue
-            # Skip non-English titles (Devanagari / Hindi)
+            # Skip non-English (Devanagari / Hindi)
             if any('\u0900' <= ch <= '\u097F' for ch in title):
+                continue
+            # Skip irrelevant / non-GK titles
+            if _CA_SKIP.search(title):
                 continue
             l_el = item.find("link")
             url = ""
@@ -1831,6 +1854,10 @@ def scrape_current_affairs() -> list:
                         pass
             if not pub_date:
                 pub_date = datetime.utcnow().strftime("%Y-%m-%d")
+            # Only keep exam-relevant articles (targeted sectioned feeds keep all)
+            is_targeted = "Sports" in src["name"] or "Economy" in src["name"] or "Sci" in src["name"]
+            if not is_targeted and not _CA_EXAM_RELEVANCE.search(title + " " + summary):
+                continue
             category = _classify_ca(title, summary)
             results.append({
                 "title":       title[:300],
@@ -1851,7 +1878,7 @@ def scrape_current_affairs() -> list:
                     articles.append(art)
 
     articles.sort(key=lambda a: a["pub_date"], reverse=True)
-    log.info(f"  Current Affairs: {len(articles)} articles from {len(_CA_SOURCES)} sources")
+    log.info(f"  Current Affairs: {len(articles)} exam-relevant articles")
     return articles
 
 
