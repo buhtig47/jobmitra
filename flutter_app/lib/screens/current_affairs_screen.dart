@@ -50,10 +50,16 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final data = await widget.api.getCurrentAffairs(
-      category: _cat == 'all' ? null : _cat,
-      days: _days,
-    );
+    List<CurrentAffair> data = [];
+    // Retry up to 3 times — Render free tier has ~50s cold start
+    for (int attempt = 0; attempt < 3; attempt++) {
+      data = await widget.api.getCurrentAffairs(
+        category: _cat == 'all' ? null : _cat,
+        days: _days,
+      );
+      if (data.isNotEmpty) break;
+      if (attempt < 2) await Future.delayed(const Duration(seconds: 3));
+    }
     if (mounted) setState(() { _all = data; _loading = false; });
   }
 
@@ -191,17 +197,37 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
   }
 
   Widget _buildShimmer() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: 8,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, __) => Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              ),
+              SizedBox(width: 10),
+              Text('Loading articles...', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            ],
+          ),
         ),
-      ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            itemCount: 6,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, __) => Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -7,7 +7,7 @@ plugins {
     id("com.google.gms.google-services")
 }
 android {
-    namespace = "com.jobmitra.app"
+    namespace = "com.example.jobmitra"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
     compileOptions {

@@ -1760,13 +1760,13 @@ _CA_SOURCES = [
 ]
 
 _CA_CATEGORY_RULES = [
-    (re.compile(r'\binternational|world|global|foreign|bilateral|treaty\b', re.I), "international"),
-    (re.compile(r'\beconomy|gdp|rbi|budget|inflation|fiscal|rupee|bank|finance\b', re.I), "economy"),
-    (re.compile(r'\bscience|tech|space|isro|nasa|ai|digital|robot|satellite|launch\b', re.I), "science"),
-    (re.compile(r'\bsport|cricket|football|olympics|medal|champion|cup|match\b', re.I), "sports"),
-    (re.compile(r'\baward|rank|honour|prize|padma|bharat\s*ratna\b', re.I), "awards"),
-    (re.compile(r'\bappointment|resigns?|elected|new\s+(chief|head|director|pm|cm|president)\b', re.I), "appointments"),
-    (re.compile(r'\bindia|national|state|centre|government|pm\s+modi|cabinet|lok\s+sabha\b', re.I), "national"),
+    (re.compile(r'\b(international|world|global|foreign|bilateral|treaty)\b', re.I), "international"),
+    (re.compile(r'\b(economy|gdp|rbi|budget|inflation|fiscal|rupee|bank|finance)\b', re.I), "economy"),
+    (re.compile(r'\b(science|tech|space|isro|nasa|ai|digital|robot|satellite|launch)\b', re.I), "science"),
+    (re.compile(r'\b(sport|cricket|football|olympics|medal|champion|cup|match)\b', re.I), "sports"),
+    (re.compile(r'\b(award|rank|honour|prize|padma|bharat\s*ratna)\b', re.I), "awards"),
+    (re.compile(r'\b(appointment|resigns?|elected)\b|new\s+(chief|head|director|pm|cm|president)\b', re.I), "appointments"),
+    (re.compile(r'\b(india|national|state|centre|government|cabinet)\b|pm\s+modi|lok\s+sabha', re.I), "national"),
 ]
 
 
