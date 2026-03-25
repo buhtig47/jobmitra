@@ -911,7 +911,7 @@ def scrape_current_affairs_endpoint(secret: str = Query(...)):
         for a in articles:
             try:
                 conn.execute(
-                    """INSERT OR IGNORE INTO current_affairs
+                    """INSERT OR REPLACE INTO current_affairs
                        (title, summary, category, pub_date, source_name, source_url)
                        VALUES (?,?,?,?,?,?)""",
                     (a["title"], a["summary"], a["category"],
