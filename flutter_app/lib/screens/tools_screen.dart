@@ -80,7 +80,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '⚔️',
                   title: 'Competition Analysis',
-                  subtitle: 'Kitne log apply karte hain? Ratio dekho',
+                  subtitle: 'How many candidates apply? See the ratio',
                   color: const Color(0xFFB71C1C),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const CompetitionScreen())),
@@ -89,7 +89,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '🗺️',
                   title: 'Career Roadmap',
-                  subtitle: 'Age + education ke hisaab se aapka exam path',
+                  subtitle: 'Exam path based on your age & education',
                   color: const Color(0xFF4A148C),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => CareerRoadmapScreen(api: api))),
@@ -107,7 +107,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '📰',
                   title: 'Daily Current Affairs',
-                  subtitle: 'Aaj ka GK — SSC/Banking exam ke liye',
+                  subtitle: 'Daily GK — for SSC/Banking exam prep',
                   color: const Color(0xFFE65100),
                   tag: 'New!',
                   onTap: () => Navigator.push(context,
@@ -128,7 +128,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '🤖',
                   title: 'AI Job Match',
-                  subtitle: 'AI batayega — kaunsi job aapke liye best hai',
+                  subtitle: 'AI tells you which job suits you best',
                   color: const Color(0xFF00695C),
                   comingSoon: true,
                   onTap: () => _showComingSoon(context, 'AI Job Match'),

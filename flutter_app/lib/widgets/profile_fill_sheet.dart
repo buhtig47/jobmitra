@@ -71,9 +71,9 @@ class ProfileFillSheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Form Bharne Ka Card',
+                        Text('Application Card',
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                        Text('Copy karke form mein paste karo',
+                        Text('Copy & paste into your application forms',
                             style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ],
                     ),
@@ -134,7 +134,7 @@ class ProfileFillSheet extends StatelessWidget {
                             ));
                           },
                           icon: const Icon(Icons.edit_rounded, size: 16),
-                          label: const Text('Details Edit Karo'),
+                          label: const Text('Edit Details'),
                           style: TextButton.styleFrom(foregroundColor: AppColors.primary),
                         ),
                         const SizedBox(height: 8),
@@ -215,7 +215,7 @@ class ProfileFillSheet extends StatelessWidget {
                   Navigator.pop(context, false);
                 },
                 icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
-                label: const Text('Details Fill Karo', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                label: const Text('Fill Details', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   minimumSize: const Size(double.infinity, 48),

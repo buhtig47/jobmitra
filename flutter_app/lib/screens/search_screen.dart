@@ -165,8 +165,8 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 _lastQuery != null
-                    ? '${_results.length} naukri mili "$_lastQuery" ke liye'
-                    : 'Apni pasand ki sarkari naukri dhundo',
+                    ? '${_results.length} results for "$_lastQuery"'
+                    : 'Find your perfect government job',
                 style: const TextStyle(color: Colors.white60, fontSize: 11.5),
               ),
             ),
@@ -234,7 +234,7 @@ class _SearchScreenState extends State<SearchScreen> {
             const CircularProgressIndicator(color: AppColors.primary),
             const SizedBox(height: 16),
             Text(
-              '"$_lastQuery" search ho raha hai...',
+              'Searching for "$_lastQuery"...',
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ],
@@ -489,7 +489,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Long press karo recent search hatane ke liye',
+              'Long press to remove a recent search',
               style: TextStyle(fontSize: 11, color: AppColors.textHint),
             ),
           ],
@@ -532,7 +532,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              '"$_lastQuery" ke liye koi job nahi mili',
+              'No jobs found for "$_lastQuery"',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -542,7 +542,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Alag keyword try karo — jaise "railway", "clerk", "constable"',
+              'Try a different keyword — e.g. "railway", "clerk", "constable"',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
             ),
@@ -550,7 +550,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ElevatedButton.icon(
               onPressed: () { _controller.clear(); _focusNode.requestFocus(); },
               icon: const Icon(Icons.search_rounded, size: 18),
-              label: const Text('Nayi Search Karo'),
+              label: const Text('Search Again'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),

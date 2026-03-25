@@ -91,25 +91,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Sirf aapke liye waali\nSarkari Naukri alerts',
+            'Government Job alerts\ntailored just for you',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: AppColors.textSecondary, height: 1.6,
             ),
           ),
           const SizedBox(height: 40),
-          _buildFeatureRow('🎯', 'Sirf eligible jobs dikhayega'),
+          _buildFeatureRow('🎯', 'Shows only eligible jobs'),
           const SizedBox(height: 16),
-          _buildFeatureRow('⏰', 'Deadline pe remind karega'),
+          _buildFeatureRow('⏰', 'Reminds you before deadlines'),
           const SizedBox(height: 16),
-          _buildFeatureRow('📋', 'Documents checklist bhi dega'),
+          _buildFeatureRow('📋', 'Provides a documents checklist'),
           const SizedBox(height: 48),
           ElevatedButton(
             onPressed: _nextPage,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 52),
             ),
-            child: const Text('Shuru Karein →'),
+            child: const Text('Get Started →'),
           ),
         ],
       ),
@@ -134,11 +134,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Aap kahan se hain?',
+          Text('Where are you from?',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 6),
-          Text('State ke hisab se state jobs dikhayenge',
+          Text('State-specific jobs will be shown for you',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
@@ -155,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ElevatedButton(
             onPressed: _selectedState != null ? _nextPage : null,
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
-            child: const Text('Aage →'),
+            child: const Text('Next →'),
           ),
         ],
       ),
@@ -170,11 +170,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Aapki padhai?',
+          Text('Your Education',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 6),
-          Text('Iske hisab se eligible jobs filter karenge',
+          Text('We\'ll filter eligible jobs based on this',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 32),
@@ -211,7 +211,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ElevatedButton(
             onPressed: _selectedEducation != null ? _nextPage : null,
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
-            child: const Text('Aage →'),
+            child: const Text('Next →'),
           ),
           const SizedBox(height: 16),
         ],
@@ -227,13 +227,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Thoda aur batao',
+          Text('A Little More',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 32),
 
           // Age Slider
-          Text('Aapki umar: $_selectedAge saal',
+          Text('Your age: $_selectedAge years',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -247,7 +247,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 24),
 
           // Category
-          Text('Aapki category:',
+          Text('Your category:',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -276,10 +276,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               child: Text(
                 _selectedCategory == 'sc' || _selectedCategory == 'st'
-                    ? '✅ Aapko most jobs mein fee nahi lagegi!'
+                    ? '✅ No application fee in most jobs for you!'
                     : _selectedCategory == 'obc'
-                    ? '✅ Aapko fees mein relaxation milega'
-                    : 'ℹ️ Age relaxation OBC/SC/ST ko milta hai',
+                    ? '✅ You are eligible for fee relaxation'
+                    : 'ℹ️ Age relaxation is available for OBC/SC/ST',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.primary,
                 ),
@@ -291,7 +291,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ElevatedButton(
             onPressed: _selectedCategory != null ? _nextPage : null,
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
-            child: const Text('Aage →'),
+            child: const Text('Next →'),
           ),
         ],
       ),
@@ -334,11 +334,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Kaunsi jobs chahiye?',
+          Text('Which job types interest you?',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 6),
-          Text('Ek ya zyada choose karo (sab bhi le sakte ho)',
+          Text('Choose one or more (you can select all)',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
@@ -394,7 +394,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('JobMitra Start Karo! 🚀'),
+                : const Text('Start JobMitra! 🚀'),
           ),
           const SizedBox(height: 16),
         ],
@@ -466,7 +466,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error hua, dobara try karo')),
+          const SnackBar(content: Text('Something went wrong, please try again')),
         );
       }
     }

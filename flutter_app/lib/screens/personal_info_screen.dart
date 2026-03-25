@@ -87,7 +87,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             children: [
               Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               SizedBox(width: 10),
-              Text('Details save ho gayi!', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('Details saved!', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           backgroundColor: AppColors.primary,
@@ -138,7 +138,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Form Details', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-                        Text('Form bharne ke liye apni details', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                        Text('Your details for application forms', style: TextStyle(color: Colors.white70, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -157,9 +157,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   _buildPrivacyNote(),
                   const SizedBox(height: 16),
                   _buildSection('👤 Personal Details', [
-                    _buildField('Poora Naam', _nameCtrl, hint: 'Jaise aadhar card mein hai', icon: Icons.person_rounded),
-                    _buildField("Pita Ka Naam", _fatherCtrl, hint: "Father's name", icon: Icons.family_restroom_rounded),
-                    _buildField("Mata Ka Naam", _motherCtrl, hint: "Mother's name", icon: Icons.family_restroom_rounded),
+                    _buildField('Full Name', _nameCtrl, hint: 'As on your Aadhaar card', icon: Icons.person_rounded),
+                    _buildField("Father's Name", _fatherCtrl, hint: "Father's full name", icon: Icons.family_restroom_rounded),
+                    _buildField("Mother's Name", _motherCtrl, hint: "Mother's full name", icon: Icons.family_restroom_rounded),
                     _buildField('Date of Birth', _dobCtrl, hint: 'DD/MM/YYYY', icon: Icons.cake_rounded, keyboard: TextInputType.datetime),
                     _buildDropdown('Gender', _genders, _selectedGender, (v) => setState(() => _selectedGender = v), Icons.wc_rounded),
                     _buildDropdown('Category', _categories, _selectedCategory, (v) => setState(() => _selectedCategory = v), Icons.badge_rounded),
@@ -172,14 +172,14 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   const SizedBox(height: 16),
                   _buildSection('🏠 Address', [
                     _buildField('Full Address', _addressCtrl, hint: 'House no., Street, Mohalla', icon: Icons.home_rounded, maxLines: 2),
-                    _buildField('District', _districtCtrl, hint: 'Jile ka naam', icon: Icons.location_city_rounded),
-                    _buildField('State', _stateCtrl, hint: 'Rajya ka naam', icon: Icons.map_rounded),
+                    _buildField('District', _districtCtrl, hint: 'District name', icon: Icons.location_city_rounded),
+                    _buildField('State', _stateCtrl, hint: 'State name', icon: Icons.map_rounded),
                     _buildField('Pin Code', _pincodeCtrl, hint: '6-digit PIN', icon: Icons.pin_drop_rounded, keyboard: TextInputType.number),
                   ]),
                   const SizedBox(height: 16),
                   _buildSection('🪪 Identity (Optional)', [
-                    _buildField('Aadhar Last 4 Digits', _aadharCtrl,
-                        hint: 'Sirf last 4 digits (reference ke liye)',
+                    _buildField('Aadhaar Last 4 Digits', _aadharCtrl,
+                        hint: 'Last 4 digits only (for reference)',
                         icon: Icons.credit_card_rounded,
                         keyboard: TextInputType.number,
                         maxLength: 4),
@@ -196,7 +196,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       ),
                       child: _isSaving
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                          : const Text('Save Karo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                          : const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -220,7 +220,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Yeh details sirf aapke phone pe save hoti hain. Koi bhi server pe nahi jaati.',
+              'These details are stored only on your phone. Nothing is sent to any server.',
               style: TextStyle(fontSize: 12, color: AppColors.primary, height: 1.4),
             ),
           ),

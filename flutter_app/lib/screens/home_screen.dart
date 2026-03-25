@@ -238,7 +238,7 @@ class _FeedTabState extends State<_FeedTab> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Aaj ki Sarkari Naukri',
+                          'Today\'s Government Jobs',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -361,7 +361,7 @@ class _FeedTabState extends State<_FeedTab> {
     final mins = _cachedAt != null
         ? DateTime.now().difference(_cachedAt!).inMinutes
         : 0;
-    final timeText = mins < 1 ? 'abhi' : '$mins min pehle';
+    final timeText = mins < 1 ? 'just now' : '$mins min ago';
     return Container(
       width: double.infinity,
       color: Colors.amber[100],
@@ -420,7 +420,7 @@ class _FeedTabState extends State<_FeedTab> {
           final cat = key == null
               ? null
               : JobCategories.all.firstWhere((c) => c['key'] == key);
-          final label = key == null ? 'Sab' : cat?['label'];
+          final label = key == null ? 'All' : cat?['label'];
           final emoji = key == null ? '🔍' : cat?['icon'];
           final selected = _selectedFilter == key;
           final count = _countForCategory(key);
@@ -509,7 +509,7 @@ class _FeedTabState extends State<_FeedTab> {
               const Icon(Icons.history_rounded, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 6),
               const Text(
-                'Haal hi mein dekha',
+                'Recently Viewed',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -599,9 +599,9 @@ class _FeedTabState extends State<_FeedTab> {
         children: [
           const Text('😔', style: TextStyle(fontSize: 60)),
           const SizedBox(height: 16),
-          Text('Abhi koi job nahi mili', style: Theme.of(context).textTheme.bodyLarge),
+          Text('No jobs found', style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 8),
-          Text('Pull down karo refresh karne ke liye',
+          Text('Pull down to refresh',
             style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
@@ -725,7 +725,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildInfoTile(Icons.location_on_rounded, 'State / Region', _profile!.state, const Color(0xFF1565C0)),
                       _buildInfoTile(Icons.school_rounded, 'Education', _profile!.education, const Color(0xFF6A1B9A)),
                       _buildInfoTile(Icons.badge_rounded, 'Category', _profile!.category.toUpperCase(), const Color(0xFF00695C)),
-                      _buildInfoTile(Icons.cake_rounded, 'Age', '${_profile!.age} saal', const Color(0xFFE65100)),
+                      _buildInfoTile(Icons.cake_rounded, 'Age', '${_profile!.age} yrs', const Color(0xFFE65100)),
                       const SizedBox(height: 20),
                       _buildSectionTitle('Job Preferences'),
                       const SizedBox(height: 10),
@@ -773,7 +773,7 @@ class _ProfileTabState extends State<_ProfileTab> {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Mera Profile',
+                'My Profile',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -782,7 +782,7 @@ class _ProfileTabState extends State<_ProfileTab> {
               ),
               const SizedBox(height: 4),
               Text(
-                'JobMitra aapke liye jobs filter karta hai',
+                'JobMitra filters jobs based on your profile',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
               ),
               const SizedBox(height: 16),
@@ -810,7 +810,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                     children: [
                       Icon(Icons.edit_rounded, color: Colors.white, size: 14),
                       SizedBox(width: 6),
-                      Text('Profile Edit Karo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('Edit Profile', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -824,7 +824,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                   const SizedBox(width: 8),
                   _buildPill(_profile!.category.toUpperCase()),
                   const SizedBox(width: 8),
-                  _buildPill('${_profile!.age} saal'),
+                  _buildPill('${_profile!.age} yrs'),
                 ],
               ),
             ],
@@ -993,12 +993,12 @@ class _ProfileTabState extends State<_ProfileTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Form Bharne Ki Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Text('Form Fill Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 3),
                       Text(
                         isEmpty
-                            ? 'Naam, DOB, Category abhi fill nahi hai'
-                            : '$filled/11 fields filled — Apply karte time copy karo',
+                            ? 'Name, DOB, Category not filled yet'
+                            : '$filled/11 fields filled — copy while applying',
                         style: TextStyle(fontSize: 11, color: isEmpty ? Colors.orange[700] : AppColors.textSecondary),
                       ),
                     ],

@@ -118,7 +118,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const Text('🔔 Job Alerts', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
-                      Text('Naye matching jobs pe instant notification',
+                      Text('Instant notifications for new matching jobs',
                           style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
                     ])),
                     // Add button
@@ -293,7 +293,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
     );
     if (rule.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Kuch toh filter set karo!'),
+        content: Text('Please set at least one filter!'),
         behavior: SnackBarBehavior.floating,
       ));
       return;
@@ -317,10 +317,10 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
           // Handle
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
-          Text(isEdit ? 'Alert Edit Karo' : 'Naya Alert',
+          Text(isEdit ? 'Edit Alert' : 'New Alert',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
           const SizedBox(height: 4),
-          Text('Jab koi matching job aaye, notification milegi',
+          Text('You\'ll be notified when a matching job is posted',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 20),
 
@@ -401,7 +401,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text(isEdit ? 'Update Alert' : 'Alert Save Karo',
+              child: Text(isEdit ? 'Update Alert' : 'Save Alert',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             ),
           ),
@@ -423,17 +423,17 @@ class _EmptyState extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text('🔕', style: TextStyle(fontSize: 56)),
         const SizedBox(height: 16),
-        const Text('Koi Alert Set Nahi Hai',
+        const Text('No Alerts Set',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
         const SizedBox(height: 8),
-        Text('Apni pasand ke jobs ka alert set karo\naur automatically notification milegi',
+        Text('Set alerts for the jobs you want\nand get notified automatically',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5)),
         const SizedBox(height: 28),
         ElevatedButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.add_rounded),
-          label: const Text('Pehla Alert Banao', style: TextStyle(fontWeight: FontWeight.w700)),
+          label: const Text('Create First Alert', style: TextStyle(fontWeight: FontWeight.w700)),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

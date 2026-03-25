@@ -60,7 +60,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _selectedCategory == null ||
         _selectedJobTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sab fields fill karo pehle!')),
+        const SnackBar(content: Text('Please fill all fields first!')),
       );
       return;
     }
@@ -92,7 +92,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile update ho gaya! ✅'),
+          content: Text('Profile updated! ✅'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -101,7 +101,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Save nahi hua — network check karo'),
+          content: const Text('Save failed — check your network'),
           backgroundColor: Colors.red[700],
         ),
       );
@@ -147,7 +147,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 onPressed: () => Navigator.of(context).pop(),
               ),
               Text(
-                'Profile Edit Karo',
+                'Edit Profile',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -167,7 +167,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── State Section ──
-          _buildSectionHeader('Aap kahan se hain?', 'State ke hisab se jobs dikhayenge'),
+          _buildSectionHeader('Where are you from?', 'Jobs will be filtered by your state'),
           const SizedBox(height: 16),
           Wrap(
             spacing: 10,
@@ -184,7 +184,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           const SizedBox(height: 24),
 
           // ── Education Section ──
-          _buildSectionHeader('Aapki padhai?', 'Iske hisab se eligible jobs filter karenge'),
+          _buildSectionHeader('Your Education', 'We\'ll filter eligible jobs based on this'),
           const SizedBox(height: 16),
           ...EducationLevels.all.map((edu) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -222,10 +222,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           const SizedBox(height: 24),
 
           // ── Age Slider ──
-          _buildSectionHeader('Thoda aur batao', ''),
+          _buildSectionHeader('A Little More', ''),
           const SizedBox(height: 16),
           Text(
-            'Aapki umar: $_selectedAge saal',
+            'Your age: $_selectedAge years',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -243,7 +243,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
           // ── Category ──
           Text(
-            'Aapki category:',
+            'Your category:',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -273,10 +273,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               child: Text(
                 _selectedCategory == 'sc' || _selectedCategory == 'st'
-                    ? '✅ Aapko most jobs mein fee nahi lagegi!'
+                    ? '✅ No application fee in most jobs for you!'
                     : _selectedCategory == 'obc'
-                        ? '✅ Aapko fees mein relaxation milega'
-                        : 'ℹ️ Age relaxation OBC/SC/ST ko milta hai',
+                        ? '✅ You are eligible for fee relaxation'
+                        : 'ℹ️ Age relaxation is available for OBC/SC/ST',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.primary,
                     ),
@@ -290,8 +290,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
           // ── Job Types ──
           _buildSectionHeader(
-            'Kaunsi jobs chahiye?',
-            'Ek ya zyada choose karo (sab bhi le sakte ho)',
+            'Which job types interest you?',
+            'Choose one or more (you can select all)',
           ),
           const SizedBox(height: 16),
           GridView.count(
@@ -358,7 +358,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             child: _isSaving
                 ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Save Karo'),
+                : const Text('Save'),
           ),
 
           const SizedBox(height: 24),

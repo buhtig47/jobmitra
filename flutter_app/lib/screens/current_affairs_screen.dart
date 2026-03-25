@@ -98,7 +98,7 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
                     const Text('📰 Daily Current Affairs',
                         style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text('SSC / Banking exam ke liye GK',
+                    Text('Daily GK for SSC / Banking exam prep',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
                   ],
                 ),
@@ -163,14 +163,14 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
           children: [
             const Text('📭', style: TextStyle(fontSize: 56)),
             const SizedBox(height: 16),
-            Text('Abhi koi article nahi\nServer se sync karo!',
+            Text('No articles yet\nTry refreshing!',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh),
-              label: const Text('Dobara try karo'),
+              label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             ),
           ],
@@ -227,10 +227,10 @@ class _DaysChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Kitne din ke articles?',
+              const Text('How many days back?',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 16),
-              ...[(1, 'Aaj ke'), (3, 'Last 3 din'), (7, 'Last week'), (14, 'Last 2 weeks'), (30, 'Last month')]
+              ...[(1, 'Today'), (3, 'Last 3 days'), (7, 'Last week'), (14, 'Last 2 weeks'), (30, 'Last month')]
                   .map((t) {
                 final (d, label) = t;
                 return ListTile(

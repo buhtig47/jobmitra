@@ -138,7 +138,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _job == null
-              ? const Center(child: Text('Job nahi mili'))
+              ? const Center(child: Text('Job not found'))
               : _buildContent(),
       bottomNavigationBar: _job == null ? null : _buildApplyButton(),
     );
@@ -397,7 +397,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 18),
               SizedBox(width: 8),
               Text(
-                'Aapke liye eligibility check',
+                'Your Eligibility Check',
                 style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 14),
               ),
             ],
@@ -406,7 +406,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           _buildCheckRow('State', profile.state),
           _buildCheckRow('Education', profile.education),
           _buildCheckRow('Category', profile.category.toUpperCase()),
-          _buildCheckRow('Age', '${profile.age} saal'),
+          _buildCheckRow('Age', '${profile.age} yrs'),
         ],
       ),
     );
@@ -539,7 +539,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Apply Karo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                  Text('Apply Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
                   SizedBox(width: 8),
                   Icon(Icons.open_in_new_rounded, color: Colors.white, size: 18),
                 ],
@@ -570,7 +570,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  wasSaved ? 'Saved jobs se hataya' : 'Job save ho gayi!',
+                  wasSaved ? 'Removed from saved' : 'Job saved!',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -586,7 +586,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Kuch error hua, dobara try karo'),
+            content: const Text('Something went wrong, please try again'),
             backgroundColor: Colors.red[700],
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -607,7 +607,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         '📅 Last Date: ${_job!.lastDate}\n'
         '💰 Fee: ${_job!.feeText}\n\n'
         'Apply here: ${_job!.sourceUrl}\n\n'
-        '_JobMitra se — apne eligible govt jobs track karo!_';
+        '_From JobMitra — track your eligible govt jobs!_';
     final waUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(msg)}');
     if (await canLaunchUrl(waUrl)) {
       await launchUrl(waUrl);

@@ -101,7 +101,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Salary breakdown copy ho gaya — WhatsApp pe paste karo!'),
+        content: const Text('Salary breakdown copied — paste it on WhatsApp!'),
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -340,7 +340,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen> {
               child: OutlinedButton.icon(
                 onPressed: _share,
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                label: const Text('Copy & WhatsApp Pe Share Karo', style: TextStyle(fontWeight: FontWeight.w700)),
+                label: const Text('Copy & Share on WhatsApp', style: TextStyle(fontWeight: FontWeight.w700)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),

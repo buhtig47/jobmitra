@@ -104,7 +104,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                                   fontWeight: FontWeight.w700),
                             ),
                             Text(
-                              'Apni jobs track karo',
+                              'Track your applications',
                               style: TextStyle(color: Colors.white70, fontSize: 11),
                             ),
                           ],
@@ -201,7 +201,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                       final success = await widget.api.saveJob(widget.userId, job.id, 'saved');
                       if (!success && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Kuch error hua, dobara try karo')),
+                          const SnackBar(content: Text('Something went wrong, please try again')),
                         );
                       }
                       return success;
@@ -210,7 +210,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                       setState(() => _allJobs.removeWhere((j) => j.id == job.id));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Text('Applied se Saved mein le aaya'),
+                          content: const Text('Moved from Applied to Saved'),
                           backgroundColor: AppColors.primary,
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -270,7 +270,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                     if (!success && mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Remove nahi hua, dobara try karo')),
+                            content: Text('Failed to remove, please try again')),
                       );
                     }
                     return success;
@@ -279,7 +279,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                     setState(() => _allJobs.removeWhere((j) => j.id == job.id));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Saved list se hataya'),
+                        content: const Text('Removed from saved'),
                         action: SnackBarAction(
                           label: 'Undo',
                           onPressed: () async {
@@ -460,7 +460,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
             ),
             const SizedBox(height: 24),
             Text(
-              isApplied ? 'Abhi tak koi apply nahi kiya' : 'Koi saved job nahi',
+              isApplied ? 'No applications yet' : 'No saved jobs',
               style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -469,8 +469,8 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
             const SizedBox(height: 8),
             Text(
               isApplied
-                  ? 'Job detail mein "Apply Karo" dabao — yahan track hogi'
-                  : 'Job detail mein bookmark icon dabaao — baad mein aasani se milegi',
+                  ? 'Tap "Apply Now" in job detail to track here'
+                  : 'Tap the bookmark in job detail to save for later',
               textAlign: TextAlign.center,
               style: const TextStyle(
                   fontSize: 13, color: AppColors.textSecondary, height: 1.5),
