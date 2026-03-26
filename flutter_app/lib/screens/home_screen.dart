@@ -83,6 +83,70 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 // ─────────────────────────────────────────
+// JOB DEDUPLICATION  (NLP — Jaccard title similarity)
+// ─────────────────────────────────────────
+
+const _kStopWords = {
+  'recruitment', 'notification', 'vacancy', 'vacancies', 'post', 'posts',
+  'job', 'jobs', 'exam', 'examination', 'apply', 'online', 'application',
+  'form', 'direct', 'advt', 'advertisement', 'adv', 'sarkari', 'bharti',
+  'result', 'admit', 'card', 'answer', 'key', 'syllabus', 'cut', 'off',
+  'the', 'of', 'in', 'and', 'to', 'a', 'an', 'by', 'on', 'at', 'for',
+  'from', 'with', 'is', 'are', 'was', 'new', 'latest', 'total', 'under',
+  '2022', '2023', '2024', '2025', '2026', '2027',
+  'combined', 'level', 'higher', 'secondary', 'multi', 'tasking', 'staff',
+  'tier', 'phase', 'stage', 'paper',
+  'india', 'indian', 'national', 'central', 'government', 'govt',
+};
+
+Set<String> _titleTokens(String raw) => raw
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+    .split(RegExp(r'\s+'))
+    .where((w) => w.length > 1 && !_kStopWords.contains(w))
+    .toSet();
+
+double _jaccard(Set<String> a, Set<String> b) {
+  if (a.isEmpty && b.isEmpty) return 1.0;
+  if (a.isEmpty || b.isEmpty) return 0.0;
+  return a.intersection(b).length / a.union(b).length;
+}
+
+int _jobQuality(Job j) =>
+    (j.vacancies > 0 ? 2 : 0) +
+    (j.isFree ? 1 : 0) +
+    ((j.payScale?.isNotEmpty ?? false) ? 2 : 0) +
+    (j.qualifications.isNotEmpty ? 1 : 0) +
+    ((j.documentsNeeded?.isNotEmpty ?? false) ? 1 : 0);
+
+List<Job> _deduplicateJobs(List<Job> jobs) {
+  if (jobs.length < 2) return jobs;
+  final tokens = jobs.map((j) => _titleTokens(j.title)).toList();
+  final drop = List<bool>.filled(jobs.length, false);
+  for (var i = 0; i < jobs.length; i++) {
+    if (drop[i]) continue;
+    final stI = jobs[i].states.map((s) => s.toLowerCase()).toSet();
+    for (var j = i + 1; j < jobs.length; j++) {
+      if (drop[j]) continue;
+      if (jobs[i].category != jobs[j].category) continue;
+      final stJ = jobs[j].states.map((s) => s.toLowerCase()).toSet();
+      final bothExplicit = !stI.contains('all') && stI.isNotEmpty &&
+                           !stJ.contains('all') && stJ.isNotEmpty;
+      if (bothExplicit && stI.intersection(stJ).isEmpty) continue;
+      if (_jaccard(tokens[i], tokens[j]) >= 0.72) {
+        if (_jobQuality(jobs[i]) >= _jobQuality(jobs[j])) {
+          drop[j] = true;
+        } else {
+          drop[i] = true;
+          break;
+        }
+      }
+    }
+  }
+  return [for (var i = 0; i < jobs.length; i++) if (!drop[i]) jobs[i]];
+}
+
+// ─────────────────────────────────────────
 // FEED TAB
 // ─────────────────────────────────────────
 class _FeedTab extends StatefulWidget {
@@ -132,7 +196,7 @@ class _FeedTabState extends State<_FeedTab> {
     if (_page == 1 && _jobs.isEmpty) {
       final cached = await widget.api.getCachedFeed();
       if (cached.isNotEmpty && mounted) {
-        setState(() { _jobs.addAll(cached); _isCached = true; _isLoading = false; });
+        setState(() { _jobs.addAll(_deduplicateJobs(cached)); _isCached = true; _isLoading = false; });
       } else {
         setState(() => _isLoading = true);
       }
@@ -145,8 +209,11 @@ class _FeedTabState extends State<_FeedTab> {
     final freshJobs = data['jobs'] as List<Job>;
     final wasCached = data['is_cached'] as bool? ?? false;
     setState(() {
-      if (_page == 1) _jobs.clear(); // Replace cache with fresh data
-      _jobs.addAll(freshJobs);
+      if (_page == 1) _jobs.clear();
+      final existingIds = _jobs.map((j) => j.id).toSet();
+      _jobs.addAll(freshJobs.where((j) => !existingIds.contains(j.id)));
+      final deduped = _deduplicateJobs(List<Job>.from(_jobs));
+      _jobs..clear()..addAll(deduped);
       _hasMore  = data['has_more'] as bool;
       _isLoading = false;
       _isCached  = wasCached;
