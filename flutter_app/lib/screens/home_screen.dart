@@ -325,8 +325,16 @@ class _FeedTabState extends State<_FeedTab> {
                             }
                             // Load-more spinner
                             return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 22, height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -370,40 +378,31 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   Widget _buildFilterBar() {
-    final categories = [null, ...JobCategories.all.map((c) => c['key'] as String)];
+    // Only show categories with at least 1 job once jobs are loaded
+    // (Always keep "All" and the currently selected filter visible)
+    final categories = <String?>[
+      null, // "All"
+      ...JobCategories.all
+          .map((c) => c['key'] as String)
+          .where((key) =>
+              !_jobs.isNotEmpty ||      // show all while still loading
+              _countForCategory(key) > 0 ||
+              key == _selectedFilter),  // keep selected even if count drops to 0
+    ];
 
     return SizedBox(
-      height: 50,
+      height: 46,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: categories.length + 1, // +1 for free toggle
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        itemCount: categories.length,
         itemBuilder: (ctx, i) {
-          // Last chip: Free Jobs toggle
-          if (i == categories.length) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: const Text('💰 Free Only'),
-                selected: _freeOnly,
-                onSelected: (_) => setState(() => _freeOnly = !_freeOnly),
-                selectedColor: const Color(0xFF2E7D32).withValues(alpha: 0.15),
-                checkmarkColor: const Color(0xFF2E7D32),
-                labelStyle: TextStyle(
-                  color: _freeOnly ? const Color(0xFF2E7D32) : AppColors.textSecondary,
-                  fontWeight: _freeOnly ? FontWeight.w700 : FontWeight.normal,
-                ),
-              ),
-            );
-          }
-          final key = categories[i];
-          final cat = key == null
-              ? null
-              : JobCategories.all.firstWhere((c) => c['key'] == key);
-          final label = key == null ? 'All' : cat?['label'];
-          final emoji = key == null ? '🔍' : cat?['icon'];
+          final key      = categories[i];
+          final cat      = key == null ? null : JobCategories.all.firstWhere((c) => c['key'] == key);
+          final label    = key == null ? 'All' : cat?['label'] as String;
+          final emoji    = key == null ? '🔍' : cat?['icon'] as String;
           final selected = _selectedFilter == key;
-          final count = _countForCategory(key);
+          final count    = _countForCategory(key);
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -416,7 +415,9 @@ class _FeedTabState extends State<_FeedTab> {
               labelStyle: TextStyle(
                 color: selected ? AppColors.primary : AppColors.textSecondary,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 12,
               ),
+              visualDensity: VisualDensity.compact,
             ),
           );
         },
@@ -425,71 +426,131 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   Widget _buildSortBar() {
-    const options = [
+    const sortOptions = [
       ('deadline', '⏰ Deadline'),
       ('vacancies', '👥 Vacancies'),
-      ('newest', '🆕 Newest'),
+      ('newest',   '🆕 Newest'),
     ];
     return SizedBox(
-      height: 36,
+      height: 34,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
         child: Row(
           children: [
-            const Text(
-              'Sort: ',
-              style: TextStyle(fontSize: 12, color: AppColors.textHint),
-            ),
-            ...options.map((opt) {
-            final selected = _sortBy == opt.$1;
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: GestureDetector(
-                onTap: () => setState(() => _sortBy = opt.$1),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : Colors.grey.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
+            // Sort buttons
+            ...sortOptions.map((opt) {
+              final selected = _sortBy == opt.$1;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: GestureDetector(
+                  onTap: () => setState(() => _sortBy = opt.$1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
                       color: selected
-                          ? AppColors.primary.withValues(alpha: 0.4)
-                          : Colors.transparent,
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : Colors.grey.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.primary.withValues(alpha: 0.4)
+                            : Colors.transparent,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    opt.$2,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? AppColors.primary : AppColors.textSecondary,
+                    child: Text(
+                      opt.$2,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected ? AppColors.primary : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ),
+              );
+            }),
+            // Divider
+            Container(width: 1, height: 14, color: Colors.grey[300],
+                margin: const EdgeInsets.symmetric(horizontal: 6)),
+            // Free jobs toggle — moved here from filter bar
+            GestureDetector(
+              onTap: () => setState(() => _freeOnly = !_freeOnly),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _freeOnly
+                      ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _freeOnly
+                        ? const Color(0xFF2E7D32).withValues(alpha: 0.4)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Text(
+                  '💰 Free',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: _freeOnly ? FontWeight.w700 : FontWeight.w500,
+                    color: _freeOnly ? const Color(0xFF2E7D32) : AppColors.textSecondary,
+                  ),
+                ),
               ),
-            );
-          }),
-        ],
-      ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final hasFilter = _selectedFilter != null || _freeOnly;
+    final catLabel  = _selectedFilter != null
+        ? (JobCategories.all.firstWhere(
+            (c) => c['key'] == _selectedFilter,
+            orElse: () => {'label': _selectedFilter!},
+          )['label'] as String)
+        : null;
+
+    final String emoji, title, subtitle;
+    if (hasFilter) {
+      emoji    = '🔍';
+      title    = catLabel != null
+          ? 'No $catLabel Jobs Found'
+          : 'No Free Jobs Found';
+      subtitle = 'Try a different filter or refresh';
+    } else {
+      emoji    = '😔';
+      title    = 'No Jobs Found';
+      subtitle = 'Pull down to refresh';
+    }
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('😔', style: TextStyle(fontSize: 60)),
-          const SizedBox(height: 16),
-          Text('No jobs found', style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 8),
-          Text('Pull down to refresh',
-            style: Theme.of(context).textTheme.bodyMedium),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 52)),
+            const SizedBox(height: 16),
+            Text(title, style: const TextStyle(
+              fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            if (hasFilter) ...[
+              const SizedBox(height: 20),
+              TextButton.icon(
+                onPressed: () => setState(() { _selectedFilter = null; _freeOnly = false; }),
+                icon: const Icon(Icons.clear_rounded, size: 16),
+                label: const Text('Clear Filters'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
