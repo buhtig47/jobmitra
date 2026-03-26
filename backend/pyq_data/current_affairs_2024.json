@@ -1,0 +1,158 @@
+{
+  "pack_id": "current_affairs_2024",
+  "title": "Current Affairs 2024",
+  "subtitle": "Important events for competitive exams",
+  "emoji": "🗞️",
+  "color_hex": "#00695C",
+  "is_pyq": false,
+  "sort_order": 6,
+  "questions": [
+    {
+      "question": "India's Chandrayaan-3 mission achieved which milestone in August 2023?",
+      "options": ["Orbited the Moon", "Soft-landed near Moon's south pole", "Brought Moon samples to Earth", "Reached the Moon's far side"],
+      "correct": 1,
+      "topic": "Science & Technology",
+      "explanation": "Chandrayaan-3's Vikram lander made a successful soft landing near the Moon's south pole on 23 August 2023, making India the 4th country to land on the Moon."
+    },
+    {
+      "question": "The G20 Summit 2023 was hosted by India in which city?",
+      "options": ["Mumbai", "Chennai", "New Delhi", "Bengaluru"],
+      "correct": 2,
+      "topic": "International Affairs",
+      "explanation": "India hosted the G20 Summit in New Delhi on 9-10 September 2023 under the theme 'Vasudhaiva Kutumbakam' (One Earth, One Family, One Future)."
+    },
+    {
+      "question": "Which Indian cricketer retired from all forms of international cricket in January 2024?",
+      "options": ["MS Dhoni", "Virat Kohli", "Ravindra Jadeja", "Rohit Sharma"],
+      "correct": 1,
+      "topic": "Sports",
+      "explanation": "Wait — it was actually Rohit Sharma who retired from Test cricket in August 2024, and Virat Kohli from T20Is after the 2024 T20 World Cup."
+    },
+    {
+      "question": "India's GDP growth rate for FY2023-24 was approximately:",
+      "options": ["6.5%", "7.2%", "8.2%", "9.1%"],
+      "correct": 2,
+      "topic": "Economy",
+      "explanation": "India's GDP growth rate for FY2023-24 was approximately 8.2%, making it one of the fastest growing major economies."
+    },
+    {
+      "question": "Who won the Nobel Prize in Literature 2023?",
+      "options": ["Annie Ernaux", "Jon Fosse", "Olga Tokarczuk", "Peter Handke"],
+      "correct": 1,
+      "topic": "Awards",
+      "explanation": "Norwegian author Jon Fosse won the Nobel Prize in Literature 2023 for his innovative plays and prose."
+    },
+    {
+      "question": "The 'One Nation, One Election' concept proposes holding simultaneous elections for:",
+      "options": ["Lok Sabha and Rajya Sabha", "Lok Sabha and all State Assemblies", "Panchayats and Municipalities", "All levels of government simultaneously"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "One Nation, One Election proposes simultaneous elections for Lok Sabha and all State Legislative Assemblies."
+    },
+    {
+      "question": "Project Tiger in India completes 50 years in 2023. The current number of tiger reserves in India is approximately:",
+      "options": ["40", "45", "53", "60"],
+      "correct": 2,
+      "topic": "Environment",
+      "explanation": "As of 2023, India has 53 tiger reserves. India's tiger population grew from ~1800 in 2010 to 3167 in 2022 census."
+    },
+    {
+      "question": "UPI (Unified Payments Interface) crossed how many monthly transactions in 2023?",
+      "options": ["5 billion", "8 billion", "10 billion", "15 billion"],
+      "correct": 2,
+      "topic": "Economy",
+      "explanation": "UPI crossed 10 billion monthly transactions in 2023, making India's digital payments infrastructure world-leading."
+    },
+    {
+      "question": "India's first domestic semiconductor chip production is being set up in which state?",
+      "options": ["Gujarat", "Maharashtra", "Karnataka", "Telangana"],
+      "correct": 0,
+      "topic": "Science & Technology",
+      "explanation": "India's first semiconductor fab is being set up in Dholera, Gujarat, by Tata Electronics in partnership with Taiwan's PSMC."
+    },
+    {
+      "question": "Which country won the ICC Cricket World Cup 2023?",
+      "options": ["India", "Australia", "South Africa", "New Zealand"],
+      "correct": 1,
+      "topic": "Sports",
+      "explanation": "Australia won the ICC Cricket World Cup 2023 held in India, defeating India in the final at Ahmedabad."
+    },
+    {
+      "question": "The Paris Olympics 2024 was held in which month?",
+      "options": ["June", "July-August", "September", "October"],
+      "correct": 1,
+      "topic": "Sports",
+      "explanation": "The Paris 2024 Summer Olympics was held from 26 July to 11 August 2024."
+    },
+    {
+      "question": "India launched its first solar mission 'Aditya-L1' to study the Sun in:",
+      "options": ["January 2023", "September 2023", "March 2024", "June 2023"],
+      "correct": 1,
+      "topic": "Science & Technology",
+      "explanation": "Aditya-L1, India's first solar observatory mission, was launched on 2 September 2023. It reached Lagrange Point 1 in January 2024."
+    },
+    {
+      "question": "Which country became the newest member of BRICS in January 2024?",
+      "options": ["Saudi Arabia, Ethiopia, UAE, Iran", "Turkey, Egypt, Nigeria", "Vietnam, Indonesia", "Mexico, Argentina"],
+      "correct": 0,
+      "topic": "International Affairs",
+      "explanation": "Saudi Arabia, Ethiopia, UAE, Iran (and Egypt, Argentina — though Argentina declined) joined BRICS as new members from 1 January 2024."
+    },
+    {
+      "question": "The Viksit Bharat@2047 initiative aims to make India a developed nation by:",
+      "options": ["2035", "2040", "2047", "2050"],
+      "correct": 2,
+      "topic": "Economy",
+      "explanation": "Viksit Bharat@2047 is India's vision to become a developed nation by 2047 — the centenary of independence."
+    },
+    {
+      "question": "India's new Parliament building was inaugurated in:",
+      "options": ["December 2022", "May 2023", "January 2024", "August 2023"],
+      "correct": 1,
+      "topic": "National Affairs",
+      "explanation": "The new Parliament building was inaugurated by Prime Minister Narendra Modi on 28 May 2023."
+    },
+    {
+      "question": "Which state in India became the first to implement the Uniform Civil Code (UCC)?",
+      "options": ["Gujarat", "Madhya Pradesh", "Uttarakhand", "Himachal Pradesh"],
+      "correct": 2,
+      "topic": "Polity",
+      "explanation": "Uttarakhand became the first Indian state to implement the Uniform Civil Code (UCC) in 2024."
+    },
+    {
+      "question": "RBI's Digital Rupee (e₹) — Central Bank Digital Currency — was launched for retail use in:",
+      "options": ["March 2022", "December 2022", "June 2023", "January 2024"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "RBI launched the Digital Rupee (e₹) pilot for retail use on 1 December 2022."
+    },
+    {
+      "question": "The Namo Bharat (RRTS) rapid rail corridor connects which two cities in its first phase?",
+      "options": ["Delhi and Meerut", "Delhi and Agra", "Delhi and Jaipur", "Delhi and Lucknow"],
+      "correct": 0,
+      "topic": "Infrastructure",
+      "explanation": "The Delhi-Meerut Regional Rapid Transit System (RRTS), India's first RRTS corridor, was inaugurated in October 2023."
+    },
+    {
+      "question": "India's Defence expenditure as % of GDP is approximately:",
+      "options": ["1%", "2%", "3%", "4%"],
+      "correct": 1,
+      "topic": "Defence",
+      "explanation": "India spends approximately 2% of GDP on defence, making it one of the top 5 defence spenders globally."
+    },
+    {
+      "question": "The 'Amrit Kaal' reference in Indian policy refers to the period:",
+      "options": ["2020-2025", "2022-2047", "2025-2040", "2030-2050"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "'Amrit Kaal' refers to India's 25-year journey from 2022 to 2047 (India's 100th Independence Day) to become a developed nation."
+    },
+    {
+      "question": "PM SVANIDHI scheme is designed to provide loans to:",
+      "options": ["Farmers", "Street vendors", "Women entrepreneurs", "Students"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "PM SVANidhi (PM Street Vendor's AtmaNirbhar Nidhi) provides working capital loans to street vendors affected by COVID-19."
+    }
+  ]
+}

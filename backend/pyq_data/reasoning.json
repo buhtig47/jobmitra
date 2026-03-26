@@ -1,0 +1,221 @@
+{
+  "pack_id": "reasoning",
+  "title": "Reasoning — All Exams",
+  "subtitle": "Logical, Verbal & Non-Verbal Reasoning",
+  "emoji": "🧩",
+  "color_hex": "#E65100",
+  "is_pyq": false,
+  "sort_order": 4,
+  "questions": [
+    {
+      "question": "If FRIEND is coded as HUMJTK, how is CANDLE coded?",
+      "options": ["EDRIRL", "DCQHQK", "EDRJQM", "FCPFQK"],
+      "correct": 0,
+      "topic": "Coding-Decoding",
+      "explanation": "Each letter is shifted forward by 2 positions: C→E, A→D, N→R, D→I, L→R, E→L → EDRIRL."
+    },
+    {
+      "question": "Find the odd one out: 11, 13, 17, 19, 23, 25",
+      "options": ["11", "19", "25", "23"],
+      "correct": 2,
+      "topic": "Number Series",
+      "explanation": "All others are prime numbers. 25 = 5 × 5, so it is not a prime number."
+    },
+    {
+      "question": "If 'A' is south of 'B', 'C' is east of 'B', in which direction is 'C' with respect to 'A'?",
+      "options": ["North-East", "South-East", "North-West", "South-West"],
+      "correct": 0,
+      "topic": "Direction Sense",
+      "explanation": "B is north of A. C is east of B. So C is North-East of A."
+    },
+    {
+      "question": "Pointing to a photograph, a man says, 'She is the daughter of the only son of my grandfather.' How is the woman in the photograph related to the man?",
+      "options": ["Mother", "Sister", "Aunt", "Niece"],
+      "correct": 1,
+      "topic": "Blood Relations",
+      "explanation": "Man's grandfather's only son = man's father. Father's daughter = man's sister."
+    },
+    {
+      "question": "If 6 × 4 = 46, 7 × 3 = 37, then 8 × 5 = ?",
+      "options": ["40", "85", "58", "13"],
+      "correct": 2,
+      "topic": "Mathematical Reasoning",
+      "explanation": "The pattern reverses and combines the two numbers: 6×4 → 46 (reverse of 64), 7×3 → 37 (reverse), 8×5 → 58."
+    },
+    {
+      "question": "In a row of 40 boys, Ravi is 11th from the left. What is his position from the right?",
+      "options": ["28th", "29th", "30th", "31st"],
+      "correct": 2,
+      "topic": "Ranking",
+      "explanation": "Position from right = Total – Position from left + 1 = 40 – 11 + 1 = 30."
+    },
+    {
+      "question": "Arrange the following in logical order: 1-Word, 2-Letter, 3-Sentence, 4-Paragraph, 5-Phrase",
+      "options": ["2,1,5,3,4", "1,2,3,4,5", "2,1,3,5,4", "2,5,1,3,4"],
+      "correct": 0,
+      "topic": "Sequence",
+      "explanation": "Correct order of increasing size: Letter → Word → Phrase → Sentence → Paragraph = 2,1,5,3,4."
+    },
+    {
+      "question": "Find the missing number: 2, 6, 12, 20, 30, ?",
+      "options": ["36", "40", "42", "44"],
+      "correct": 2,
+      "topic": "Number Series",
+      "explanation": "Differences: 4,6,8,10,12... → 30+12=42. Pattern: n(n+1) → 1×2, 2×3, 3×4, 4×5, 5×6, 6×7=42."
+    },
+    {
+      "question": "A clock shows 3:15. What is the angle between the hour and minute hands?",
+      "options": ["0°", "7.5°", "15°", "22.5°"],
+      "correct": 1,
+      "topic": "Clock",
+      "explanation": "At 3:15, minute hand = 90°. Hour hand = 90° + 15×0.5° = 97.5°. Angle = 97.5 – 90 = 7.5°."
+    },
+    {
+      "question": "Choose the correct mirror image of the word 'INDIA' when the mirror is placed at its right side:",
+      "options": ["AIBNI", "AIDNI", "AIBNI", "AIQNI"],
+      "correct": 1,
+      "topic": "Mirror Image",
+      "explanation": "The mirror image of INDIA when placed at right reverses the word left-right: AIDNI."
+    },
+    {
+      "question": "If HOSPITAL is coded as 32 (8 letters × 4), and SCHOOL is coded as 24 (6 letters × 4), then COLLEGE = ?",
+      "options": ["28", "32", "24", "36"],
+      "correct": 0,
+      "topic": "Coding-Decoding",
+      "explanation": "COLLEGE has 7 letters × 4 = 28."
+    },
+    {
+      "question": "Study the following: 'All cats are dogs. All dogs are horses. Some horses are cows.' Conclusion: All cats are horses.",
+      "options": ["True", "False", "Cannot be determined", "Partially true"],
+      "correct": 0,
+      "topic": "Syllogism",
+      "explanation": "All cats are dogs (given). All dogs are horses (given). Therefore, by transitivity, All cats are horses — TRUE."
+    },
+    {
+      "question": "A is the father of B. B is the brother of C. C is the mother of D. How is A related to D?",
+      "options": ["Father", "Grandfather", "Uncle", "Grand Uncle"],
+      "correct": 1,
+      "topic": "Blood Relations",
+      "explanation": "A is B's father. B is C's brother, so A is also C's father. C is D's mother. So A is D's maternal grandfather."
+    },
+    {
+      "question": "Which number comes next? 1, 1, 2, 3, 5, 8, 13, ?",
+      "options": ["18", "20", "21", "26"],
+      "correct": 2,
+      "topic": "Number Series",
+      "explanation": "This is the Fibonacci sequence — each term = sum of two preceding: 8+13=21."
+    },
+    {
+      "question": "P walks 10 km North, then turns right and walks 5 km, then turns right and walks 10 km. How far is he from the starting point?",
+      "options": ["0 km", "5 km", "10 km", "25 km"],
+      "correct": 1,
+      "topic": "Direction Sense",
+      "explanation": "P goes 10N, 5E, 10S — ends up 5 km East of start. Distance = 5 km."
+    },
+    {
+      "question": "If the day before yesterday was Thursday, what day will be the day after tomorrow?",
+      "options": ["Sunday", "Monday", "Tuesday", "Wednesday"],
+      "correct": 1,
+      "topic": "Calendar",
+      "explanation": "Day before yesterday = Thursday → Yesterday = Friday → Today = Saturday → Tomorrow = Sunday → Day after tomorrow = Monday."
+    },
+    {
+      "question": "In a certain code, 'GOLD' is written as 'IQNF'. How is 'WIND' written in that code?",
+      "options": ["YKPF", "YLPF", "YKQF", "XKOF"],
+      "correct": 0,
+      "topic": "Coding-Decoding",
+      "explanation": "Each letter is shifted +2: G→I, O→Q, L→N, D→F. So W→Y, I→K, N→P, D→F = YKPF."
+    },
+    {
+      "question": "Find the odd one out: Triangle, Square, Cube, Rectangle",
+      "options": ["Triangle", "Square", "Cube", "Rectangle"],
+      "correct": 2,
+      "topic": "Odd One Out",
+      "explanation": "Cube is a 3D figure (solid shape), while Triangle, Square, and Rectangle are 2D figures (plane shapes)."
+    },
+    {
+      "question": "A is 3 years older than B, who is twice as old as C. If the total age of A, B, C is 33, how old is B?",
+      "options": ["8", "12", "10", "15"],
+      "correct": 1,
+      "topic": "Age Problems",
+      "explanation": "Let C=x, B=2x, A=2x+3. Sum: 5x+3=33, x=6. B=12."
+    },
+    {
+      "question": "Water is related to Thirst as Food is related to:",
+      "options": ["Kitchen", "Hunger", "Taste", "Cook"],
+      "correct": 1,
+      "topic": "Analogy",
+      "explanation": "Water satisfies Thirst; Food satisfies Hunger — same relationship."
+    },
+    {
+      "question": "If in a certain language 'pik da bol' means 'come to me', 'da mit pe' means 'you go now', 'pe bol ja' means 'now come back', what does 'bol' mean?",
+      "options": ["come", "me", "to", "now"],
+      "correct": 0,
+      "topic": "Coding-Decoding",
+      "explanation": "'bol' appears in 'pik da bol' (come to me) and 'pe bol ja' (now come back). Common meaning = 'come'."
+    },
+    {
+      "question": "How many triangles are there in the following figure? (A large triangle divided into 4 equal smaller triangles)",
+      "options": ["4", "5", "6", "8"],
+      "correct": 1,
+      "topic": "Counting Figures",
+      "explanation": "4 small triangles + 1 large triangle = 5 triangles total."
+    },
+    {
+      "question": "Choose the figure that best completes the series: Circle → Semi-circle → Triangle → ?",
+      "options": ["Square", "Half-square (Rectangle)", "Pentagon", "Hexagon"],
+      "correct": 1,
+      "topic": "Series",
+      "explanation": "Each shape is halved: Full circle → Half circle → Triangle (half of square concept) → Rectangle (half of square)."
+    },
+    {
+      "question": "If 'TEACHER' is decoded from 'VGCEJGT', what decoding rule is applied?",
+      "options": ["Each letter +1", "Each letter +2", "Each letter -2", "Reverse alphabet"],
+      "correct": 1,
+      "topic": "Coding-Decoding",
+      "explanation": "T+2=V, E+2=G, A+2=C, C+2=E, H+2=J, E+2=G, R+2=T → VGCEJGT. Rule: +2 to each letter."
+    },
+    {
+      "question": "A man sold an article for ₹540 at a loss of 10%. At what price should it be sold to gain 10%?",
+      "options": ["₹600", "₹640", "₹660", "₹720"],
+      "correct": 2,
+      "topic": "Mathematical Reasoning",
+      "explanation": "CP = 540/0.9 = ₹600. SP for 10% gain = 600 × 1.1 = ₹660."
+    },
+    {
+      "question": "Statements: All pens are pencils. Some pencils are erasers. Conclusion I: Some erasers are pens. II: All pens are erasers.",
+      "options": ["Only I follows", "Only II follows", "Neither follows", "Both follow"],
+      "correct": 2,
+      "topic": "Syllogism",
+      "explanation": "From 'All pens are pencils' and 'Some pencils are erasers', we cannot definitively conclude that any pen is an eraser."
+    },
+    {
+      "question": "If PENCIL is written as 4-5-14-3-9-12, then PAPER is written as:",
+      "options": ["16-1-16-5-18", "15-2-16-4-17", "16-1-16-5-19", "15-1-15-5-18"],
+      "correct": 0,
+      "topic": "Coding-Decoding",
+      "explanation": "Letters are coded as their alphabetical positions: P=16, A=1, P=16, E=5, R=18."
+    },
+    {
+      "question": "Arrange in order: Word → Dictionary → Library → Sentence → Paragraph",
+      "options": ["Word, Sentence, Paragraph, Dictionary, Library", "Word, Paragraph, Sentence, Dictionary, Library", "Sentence, Word, Paragraph, Library, Dictionary", "Dictionary, Library, Word, Sentence, Paragraph"],
+      "correct": 0,
+      "topic": "Sequence",
+      "explanation": "Logical order by size: Word → Sentence → Paragraph → Dictionary (contains all) → Library (contains many dictionaries)."
+    },
+    {
+      "question": "Look at this series: 7, 10, 8, 11, 9, 12, ... What number should come next?",
+      "options": ["7", "10", "12", "13"],
+      "correct": 1,
+      "topic": "Number Series",
+      "explanation": "Two alternating series: 7,8,9... and 10,11,12,... Next term in first series = 10."
+    },
+    {
+      "question": "In a family, there are 6 members: A, B, C, D, E, F. A and B are a married couple. C is the only son of D and F. D is the brother of A. E is the daughter of B. Who is C's father?",
+      "options": ["A", "B", "D", "F"],
+      "correct": 2,
+      "topic": "Blood Relations",
+      "explanation": "C is the only son of D and F → D is C's father."
+    }
+  ]
+}

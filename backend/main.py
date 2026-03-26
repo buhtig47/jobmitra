@@ -11,6 +11,7 @@ from typing import Optional
 import json
 import os
 import base64
+import hashlib
 import requests as _requests
 from datetime import datetime, timedelta
 
@@ -215,18 +216,20 @@ def init_db():
         );
 
         CREATE TABLE IF NOT EXISTS questions (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            type         TEXT NOT NULL DEFAULT 'quiz',
-            pack_id      TEXT DEFAULT NULL,
-            set_index    INTEGER DEFAULT NULL,
-            question     TEXT NOT NULL,
-            option_a     TEXT NOT NULL,
-            option_b     TEXT NOT NULL,
-            option_c     TEXT NOT NULL,
-            option_d     TEXT NOT NULL,
-            correct      INTEGER NOT NULL,
-            topic        TEXT DEFAULT '',
-            sort_order   INTEGER DEFAULT 0
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            type          TEXT NOT NULL DEFAULT 'quiz',
+            pack_id       TEXT DEFAULT NULL,
+            set_index     INTEGER DEFAULT NULL,
+            question      TEXT NOT NULL,
+            option_a      TEXT NOT NULL,
+            option_b      TEXT NOT NULL,
+            option_c      TEXT NOT NULL,
+            option_d      TEXT NOT NULL,
+            correct       INTEGER NOT NULL,
+            topic         TEXT DEFAULT '',
+            explanation   TEXT DEFAULT '',
+            sort_order    INTEGER DEFAULT 0,
+            question_hash TEXT DEFAULT NULL
         );
 
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
@@ -237,7 +240,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_ca_category    ON current_affairs(category);
         CREATE INDEX IF NOT EXISTS idx_q_type         ON questions(type);
         CREATE INDEX IF NOT EXISTS idx_q_pack         ON questions(pack_id);
-        CREATE INDEX IF NOT EXISTS idx_q_set          ON questions(set_index)
+        CREATE INDEX IF NOT EXISTS idx_q_set          ON questions(set_index);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_q_hash  ON questions(question_hash)
     """)
 
 init_db()
@@ -254,6 +258,8 @@ _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN published_at TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN description TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN documents_needed TEXT DEFAULT NULL",
+    "ALTER TABLE questions ADD COLUMN question_hash TEXT DEFAULT NULL",
+    "ALTER TABLE questions ADD COLUMN explanation TEXT DEFAULT ''",
 ]
 for _sql in _MIGRATIONS:
     try:
@@ -1157,34 +1163,85 @@ def get_mock_questions(pack_id: str):
     return {"pack_id": pack_id, "questions": questions}
 
 
+@app.get("/admin/quiz-stats")
+def admin_quiz_stats(secret: str = Query(...)):
+    """Return quiz question counts and max set_index — used by quiz scraper."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    max_row   = conn.execute("SELECT MAX(set_index) as m FROM questions WHERE type='quiz'").fetchone()
+    total_row = conn.execute("SELECT COUNT(*) as c FROM questions WHERE type='quiz'").fetchone()
+    mock_row  = conn.execute("SELECT COUNT(*) as c FROM questions WHERE type='mock'").fetchone()
+    return {
+        "max_set_index":       max_row["m"]   if max_row   else -1,
+        "total_quiz":          total_row["c"] if total_row else 0,
+        "total_mock":          mock_row["c"]  if mock_row  else 0,
+    }
+
+
 @app.post("/admin/questions")
 def admin_add_questions(secret: str = Query(...), payload: dict = Body(...)):
-    """Bulk-insert quiz/mock questions. payload = {"questions": [...]}"""
+    """Bulk-insert quiz/mock questions with deduplication by question text hash.
+    payload = {"questions": [...], "next_set_index": <optional int>}
+    """
     if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     qs = payload.get("questions", [])
+    # Caller may pass next_set_index to continue numbering from a known offset
+    next_set = payload.get("next_set_index")
     conn = get_db()
+
+    # If next_set_index not provided, auto-detect current max
+    if next_set is None:
+        max_row  = conn.execute("SELECT MAX(set_index) as m FROM questions WHERE type='quiz'").fetchone()
+        next_set = (max_row["m"] or -1) + 1
+
     inserted = 0
+    set_counter = next_set   # tracks current set bucket for quiz questions
+    bucket_size = 0          # how many questions in current set bucket
+
     for q in qs:
         try:
+            q_text = q.get("question", "")
+            if not q_text:
+                continue
+            # Dedup hash — prevents re-inserting same question on daily runs
+            q_hash = hashlib.md5(q_text.lower().strip().encode()).hexdigest()
+
+            q_type     = q.get("type", "quiz")
+            set_index  = q.get("set_index")
+
+            # Auto-assign set_index for quiz questions where caller passed None
+            if q_type == "quiz" and set_index is None:
+                set_index = set_counter
+                bucket_size += 1
+                if bucket_size >= 5:   # 5 questions per daily-quiz set
+                    set_counter += 1
+                    bucket_size = 0
+
             conn.execute(
-                """INSERT INTO questions
+                """INSERT OR IGNORE INTO questions
                    (type, pack_id, set_index, question,
                     option_a, option_b, option_c, option_d,
-                    correct, topic, sort_order)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    correct, topic, explanation, sort_order, question_hash)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    q.get("type", "quiz"),
+                    q_type,
                     q.get("pack_id"),
-                    q.get("set_index"),
-                    q["question"],
-                    q["option_a"], q["option_b"], q["option_c"], q["option_d"],
-                    q["correct"],
+                    set_index,
+                    q_text,
+                    q.get("option_a", ""), q.get("option_b", ""),
+                    q.get("option_c", ""), q.get("option_d", ""),
+                    q.get("correct", 0),
                     q.get("topic", ""),
+                    q.get("explanation", ""),
                     q.get("sort_order", 0),
+                    q_hash,
                 )
             )
-            inserted += 1
+            # lastrowid is None when INSERT OR IGNORE skips a duplicate
+            if conn.lastrowid:
+                inserted += 1
         except Exception:
             pass
     return {"inserted": inserted, "total": len(qs)}
@@ -1217,3 +1274,16 @@ def admin_clear_questions(q_type: str, secret: str = Query(...), pack_id: Option
     else:
         conn.execute("DELETE FROM questions WHERE type=?", (q_type,))
     return {"success": True}
+
+
+@app.post("/admin/scrape-quiz")
+def trigger_quiz_scrape(secret: str = Query(...)):
+    """Run the quiz scraper — fetches MCQs from GKToday, AffairsCloud, OpenTrivia, and PYQ files."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    try:
+        from quiz_scraper import run_quiz_scraper
+        result = run_quiz_scraper()
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

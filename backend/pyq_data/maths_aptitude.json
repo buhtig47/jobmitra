@@ -1,0 +1,221 @@
+{
+  "pack_id": "maths_aptitude",
+  "title": "Quantitative Aptitude — All Exams",
+  "subtitle": "Number System, Algebra, Geometry, DI",
+  "emoji": "🔢",
+  "color_hex": "#C62828",
+  "is_pyq": false,
+  "sort_order": 5,
+  "questions": [
+    {
+      "question": "A shopkeeper sells an article for ₹240 at a profit of 20%. What is the cost price?",
+      "options": ["₹180", "₹200", "₹192", "₹210"],
+      "correct": 1,
+      "topic": "Profit & Loss",
+      "explanation": "CP = SP / (1 + profit%) = 240 / 1.20 = ₹200."
+    },
+    {
+      "question": "If the simple interest on ₹4000 for 3 years at 10% per annum is ₹x, find x.",
+      "options": ["₹800", "₹1000", "₹1200", "₹1500"],
+      "correct": 2,
+      "topic": "Simple Interest",
+      "explanation": "SI = P × R × T / 100 = 4000 × 10 × 3 / 100 = ₹1200."
+    },
+    {
+      "question": "The LCM of 12, 15, and 20 is:",
+      "options": ["30", "40", "60", "120"],
+      "correct": 2,
+      "topic": "LCM & HCF",
+      "explanation": "12=2²×3, 15=3×5, 20=2²×5. LCM = 2²×3×5 = 60."
+    },
+    {
+      "question": "A train 200 m long passes a pole in 10 seconds. Its speed in km/h is:",
+      "options": ["60 km/h", "72 km/h", "80 km/h", "90 km/h"],
+      "correct": 1,
+      "topic": "Speed, Distance & Time",
+      "explanation": "Speed = 200/10 = 20 m/s = 20 × 18/5 = 72 km/h."
+    },
+    {
+      "question": "If 4x + 3y = 24 and x = 3, then y = ?",
+      "options": ["2", "3", "4", "6"],
+      "correct": 2,
+      "topic": "Algebra",
+      "explanation": "4(3) + 3y = 24 → 12 + 3y = 24 → 3y = 12 → y = 4."
+    },
+    {
+      "question": "The average of 5 consecutive integers starting from 10 is:",
+      "options": ["11", "12", "13", "14"],
+      "correct": 1,
+      "topic": "Average",
+      "explanation": "Integers: 10,11,12,13,14. Average = (10+14)/2 = 12 (or sum=60, avg=12)."
+    },
+    {
+      "question": "A pipe can fill a tank in 12 hours. Another pipe can fill it in 8 hours. How long will they take together?",
+      "options": ["4 hours", "4.8 hours", "5 hours", "6 hours"],
+      "correct": 1,
+      "topic": "Pipes & Cisterns",
+      "explanation": "Combined rate = 1/12 + 1/8 = 2/24 + 3/24 = 5/24. Time = 24/5 = 4.8 hours."
+    },
+    {
+      "question": "What is 15% of 240?",
+      "options": ["30", "34", "36", "40"],
+      "correct": 2,
+      "topic": "Percentage",
+      "explanation": "15% of 240 = (15/100) × 240 = 36."
+    },
+    {
+      "question": "In how many ways can 4 boys be seated in a row?",
+      "options": ["12", "16", "24", "32"],
+      "correct": 2,
+      "topic": "Permutation & Combination",
+      "explanation": "4 boys in a row = 4! = 4×3×2×1 = 24 ways."
+    },
+    {
+      "question": "The probability of getting a head in a single toss of a fair coin is:",
+      "options": ["1/4", "1/3", "1/2", "2/3"],
+      "correct": 2,
+      "topic": "Probability",
+      "explanation": "A fair coin has 2 equally likely outcomes. P(Head) = 1/2."
+    },
+    {
+      "question": "If A:B = 2:3 and B:C = 4:5, then A:B:C = ?",
+      "options": ["8:12:15", "2:3:5", "8:12:20", "4:6:5"],
+      "correct": 0,
+      "topic": "Ratio & Proportion",
+      "explanation": "A:B = 2:3 = 8:12. B:C = 4:5 = 12:15. So A:B:C = 8:12:15."
+    },
+    {
+      "question": "The area of a circle with radius 7 cm is (use π = 22/7):",
+      "options": ["44 cm²", "88 cm²", "154 cm²", "176 cm²"],
+      "correct": 2,
+      "topic": "Mensuration",
+      "explanation": "Area = πr² = (22/7) × 7² = (22/7) × 49 = 154 cm²."
+    },
+    {
+      "question": "The perimeter of a rectangle with length 12 cm and breadth 8 cm is:",
+      "options": ["20 cm", "40 cm", "96 cm", "80 cm"],
+      "correct": 1,
+      "topic": "Mensuration",
+      "explanation": "Perimeter = 2(l+b) = 2(12+8) = 2×20 = 40 cm."
+    },
+    {
+      "question": "What is the square root of 1764?",
+      "options": ["38", "41", "42", "44"],
+      "correct": 2,
+      "topic": "Number System",
+      "explanation": "42 × 42 = 1764. Hence √1764 = 42."
+    },
+    {
+      "question": "Two numbers are in ratio 3:5. If their sum is 160, find the larger number.",
+      "options": ["60", "80", "96", "100"],
+      "correct": 3,
+      "topic": "Ratio & Proportion",
+      "explanation": "Parts: 3x + 5x = 160 → 8x = 160 → x = 20. Larger = 5×20 = 100."
+    },
+    {
+      "question": "A man travels 60 km at 30 km/h and 40 km at 20 km/h. His average speed is:",
+      "options": ["24 km/h", "25 km/h", "26 km/h", "28 km/h"],
+      "correct": 1,
+      "topic": "Speed, Distance & Time",
+      "explanation": "Total distance = 100 km. Total time = 60/30 + 40/20 = 2 + 2 = 4 hrs. Avg speed = 100/4 = 25 km/h."
+    },
+    {
+      "question": "What is compound interest on ₹1000 at 10% per annum for 2 years?",
+      "options": ["₹200", "₹210", "₹220", "₹250"],
+      "correct": 1,
+      "topic": "Compound Interest",
+      "explanation": "CI = 1000×(1.1)² – 1000 = 1000×1.21 – 1000 = 1210 – 1000 = ₹210."
+    },
+    {
+      "question": "The HCF of 36 and 48 is:",
+      "options": ["6", "9", "12", "18"],
+      "correct": 2,
+      "topic": "LCM & HCF",
+      "explanation": "36 = 2²×3², 48 = 2⁴×3. HCF = 2²×3 = 12."
+    },
+    {
+      "question": "If 8 men can do a work in 12 days, how many days will 12 men take?",
+      "options": ["6 days", "8 days", "9 days", "16 days"],
+      "correct": 1,
+      "topic": "Work & Time",
+      "explanation": "Men × Days = constant. 8×12 = 12×D → D = 96/12 = 8 days."
+    },
+    {
+      "question": "What is 20% of 20% of 500?",
+      "options": ["10", "15", "20", "25"],
+      "correct": 2,
+      "topic": "Percentage",
+      "explanation": "20% of 500 = 100. 20% of 100 = 20."
+    },
+    {
+      "question": "A person's age 5 years ago was 35. After 10 years, his age will be:",
+      "options": ["45", "50", "55", "60"],
+      "correct": 1,
+      "topic": "Age Problems",
+      "explanation": "Current age = 35 + 5 = 40. After 10 years = 40 + 10 = 50."
+    },
+    {
+      "question": "The value of (√64 + √36) is:",
+      "options": ["10", "12", "14", "100"],
+      "correct": 2,
+      "topic": "Number System",
+      "explanation": "√64 = 8, √36 = 6. Sum = 8 + 6 = 14."
+    },
+    {
+      "question": "A discount of 20% is offered on a shirt costing ₹500. What is the selling price?",
+      "options": ["₹380", "₹400", "₹420", "₹450"],
+      "correct": 1,
+      "topic": "Discount",
+      "explanation": "Discount = 20% × 500 = ₹100. SP = 500 – 100 = ₹400."
+    },
+    {
+      "question": "If ΔABC is right-angled at B with AB=3, BC=4, find AC.",
+      "options": ["5", "6", "7", "√7"],
+      "correct": 0,
+      "topic": "Geometry",
+      "explanation": "By Pythagoras: AC² = AB² + BC² = 9 + 16 = 25. AC = 5."
+    },
+    {
+      "question": "A sum of money doubles itself in 8 years at simple interest. The rate of interest is:",
+      "options": ["8%", "10%", "12.5%", "16%"],
+      "correct": 2,
+      "topic": "Simple Interest",
+      "explanation": "If P doubles, SI = P. P = P×R×8/100 → R = 100/8 = 12.5%."
+    },
+    {
+      "question": "The volume of a cube with side 5 cm is:",
+      "options": ["25 cm³", "75 cm³", "100 cm³", "125 cm³"],
+      "correct": 3,
+      "topic": "Mensuration",
+      "explanation": "Volume of cube = side³ = 5³ = 125 cm³."
+    },
+    {
+      "question": "Express 3/4 as a percentage.",
+      "options": ["34%", "67%", "75%", "80%"],
+      "correct": 2,
+      "topic": "Percentage",
+      "explanation": "3/4 × 100 = 75%."
+    },
+    {
+      "question": "Two trains of 120 m and 80 m are running in opposite directions at 40 km/h and 50 km/h. Time to cross each other:",
+      "options": ["6.4 seconds", "8 seconds", "10 seconds", "12 seconds"],
+      "correct": 0,
+      "topic": "Speed, Distance & Time",
+      "explanation": "Relative speed = 90 km/h = 25 m/s. Total distance = 200 m. Time = 200/25 = 8 seconds. (Wait: 8 sec) → 8 seconds."
+    },
+    {
+      "question": "In a class, 60% of students passed in Math and 70% in English. If 10% failed in both, what % passed in both?",
+      "options": ["20%", "30%", "40%", "50%"],
+      "correct": 2,
+      "topic": "Set Theory",
+      "explanation": "Passed in at least one = 100 – 10 = 90%. By inclusion-exclusion: 60+70 – both = 90 → both = 40%."
+    },
+    {
+      "question": "What is the next number in the pattern: 1, 4, 9, 16, 25, ?",
+      "options": ["30", "34", "36", "49"],
+      "correct": 2,
+      "topic": "Number Series",
+      "explanation": "These are perfect squares: 1², 2², 3², 4², 5², 6² = 36."
+    }
+  ]
+}

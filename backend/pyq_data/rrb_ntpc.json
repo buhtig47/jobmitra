@@ -1,0 +1,228 @@
+{
+  "pack_id": "rrb_ntpc",
+  "title": "RRB NTPC — General Awareness",
+  "subtitle": "Non-Technical Popular Categories Practice Set",
+  "emoji": "🚂",
+  "color_hex": "#1565C0",
+  "is_pyq": true,
+  "sort_order": 2,
+  "questions": [
+    {
+      "question": "Indian Railways is under the administrative control of which Ministry?",
+      "options": ["Ministry of Transport", "Ministry of Railways", "Ministry of Infrastructure", "Ministry of Civil Aviation"],
+      "correct": 1,
+      "topic": "Railways",
+      "explanation": "Indian Railways functions under the Ministry of Railways, Government of India."
+    },
+    {
+      "question": "The first railway line in India was opened between:",
+      "options": ["Delhi and Agra", "Bombay and Thane", "Calcutta and Howrah", "Madras and Arcot"],
+      "correct": 1,
+      "topic": "Railways",
+      "explanation": "India's first passenger railway ran between Bori Bunder (Bombay) and Thane, inaugurated on 16 April 1853."
+    },
+    {
+      "question": "The Konkan Railway connects which two cities?",
+      "options": ["Mumbai and Goa", "Roha and Mangalore", "Mumbai and Mangalore", "Goa and Mangalore"],
+      "correct": 1,
+      "topic": "Railways",
+      "explanation": "Konkan Railway runs from Roha (Maharashtra) to Thokur near Mangalore (Karnataka), 756 km."
+    },
+    {
+      "question": "Which gas is used in electric bulbs to prevent the filament from burning?",
+      "options": ["Oxygen", "Carbon dioxide", "Argon", "Hydrogen"],
+      "correct": 2,
+      "topic": "Science",
+      "explanation": "Inert gases like Argon (or Nitrogen) are used in electric bulbs to prevent oxidation of the tungsten filament."
+    },
+    {
+      "question": "The SI unit of electric current is:",
+      "options": ["Volt", "Watt", "Ampere", "Ohm"],
+      "correct": 2,
+      "topic": "Science",
+      "explanation": "The SI unit of electric current is the Ampere (A), named after André-Marie Ampère."
+    },
+    {
+      "question": "Newton's First Law of Motion is also known as:",
+      "options": ["Law of Gravitation", "Law of Inertia", "Law of Acceleration", "Law of Action-Reaction"],
+      "correct": 1,
+      "topic": "Science",
+      "explanation": "Newton's First Law states that a body at rest or uniform motion continues so unless acted on by an external force — hence the Law of Inertia."
+    },
+    {
+      "question": "Photosynthesis takes place in which part of a plant?",
+      "options": ["Root", "Stem", "Chloroplast (Leaf)", "Flower"],
+      "correct": 2,
+      "topic": "Science",
+      "explanation": "Photosynthesis occurs in chloroplasts, mainly found in leaf cells, using sunlight, CO2, and water."
+    },
+    {
+      "question": "The human body's longest bone is the:",
+      "options": ["Tibia", "Fibula", "Femur", "Humerus"],
+      "correct": 2,
+      "topic": "Science",
+      "explanation": "The femur (thigh bone) is the longest and strongest bone in the human body."
+    },
+    {
+      "question": "Which country is known as the 'Land of the Rising Sun'?",
+      "options": ["China", "South Korea", "Japan", "Thailand"],
+      "correct": 2,
+      "topic": "Geography",
+      "explanation": "Japan is called the 'Land of the Rising Sun' — its name in Japanese 'Nihon' means 'sun origin'."
+    },
+    {
+      "question": "Mount Everest is located on the border of which two countries?",
+      "options": ["India and Nepal", "Nepal and China (Tibet)", "India and China", "Nepal and Bhutan"],
+      "correct": 1,
+      "topic": "Geography",
+      "explanation": "Mount Everest (8,849 m) sits on the border between Nepal and the Tibet Autonomous Region of China."
+    },
+    {
+      "question": "The 'Palk Strait' separates India from:",
+      "options": ["Maldives", "Sri Lanka", "Bangladesh", "Myanmar"],
+      "correct": 1,
+      "topic": "Geography",
+      "explanation": "The Palk Strait is a narrow sea passage between Tamil Nadu (India) and the Mannar district of Sri Lanka."
+    },
+    {
+      "question": "Who is the author of 'Discovery of India'?",
+      "options": ["Mahatma Gandhi", "Jawaharlal Nehru", "Rabindranath Tagore", "Subhas Chandra Bose"],
+      "correct": 1,
+      "topic": "History",
+      "explanation": "'The Discovery of India' was written by Jawaharlal Nehru in 1946 while imprisoned at Ahmednagar Fort."
+    },
+    {
+      "question": "The Indian National Congress was founded in:",
+      "options": ["1857", "1880", "1885", "1905"],
+      "correct": 2,
+      "topic": "History",
+      "explanation": "The Indian National Congress (INC) was founded on 28 December 1885 by Allan Octavian Hume."
+    },
+    {
+      "question": "Who was the first woman Prime Minister of India?",
+      "options": ["Sonia Gandhi", "Sarojini Naidu", "Indira Gandhi", "Pratibha Patil"],
+      "correct": 2,
+      "topic": "History",
+      "explanation": "Indira Gandhi was the first (and so far only) woman Prime Minister of India, serving 1966–77 and 1980–84."
+    },
+    {
+      "question": "The currency of Japan is:",
+      "options": ["Yuan", "Won", "Yen", "Baht"],
+      "correct": 2,
+      "topic": "General Knowledge",
+      "explanation": "The currency of Japan is the Japanese Yen (¥)."
+    },
+    {
+      "question": "Which is the largest ocean in the world?",
+      "options": ["Atlantic", "Indian", "Arctic", "Pacific"],
+      "correct": 3,
+      "topic": "Geography",
+      "explanation": "The Pacific Ocean is the world's largest ocean, covering more than 165 million km²."
+    },
+    {
+      "question": "The Ozone layer is found in which layer of the atmosphere?",
+      "options": ["Troposphere", "Stratosphere", "Mesosphere", "Thermosphere"],
+      "correct": 1,
+      "topic": "Environment",
+      "explanation": "The Ozone layer (15–35 km altitude) is found in the Stratosphere and absorbs harmful UV radiation."
+    },
+    {
+      "question": "Which element has the chemical symbol 'Fe'?",
+      "options": ["Fluorine", "Francium", "Iron", "Fermium"],
+      "correct": 2,
+      "topic": "Science",
+      "explanation": "Fe is the chemical symbol for Iron, derived from the Latin word 'ferrum'."
+    },
+    {
+      "question": "The 'Hornbill Festival' is associated with which state of India?",
+      "options": ["Assam", "Manipur", "Nagaland", "Meghalaya"],
+      "correct": 2,
+      "topic": "Culture",
+      "explanation": "The Hornbill Festival is held annually in Nagaland in December, celebrating Naga tribal culture."
+    },
+    {
+      "question": "Which is the highest civilian award in India?",
+      "options": ["Padma Bhushan", "Padma Vibhushan", "Bharat Ratna", "Padma Shri"],
+      "correct": 2,
+      "topic": "General Knowledge",
+      "explanation": "Bharat Ratna is India's highest civilian honour, instituted in 1954."
+    },
+    {
+      "question": "The Richter scale measures:",
+      "options": ["Wind speed", "Earthquake magnitude", "Rainfall intensity", "Air pressure"],
+      "correct": 1,
+      "topic": "Science",
+      "explanation": "The Richter scale (now largely replaced by the Moment Magnitude Scale) measures the magnitude of earthquakes."
+    },
+    {
+      "question": "Who invented the World Wide Web (WWW)?",
+      "options": ["Bill Gates", "Steve Jobs", "Tim Berners-Lee", "Vint Cerf"],
+      "correct": 2,
+      "topic": "Science & Technology",
+      "explanation": "Tim Berners-Lee invented the World Wide Web in 1989 at CERN."
+    },
+    {
+      "question": "Which planet has the most moons in the Solar System?",
+      "options": ["Jupiter", "Saturn", "Uranus", "Neptune"],
+      "correct": 1,
+      "topic": "Science",
+      "explanation": "Saturn has the most confirmed moons (146 as of 2023), surpassing Jupiter."
+    },
+    {
+      "question": "The first General Elections in independent India were held in:",
+      "options": ["1947-48", "1951-52", "1955-56", "1957"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "India's first General Elections were held from October 1951 to February 1952, won by the Congress party."
+    },
+    {
+      "question": "DNA stands for:",
+      "options": ["Deoxyribose Nucleotide Acid", "Deoxyribonucleic Acid", "Diribonucleic Acid", "Double Nucleotide Acid"],
+      "correct": 1,
+      "topic": "Science",
+      "explanation": "DNA (Deoxyribonucleic Acid) is the molecule carrying genetic instructions for all living organisms."
+    },
+    {
+      "question": "The headquarters of ISRO is located in:",
+      "options": ["Mumbai", "Hyderabad", "Bengaluru", "Chennai"],
+      "correct": 2,
+      "topic": "Science & Technology",
+      "explanation": "ISRO (Indian Space Research Organisation) headquarters is in Bengaluru (Bangalore), Karnataka."
+    },
+    {
+      "question": "Which bank is the 'Banker of Banks' in India?",
+      "options": ["State Bank of India", "Reserve Bank of India", "Bank of India", "Punjab National Bank"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "The Reserve Bank of India (RBI) is the central bank and acts as the 'Banker of Banks' in India."
+    },
+    {
+      "question": "Panini is associated with which ancient Indian subject?",
+      "options": ["Mathematics", "Astronomy", "Grammar (Sanskrit)", "Medicine"],
+      "correct": 2,
+      "topic": "History",
+      "explanation": "Panini (c. 4th century BCE) authored Ashtadhyayi, the foundational text on Sanskrit grammar."
+    },
+    {
+      "question": "Which is the national sport of India?",
+      "options": ["Cricket", "Hockey", "Kabaddi", "Wrestling"],
+      "correct": 1,
+      "topic": "Sports",
+      "explanation": "Field Hockey is the national sport of India, with India winning 8 Olympic gold medals."
+    },
+    {
+      "question": "CRR stands for:",
+      "options": ["Cash Revenue Ratio", "Central Reserve Rate", "Cash Reserve Ratio", "Credit Reserve Ratio"],
+      "correct": 2,
+      "topic": "Economy",
+      "explanation": "CRR (Cash Reserve Ratio) is the percentage of a bank's total deposits that must be maintained as reserves with the RBI."
+    },
+    {
+      "question": "Tsunami is caused by:",
+      "options": ["Heavy rainfall", "Underwater earthquake or volcanic eruption", "Strong surface winds", "High tidal force"],
+      "correct": 1,
+      "topic": "Geography",
+      "explanation": "Tsunamis are large sea waves caused by underwater earthquakes, landslides, or volcanic eruptions displacing water."
+    }
+  ]
+}

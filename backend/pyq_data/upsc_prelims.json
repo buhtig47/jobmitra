@@ -1,0 +1,221 @@
+{
+  "pack_id": "upsc_prelims",
+  "title": "UPSC Prelims — GS Paper I",
+  "subtitle": "Civil Services General Studies Practice Set",
+  "emoji": "🎯",
+  "color_hex": "#7B1FA2",
+  "is_pyq": true,
+  "sort_order": 3,
+  "questions": [
+    {
+      "question": "The concept of 'Welfare State' is enshrined in the Indian Constitution through:",
+      "options": ["Fundamental Rights", "Directive Principles of State Policy", "Preamble only", "Fundamental Duties"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "DPSPs (Part IV) lay down the principles of social justice and welfare state that the government should aim for."
+    },
+    {
+      "question": "Who among the following was NOT a member of the Constituent Assembly?",
+      "options": ["Dr. B.R. Ambedkar", "Jawaharlal Nehru", "Mahatma Gandhi", "Rajendra Prasad"],
+      "correct": 2,
+      "topic": "Polity",
+      "explanation": "Mahatma Gandhi was NOT a member of the Constituent Assembly. He was the moral force behind the freedom movement."
+    },
+    {
+      "question": "The Indus Valley Civilisation is associated with which period?",
+      "options": ["1200–900 BCE", "2500–1900 BCE", "5000–3000 BCE", "800–600 BCE"],
+      "correct": 1,
+      "topic": "History",
+      "explanation": "The mature phase of the Indus Valley (Harappan) Civilisation is dated approximately 2600–1900 BCE."
+    },
+    {
+      "question": "Which ancient text deals with Indian medicine (Ayurveda)?",
+      "options": ["Rigveda", "Charaka Samhita", "Arthashastra", "Manusmriti"],
+      "correct": 1,
+      "topic": "History",
+      "explanation": "Charaka Samhita (c. 1st century BCE–2nd century CE) is the foundational text of Ayurvedic medicine."
+    },
+    {
+      "question": "The Eastern Ghats are discontinuous hill ranges that run parallel to the:",
+      "options": ["Western coast", "Eastern coast", "Deccan plateau edges", "Himalayan foothills"],
+      "correct": 1,
+      "topic": "Geography",
+      "explanation": "The Eastern Ghats run roughly parallel to the eastern coast (Bay of Bengal) of India."
+    },
+    {
+      "question": "El Niño is associated with which ocean?",
+      "options": ["Atlantic Ocean", "Indian Ocean", "Pacific Ocean", "Southern Ocean"],
+      "correct": 2,
+      "topic": "Geography",
+      "explanation": "El Niño is a climate pattern of warm ocean surface temperatures in the central and eastern Pacific Ocean."
+    },
+    {
+      "question": "Which of the following gases contributes most to the greenhouse effect on Earth?",
+      "options": ["Carbon Dioxide", "Methane", "Water Vapour", "Nitrous Oxide"],
+      "correct": 2,
+      "topic": "Environment",
+      "explanation": "Water vapour is actually the most abundant and strongest greenhouse gas, though CO2 is more discussed due to human emissions."
+    },
+    {
+      "question": "The 'Green Revolution' in India was associated with which crop?",
+      "options": ["Rice", "Wheat", "Maize", "Pulses"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "The Green Revolution (1960s–70s) primarily involved the introduction of high-yielding wheat varieties, championed by M.S. Swaminathan."
+    },
+    {
+      "question": "Which Biosphere Reserve in India has UNESCO recognition?",
+      "options": ["Nilgiri Biosphere Reserve", "Nanda Devi Biosphere Reserve", "Both of the above", "Neither of the above"],
+      "correct": 2,
+      "topic": "Environment",
+      "explanation": "Both Nilgiri (2000) and Nanda Devi (2004) Biosphere Reserves have UNESCO World Network of Biosphere Reserves recognition."
+    },
+    {
+      "question": "Pradhan Mantri Jan Dhan Yojana (PMJDY) is primarily aimed at:",
+      "options": ["Agricultural loans", "Housing for poor", "Financial inclusion", "Skill development"],
+      "correct": 2,
+      "topic": "Economy",
+      "explanation": "PMJDY (launched 2014) aims at financial inclusion — providing affordable access to banking, insurance, and pension services."
+    },
+    {
+      "question": "The concept of 'Basic Structure' of the Constitution was propounded in which case?",
+      "options": ["Golaknath case (1967)", "Kesavananda Bharati case (1973)", "Minerva Mills case (1980)", "Maneka Gandhi case (1978)"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "The Basic Structure doctrine was established by the Supreme Court in Kesavananda Bharati v. State of Kerala (1973)."
+    },
+    {
+      "question": "Which of the following is NOT a Fundamental Right under the Indian Constitution?",
+      "options": ["Right to Equality", "Right to Property", "Right to Freedom of Religion", "Right against Exploitation"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "Right to Property was removed from Fundamental Rights by the 44th Amendment (1978) and made a constitutional right under Article 300A."
+    },
+    {
+      "question": "The Sangam Age refers to the ancient history of which region?",
+      "options": ["Bengal", "Tamil Nadu (South India)", "Karnataka", "Maharashtra"],
+      "correct": 1,
+      "topic": "History",
+      "explanation": "The Sangam Age (c. 300 BCE–300 CE) refers to the classical period of Tamil literature and culture in South India."
+    },
+    {
+      "question": "The 'Swaraj Party' after the Non-Cooperation Movement was founded by:",
+      "options": ["Motilal Nehru and C.R. Das", "Bal Gangadhar Tilak and Aurobindo Ghose", "Lala Lajpat Rai and Bipin Chandra Pal", "Mahatma Gandhi and Jawaharlal Nehru"],
+      "correct": 0,
+      "topic": "History",
+      "explanation": "The Swaraj Party was founded in 1922–23 by C.R. Das and Motilal Nehru to contest legislative councils."
+    },
+    {
+      "question": "Which soil type is most suitable for growing cotton in India?",
+      "options": ["Red soil", "Laterite soil", "Black (Regur) soil", "Alluvial soil"],
+      "correct": 2,
+      "topic": "Geography",
+      "explanation": "Black cotton soil (Regur) is ideal for cotton cultivation due to its high moisture retention capacity."
+    },
+    {
+      "question": "The Himalayan range is an example of which type of mountain?",
+      "options": ["Block mountain", "Volcanic mountain", "Fold mountain", "Residual mountain"],
+      "correct": 2,
+      "topic": "Geography",
+      "explanation": "The Himalayas are fold mountains formed by the collision of the Indian and Eurasian tectonic plates."
+    },
+    {
+      "question": "Which international convention deals with biodiversity?",
+      "options": ["Kyoto Protocol", "Montreal Protocol", "Convention on Biological Diversity (CBD)", "Paris Agreement"],
+      "correct": 2,
+      "topic": "Environment",
+      "explanation": "The Convention on Biological Diversity (CBD), signed at Rio de Janeiro in 1992, addresses biodiversity conservation."
+    },
+    {
+      "question": "Kaziranga National Park is famous for:",
+      "options": ["Bengal Tiger", "Indian One-Horned Rhinoceros", "Snow Leopard", "Asiatic Lion"],
+      "correct": 1,
+      "topic": "Environment",
+      "explanation": "Kaziranga (Assam) is a UNESCO World Heritage Site hosting about 2/3 of the world's one-horned rhinoceroses."
+    },
+    {
+      "question": "The Preamble to the Indian Constitution describes India as a:",
+      "options": ["Federal Democratic Republic", "Sovereign Socialist Secular Democratic Republic", "Parliamentary Federal Republic", "Democratic Welfare State"],
+      "correct": 1,
+      "topic": "Polity",
+      "explanation": "The Preamble (as amended by 42nd Amendment, 1976) declares India a 'Sovereign, Socialist, Secular, Democratic Republic'."
+    },
+    {
+      "question": "The Bretton Woods Conference (1944) established which institutions?",
+      "options": ["WTO and UN", "IMF and World Bank", "GATT and OECD", "NATO and WHO"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "The Bretton Woods Conference (1944) established the IMF and the International Bank for Reconstruction and Development (World Bank)."
+    },
+    {
+      "question": "Which Article of the Constitution provides for the formation of new states?",
+      "options": ["Article 1", "Article 2", "Article 3", "Article 4"],
+      "correct": 2,
+      "topic": "Polity",
+      "explanation": "Article 3 empowers Parliament to form new states, alter boundaries, or change names of existing states."
+    },
+    {
+      "question": "The 'Great Barrier Reef' is located off the coast of:",
+      "options": ["New Zealand", "South Africa", "Australia", "Philippines"],
+      "correct": 2,
+      "topic": "Geography",
+      "explanation": "The Great Barrier Reef, the world's largest coral reef system, lies off the coast of Queensland, Australia."
+    },
+    {
+      "question": "Who was the founder of the Maratha Empire?",
+      "options": ["Sambhaji", "Balaji Baji Rao", "Shivaji Maharaj", "Peshwa Bajirao I"],
+      "correct": 2,
+      "topic": "History",
+      "explanation": "Chhatrapati Shivaji Maharaj (1630–1680) founded the Maratha Empire and was its first ruler."
+    },
+    {
+      "question": "The Shimla Agreement (1972) was signed between India and:",
+      "options": ["China", "Nepal", "Pakistan", "Bangladesh"],
+      "correct": 2,
+      "topic": "International Relations",
+      "explanation": "The Shimla Agreement was signed on 2 July 1972 between Indian PM Indira Gandhi and Pakistani PM Zulfikar Ali Bhutto after the 1971 war."
+    },
+    {
+      "question": "Which committee recommended the three-tier Panchayati Raj system in India?",
+      "options": ["Balwantrai Mehta Committee", "Ashok Mehta Committee", "G.V.K. Rao Committee", "L.M. Singhvi Committee"],
+      "correct": 0,
+      "topic": "Polity",
+      "explanation": "The Balwantrai Mehta Committee (1957) recommended the three-tier Panchayati Raj system (village, block, district)."
+    },
+    {
+      "question": "The 'MGNREGS' (NREGA) guarantees how many days of employment per year to rural households?",
+      "options": ["50 days", "100 days", "150 days", "200 days"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "MGNREGS guarantees 100 days of unskilled manual work annually to rural adult members of households."
+    },
+    {
+      "question": "Which of the following is a measure of income inequality?",
+      "options": ["HDI", "Gini Coefficient", "GDP growth rate", "Inflation rate"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "The Gini Coefficient measures income inequality within a nation — 0 represents perfect equality, 1 perfect inequality."
+    },
+    {
+      "question": "Pradhan Mantri Fasal Bima Yojana (PMFBY) relates to:",
+      "options": ["Farmer pension", "Crop insurance", "Agricultural loans", "Irrigation subsidy"],
+      "correct": 1,
+      "topic": "Economy",
+      "explanation": "PMFBY (launched 2016) provides financial support to farmers suffering crop loss due to natural calamities, pests, or diseases."
+    },
+    {
+      "question": "The Non-Cooperation Movement (1920-22) was withdrawn due to:",
+      "options": ["Jallianwala Bagh massacre", "Chauri Chaura incident", "Simon Commission", "Gandhi's arrest"],
+      "correct": 1,
+      "topic": "History",
+      "explanation": "Gandhi called off the Non-Cooperation Movement in February 1922 after the Chauri Chaura incident, where a mob killed 22 policemen."
+    },
+    {
+      "question": "Which river originates from the Amarkantak plateau?",
+      "options": ["Son and Narmada", "Godavari and Krishna", "Tapti and Mahanadi", "Betwa and Chambal"],
+      "correct": 0,
+      "topic": "Geography",
+      "explanation": "The Narmada and Son rivers both originate from the Amarkantak plateau in Madhya Pradesh."
+    }
+  ]
+}
