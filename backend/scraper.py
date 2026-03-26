@@ -1,19 +1,25 @@
 """
 ╔══════════════════════════════════════════════════════════╗
-║       JobMitra - Sarkari Job Scraper  v11               ║
+║       JobMitra - Sarkari Job Scraper  v12               ║
 ╠══════════════════════════════════════════════════════════╣
-║  v10 (previous):                                        ║
-║  ✅ Salary: per-month / lakh-p.a. / fixed-pay patterns  ║
-║  ✅ NON_JOB filter, GARBAGE title patterns              ║
-║  ✅ Fee: Gen/OBC/SC-ST split pattern                    ║
-║  ✅ 8 new RSS sources (state + national)                ║
-║                                                         ║
-║  v11 NEW improvements:                                  ║
+║  v11 (previous):                                        ║
 ║  ✅ content:encoded RSS parsing → full fee/vacancy data ║
 ║  ✅ Fee = -1 (unknown) vs 0 (confirmed free)            ║
 ║  ✅ Quality score gate — rejects SEO garbage titles     ║
 ║  ✅ Bare qualification title patterns removed           ║
 ║  ✅ Description: up to 3000 chars for extraction        ║
+║                                                         ║
+║  v12 NEW improvements:                                  ║
+║  ✅ Pay level map extended to levels 15-18              ║
+║  ✅ documents_needed extraction (_extract_documents)    ║
+║  ✅ 20+ new RSS sources (Tier 8 aggregators + PSUs)     ║
+║  ✅ Current Affairs: PIB, DD News, IE, HT, BS, TOI     ║
+║  ✅ CA category rules: defence + wider economy/intl     ║
+║  ✅ CA exam relevance: G20, BRICS, defence, climate     ║
+║  ✅ NON_JOB_WORDS: salary articles, prep noise blocked  ║
+║  ✅ GARBAGE_TITLE: admit card, call letter, interview   ║
+║  ✅ _SPECIFIC_POST_KWS: 40+ new role keywords          ║
+║  ✅ _SPECIFIC_ORG_KWS: state PSCs, IITs, PSUs added    ║
 ╚══════════════════════════════════════════════════════════╝
 """
 
@@ -118,6 +124,8 @@ def extract_salary(text: str) -> dict:
                 7: "44900-142400", 8: "47600-151100", 9: "53100-167800",
                 10: "56100-177500", 11: "67700-208700", 12: "78800-209200",
                 13: "123100-215900", 14: "144200-218200",
+                15: "182200-224100", 16: "205400-224400",
+                17: "225000-",      18: "250000-",
             }
             if level in level_salary:
                 result["pay_scale"] = f"₹{level_salary[level]}"
@@ -289,6 +297,13 @@ SOURCE_TRUST = {
     "ibps_offical":10, "upsc_official":10, "ssc_official":10, "nhm_india":9,
     # v10: new aggregators
     "jobrecruitment":6, "govtjobsalert":6, "rojgardhund":5, "sarkarinaukrihub":5,
+    # v12: new sources
+    "sarkarialert":7, "naukrigyan":6, "bankersadda":8, "sscadda":8,
+    "naukriday":6, "jobsindian":5, "10th12thpass":6, "govtjobshunter":6,
+    "sarkarijoblive":6, "studycafe":7, "examstocks":6, "jobriya":6,
+    "latestgovtjobs":6, "govtjobsnews":6,
+    "tnpsc_news":10, "wbpsc_news":10, "ntpc_jobs":9, "bhel_recr":9,
+    "becil_recr":8, "hpcl_recr":9,
 }
 _DEFAULT_TRUST = 5
 
@@ -437,6 +452,33 @@ RSS_SOURCES = {
     "upsc_official":     "https://upsc.gov.in/rss.xml",
     "ssc_official":      "https://ssc.gov.in/rss.xml",
     "nhm_india":         "https://nhm.gov.in/New_Updates_2018/Recruitment/rss.xml",
+
+    # ══ TIER 8: v12 new sources ══
+    # More aggregators
+    "sarkarialert":      "https://www.sarkarialert.com/feed/",
+    "naukrigyan":        "https://naukrigyan.com/feed/",
+    "bankersadda":       "https://www.bankersadda.com/feeds/posts/default?alt=rss",
+    "sscadda":           "https://www.sscadda.com/feeds/posts/default?alt=rss",
+    "naukriday":         "https://www.naukriday.com/feed/",
+    "jobsindian":        "https://jobsindian.in/feed/",
+    "10th12thpass":      "https://www.10th12thpass.com/feed/",
+    "govtjobshunter":    "https://govtjobshunter.com/feed/",
+    "sarkarijoblive":    "https://sarkarijoblive.com/feed/",
+    "studycafe":         "https://www.studycafe.in/feeds/posts/default?alt=rss",
+    "examstocks":        "https://www.examstocks.com/feed/",
+    "jobriya":           "https://jobriya.in/feed/",
+    "latestgovtjobs":    "https://latestgovtjobs.in/feed/",
+    "govtjobsnews":      "https://govtjobsnews.in/feed/",
+    # More state-level
+    "up_police_recr":    "https://uppbpb.gov.in/feed/",
+    "mp_policerecr":     "https://mppolice.gov.in/feed/",
+    "tnpsc_news":        "https://www.tnpsc.gov.in/rss.xml",
+    "wbpsc_news":        "https://www.pscwb.org.in/rss.xml",
+    # More PSU / central
+    "ntpc_jobs":         "https://www.ntpccareers.net/feed/",
+    "bhel_recr":         "https://careers.bhel.in/feed/",
+    "becil_recr":        "https://www.becil.com/feed/",
+    "hpcl_recr":         "https://hindustanpetroleum.com/feed/",
 }
 
 DIRECT_SOURCES = {
@@ -794,13 +836,15 @@ NON_JOB_WORDS = {
     # Result / selection
     "result out", "result declared", "result announced", "result released",
     "final result", "merit list", "selection list", "waitlist released",
-    "provisionally selected", "shortlisted candidates",
+    "provisionally selected", "shortlisted candidates", "result published",
+    "provisional result", "final merit list", "category wise result",
     # Answer key / cut-off
     "answer key", "final answer key", "provisional answer key",
     "cut off", "cutoff", "cut-off marks", "category wise cutoff",
+    "expected cut off", "expected cutoff",
     # Admit card / hall ticket
     "admit card", "hall ticket", "call letter download",
-    "interview call letter", "joining letter",
+    "interview call letter", "joining letter", "e-admit card",
     # Score / rank
     "scorecard", "score card", "rank list", "marks obtained",
     # Schedule
@@ -809,16 +853,25 @@ NON_JOB_WORDS = {
     "exam cancelled", "exam rescheduled", "examination centre",
     # Misc result noise
     "final selection", "document verification", "physical test schedule",
-    "pst/pet schedule", "skill test schedule",
-    # Blog/article noise
-    "what makes us special", "welcome to ", "about us", "privacy policy",
-    "terms and conditions", "contact us", "your daily dose",
+    "pst/pet schedule", "skill test schedule", "medical test schedule",
+    "physical efficiency test", "pst schedule",
+    # Study / preparation noise
     "how to apply", "tips for", "best ways to", "top 10 ways",
     "why you should", "importance of", "career guidance",
     "complete guide", "step by step", "all you need to know",
     "frequently asked", "faq ", " faq", "mock test",
     "previous year paper", "syllabus pdf", "exam pattern",
-    "books for ", "best book", "study material",
+    "books for ", "best book", "study material", "study plan",
+    "preparation tips", "strategy for", "how to crack",
+    "important topics", "exam analysis", "post exam analysis",
+    # Blog/site noise
+    "what makes us special", "welcome to ", "about us", "privacy policy",
+    "terms and conditions", "contact us", "your daily dose",
+    "disclaimer", "advertise with us", "write for us",
+    # Salary/perks article noise (not a job listing)
+    "salary structure of", "salary of ssc", "salary of upsc",
+    "salary breakdown", "salary details of", "salary after",
+    "in hand salary of",
 }
 
 PRIVATE_JOB_BLOCKLIST = {
@@ -876,6 +929,21 @@ GARBAGE_TITLE_PATTERNS = [
     r"^(?:new|latest|upcoming)\s+(?:govt|government|sarkari)\s+(?:vacancy|vacancies|naukri)\s*$",
     r"^(?:free\s+)?job\s+alert\s*(?:2025|2026)?\s*$",
     r"^sarkari\s+result\b",
+    # v12: salary article noise patterns (not actual job postings)
+    r"^(?:in[\s-]hand\s+)?salary\s+(?:of|for|after|structure)",
+    r"^(?:ssc|upsc|rrb|ibps|sbi|rbi|army|police)\s+(?:salary|pay\s*scale|grade\s*pay)",
+    r"\bsalary\s+structure\b",
+    r"^how\s+much\s+(?:salary|does)",
+    r"^(?:full\s+)?(?:salary|pay)\s+details?\b",
+    # v12: admit card / call letter title patterns
+    r"\bcall\s*letter\b",
+    r"\be[\s-]?admit\b",
+    r"\binterview\s*date\b",
+    r"\bphysical\s*(?:test|efficiency|standard)\b",
+    # v12: revision / expected / guess patterns
+    r"\bexpected\s+(?:cut\s*off|cutoff|marks?|questions?)\b",
+    r"\bimportant\s+(?:questions?|topics?|notes?)\b",
+    r"^top\s+\d+\s+(?:questions?|topics?|tricks?|tips?)\b",
 ]
 _GARBAGE_RES = [re.compile(p, re.IGNORECASE) for p in GARBAGE_TITLE_PATTERNS]
 
@@ -1341,6 +1409,42 @@ def _soup(url: str, timeout: int = 15) -> BeautifulSoup | None:
     return BeautifulSoup(raw, "lxml") if raw else None
 
 # ════════════════════════════════════════════════════════
+#  v12: DOCUMENTS NEEDED EXTRACTION
+# ════════════════════════════════════════════════════════
+
+_DOC_PATTERNS = [
+    (r"\b10th\s*(?:marksheet|certificate|board\s*certificate|pass\s*certificate)\b",  "10th Certificate"),
+    (r"\b12th\s*(?:marksheet|certificate|board\s*certificate|pass\s*certificate)\b",  "12th Certificate"),
+    (r"\bdegree\s*certificate\b",                                                      "Degree Certificate"),
+    (r"\bdiploma\s*certificate\b",                                                     "Diploma Certificate"),
+    (r"\bcaste\s*certificate\b",                                                       "Caste Certificate"),
+    (r"\bincome\s*certificate\b",                                                      "Income Certificate"),
+    (r"\bdomicile\s*certificate\b",                                                    "Domicile Certificate"),
+    (r"\bresidence\s*(?:certificate|proof)\b",                                         "Residence Proof"),
+    (r"\bcharacter\s*certificate\b|\bpolice\s*clearance\b",                           "Character Certificate"),
+    (r"\bexperience\s*certificate\b",                                                  "Experience Certificate"),
+    (r"\baadhar\b|\badhaar\b|\baadhaar\b",                                             "Aadhaar Card"),
+    (r"\bpan\s*card\b",                                                                "PAN Card"),
+    (r"\bpassport\s*(?:size\s*)?photo",                                                "Passport Photo"),
+    (r"\bmedical\s*(?:fitness\s*)?certificate\b",                                      "Medical Certificate"),
+    (r"\bno\s*objection\s*certificate\b|\bnoc\b",                                      "NOC"),
+    (r"\bdisability\s*certificate\b|\bpwbd\s*certificate\b",                          "Disability Certificate"),
+    (r"\bex[\s-]?serviceman\s*certificate\b",                                          "Ex-Serviceman Certificate"),
+    (r"\bdate\s*of\s*birth\s*(?:proof|certificate)\b|\bdob\s*proof\b",               "Date of Birth Proof"),
+    (r"\bmark\s*(?:sheet|list)\b",                                                     "Marksheet"),
+]
+
+def _extract_documents(text: str) -> list:
+    """v12: Extract required documents mentioned in job description."""
+    t = text.lower()
+    found = []
+    for pattern, doc_name in _DOC_PATTERNS:
+        if re.search(pattern, t):
+            found.append(doc_name)
+    return found
+
+
+# ════════════════════════════════════════════════════════
 #  v11: JOB QUALITY GATE
 #  Rejects SEO garbage and non-specific titles
 # ════════════════════════════════════════════════════════
@@ -1358,6 +1462,22 @@ _SPECIFIC_POST_KWS = {
     "apprentice", "trainee", "instructor", "librarian", "curator",
     "foreman", "electrician", "fitter", "welder", "plumber", "machinist",
     "data entry", "computer operator", "field officer", "project associate",
+    # v12 additions
+    "sub inspector", "head constable", "asi post", "junior clerk",
+    "senior clerk", "office attendant", "multi tasking", "mts post",
+    "peon post", "watchman", "security guard", "chowkidar",
+    "sweeper", "sanitation", "junior assistant", "senior assistant",
+    "lab assistant", "field assistant", "stenotypist", "typist",
+    "ldc post", "udc post", "lower division", "upper division",
+    "section officer", "desk officer", "research officer",
+    "development officer", "welfare officer", "probationary officer",
+    "specialist officer", "it officer", "law officer", "finance officer",
+    "medical officer", "chief medical", "block officer", "revenue officer",
+    "revenue inspector", "gram sevak", "village development",
+    "community health officer", "cho post", "health worker", "asha",
+    "anm post", "gnm post", "staff nurse", "ward boy", "attender",
+    "house keeping", "sanitary worker", "mali post", "cook post",
+    "catering", "mess worker", "labourer", "helper post",
 }
 
 _SPECIFIC_ORG_KWS = {
@@ -1370,6 +1490,18 @@ _SPECIFIC_ORG_KWS = {
     "high court", "district court", "ministry", "department",
     "corporation", "municipal", "nagar", "vikas", "nigam", "board",
     "parishad", "mandal", "samiti", "sansthan", "mahavidyalaya",
+    # v12 additions
+    "becil", "rites", "nbcc", "ntpc", "concor", "wapcos",
+    "hpcl", "mecl", "moil", "beml", "midhani", "balmer",
+    "nfl", "rcf", "tcil", "mtnl", "itpo", "nsic",
+    "india post", "postal circle", "railway", "central railway",
+    "western railway", "northern railway", "southern railway",
+    "rpsc", "bpsc", "mpesb", "kpsc", "wbpsc", "tnpsc", "opsc",
+    "hppsc", "ukpsc", "cgpsc", "hpsc", "hssc", "ppsc", "psssb",
+    "jpsc", "jssc", "apsc", "tspsc", "appsc", "gpsc", "gsssb",
+    "collectorate", "tehsil", "block office", "taluk", "taluka",
+    "gram panchayat", "zila panchayat", "district", "university",
+    "iit", "nit", "iim", "iiser", "csir", "icmr", "icar",
 }
 
 def _job_quality_score(title: str, extra: str, vacancies: int, fee_gen: int) -> int:
@@ -1485,6 +1617,7 @@ def build_job(title: str, url: str, source: str, extra: str = "",
     salary_info = extract_salary(combined)
     notif_type  = detect_notification_type(combined)
     app_mode    = detect_application_mode(combined)
+    docs_needed = _extract_documents(combined)
 
     return {
         "title":             title[:250],
@@ -1506,6 +1639,7 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         "grade_pay":         salary_info.get("grade_pay", 0),
         "notification_type": notif_type,
         "application_mode":  app_mode,
+        "documents_needed":  docs_needed,
         "trust_score":       SOURCE_TRUST.get(source, _DEFAULT_TRUST),
         # v9: freshness tracking + description snippet
         "published_at":      _parse_pub_date_iso(pub_date),
@@ -1839,16 +1973,27 @@ _CA_SOURCES = [
     {"name": "The Hindu Sci-Tech","url": "https://www.thehindu.com/sci-tech/science/feeder/default.rss"},
     {"name": "NDTV India",        "url": "https://feeds.feedburner.com/ndtvnews-india-news"},
     {"name": "LiveMint",          "url": "https://www.livemint.com/rss/news"},
+    # v12: Additional high-quality sources
+    {"name": "PIB India",         "url": "https://pib.gov.in/RssMain.aspx"},
+    {"name": "DD News",           "url": "https://ddnews.gov.in/en/rss"},
+    {"name": "Indian Express",    "url": "https://indianexpress.com/section/india/feed/"},
+    {"name": "IE Economy",        "url": "https://indianexpress.com/section/business/economy/feed/"},
+    {"name": "The Hindu Intl",    "url": "https://www.thehindu.com/news/international/feeder/default.rss"},
+    {"name": "HT India",          "url": "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml"},
+    {"name": "BS Economy",        "url": "https://www.business-standard.com/rss/economy-policy-10106.rss"},
+    {"name": "TOI India",         "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms"},
+    {"name": "Adda247 CA",        "url": "https://currentaffairs.adda247.com/feed/"},
 ]
 
 _CA_CATEGORY_RULES = [
-    (re.compile(r'\b(international|world|global|foreign|bilateral|treaty|diplomatic)\b', re.I), "international"),
-    (re.compile(r'\b(economy|gdp|rbi|budget|inflation|fiscal|rupee|repo\s*rate|trade|export|import|tariff|revenue)\b', re.I), "economy"),
-    (re.compile(r'\b(science|technology|space|isro|nasa|satellite|launch|mission|robot|ai\b|artificial\s+intelligence)\b', re.I), "science"),
-    (re.compile(r'\b(sport|cricket|football|hockey|chess|tennis|badminton|kabaddi|wrestling|olympics|medal|champion|cup|trophy|tournament|gold|silver|bronze)\b', re.I), "sports"),
-    (re.compile(r'\b(award|prize|honour|padma|bharat\s*ratna|ranked|ranking|index|survey|report\s+rank)\b', re.I), "awards"),
-    (re.compile(r'\b(appointed|appoints?|takes?\s+charge|sworn|new\s+chief|new\s+head|new\s+director|new\s+cm|new\s+governor|resigns?|steps?\s+down|elected\s+as)\b', re.I), "appointments"),
-    (re.compile(r'\b(india|indian|national|government|ministry|cabinet|parliament|scheme|yojana|inaugurate|launches?|approves?|passes?|bill|act|policy)\b', re.I), "national"),
+    (re.compile(r'\b(international|world|global|foreign|bilateral|treaty|diplomatic|g20|g7|brics|asean|saarc|un\b|united\s+nations|who\b|imf\b|world\s+bank)\b', re.I), "international"),
+    (re.compile(r'\b(economy|gdp|rbi|budget|inflation|fiscal|rupee|repo\s*rate|trade|export|import|tariff|revenue|sebi|sensex|nifty|fdi|msme|startup|unicorn|ipo\b)\b', re.I), "economy"),
+    (re.compile(r'\b(science|technology|space|isro|nasa|satellite|launch|mission|robot|ai\b|artificial\s+intelligence|quantum|nuclear|climate|environment|biodiversity|pollution)\b', re.I), "science"),
+    (re.compile(r'\b(sport|cricket|football|hockey|chess|tennis|badminton|kabaddi|wrestling|olympics|medal|champion|cup|trophy|tournament|gold|silver|bronze|athlete|commonwealth)\b', re.I), "sports"),
+    (re.compile(r'\b(award|prize|honour|padma|bharat\s*ratna|ranked|ranking|index|survey|report\s+rank|felicitated|conferred)\b', re.I), "awards"),
+    (re.compile(r'\b(appointed|appoints?|takes?\s+charge|sworn\s+in|new\s+chief|new\s+head|new\s+director|new\s+cm|new\s+governor|resigns?|steps?\s+down|elected\s+as|new\s+chairman|named\s+as)\b', re.I), "appointments"),
+    (re.compile(r'\b(india|indian|national|government|ministry|cabinet|parliament|scheme|yojana|inaugurate|launches?|approves?|passes?|bill|act|policy|constitution|article\s+\d|amendment)\b', re.I), "national"),
+    (re.compile(r'\b(defence|military|army|navy|airforce|missile|exercise|operation|border|security|paramilitary|drdo|ins\b|iac\b)\b', re.I), "defence"),
 ]
 
 # Keywords that make a news article relevant for competitive exam prep
@@ -1858,7 +2003,13 @@ _CA_EXAM_RELEVANCE = re.compile(
     r'first|largest|highest|win|gold|silver|bronze|signed|approved|declared|selected|'
     r'nominated|flagship|mission|yojana|inaugurat|scheme|isro|nasa|space|satellite|'
     r'rupee|budget|inflation|export|import|tariff|minister|governor|'
-    r'chief\s+justice|president|prime\s+minister|cabinet|parliament)\b',
+    r'chief\s+justice|president|prime\s+minister|cabinet|parliament|'
+    r'constitution|amendment|act\b|exercise|bilateral|mou\b|agreement|cooperation|'
+    r'defence|military|missile|navy|army|airforce|drdo|ins\b|'
+    r'sebi|sensex|nifty|fdi|startup|unicorn|ipo\b|repo|inflation|'
+    r'g20|brics|asean|saarc|who\b|imf\b|world\s+bank|un\b|united\s+nations|'
+    r'climate|biodiversity|pollution|carbon|renewable|solar|nuclear|'
+    r'padma|bharat\s*ratna|felicitate|confer|champion|trophy|tournament)\b',
     re.I
 )
 
@@ -1971,7 +2122,7 @@ def run_all() -> list:
     t0 = time.time()
 
     log.info("╔══════════════════════════════════════════╗")
-    log.info("║   JobMitra Scraper v10  Starting         ║")
+    log.info("║   JobMitra Scraper v12  Starting         ║")
     log.info(f"║   {len(RSS_SOURCES)} RSS + {len(DIRECT_SOURCES)} Direct sources          ║")
     log.info("╚══════════════════════════════════════════╝")
 
