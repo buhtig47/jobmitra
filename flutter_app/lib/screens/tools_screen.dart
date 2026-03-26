@@ -9,6 +9,8 @@ import 'career_roadmap_screen.dart';
 import 'dept_profiles_screen.dart';
 import 'current_affairs_screen.dart';
 import 'mock_test_screen.dart';
+import 'age_calculator_screen.dart';
+import 'daily_quiz_screen.dart';
 
 class ToolsScreen extends StatelessWidget {
   final ApiService api;
@@ -39,7 +41,7 @@ class ToolsScreen extends StatelessWidget {
                     children: [
                       const Text('🛠️ Tools', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text('Salary, GK, roadmap, departments — sab yahan', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                      Text('Salary, GK Quiz, eligibility, roadmap — all in one place', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
                     ],
                   ),
                 ),
@@ -58,11 +60,50 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '💰',
                   title: 'Salary Calculator',
-                  subtitle: '7th CPC in-hand salary ka exact breakdown',
+                  subtitle: '7th CPC in-hand salary — levels 1–18, tax, DA, 5-yr growth',
                   color: const Color(0xFF2E7D32),
-                  tag: 'Viral!',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SalaryCalculatorScreen())),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '🎂',
+                  title: 'Age Eligibility Calculator',
+                  subtitle: 'Check if you qualify — UPSC, SSC, RRB, Banking by category',
+                  color: const Color(0xFF6A1B9A),
+                  tag: 'New!',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const AgeCalculatorScreen())),
+                ),
+                const SizedBox(height: 20),
+                _buildSectionLabel('📚 Practice'),
+                const SizedBox(height: 10),
+                _ToolCard(
+                  emoji: '🧠',
+                  title: 'Daily GK Quiz',
+                  subtitle: '5 questions every day — streak, score, 60-day rotation',
+                  color: const Color(0xFF4A148C),
+                  tag: 'Daily!',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const DailyQuizScreen())),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '📝',
+                  title: 'Mock Tests',
+                  subtitle: 'SSC, RRB, Banking, UPSC — 185 PYQ-based questions',
+                  color: const Color(0xFF1565C0),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const MockTestScreen())),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '📰',
+                  title: 'Daily Current Affairs',
+                  subtitle: 'Auto-updated twice daily — polity, economy, science',
+                  color: const Color(0xFFE65100),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => CurrentAffairsScreen(api: api))),
                 ),
                 const SizedBox(height: 20),
                 _buildSectionLabel('📅 Planning'),
@@ -70,7 +111,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '🗓️',
                   title: 'Exam Calendar',
-                  subtitle: 'UPSC, SSC, Banking, Railway — 2025-26 dates',
+                  subtitle: 'UPSC, SSC, Banking, Railway — 2025-26 important dates',
                   color: const Color(0xFF1565C0),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ExamCalendarScreen())),
@@ -81,7 +122,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '⚔️',
                   title: 'Competition Analysis',
-                  subtitle: 'How many candidates apply? See the ratio',
+                  subtitle: 'How many candidates per post? See your real odds',
                   color: const Color(0xFFB71C1C),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const CompetitionScreen())),
@@ -90,7 +131,7 @@ class ToolsScreen extends StatelessWidget {
                 _ToolCard(
                   emoji: '🗺️',
                   title: 'Career Roadmap',
-                  subtitle: 'Exam path based on your age & education',
+                  subtitle: 'Best exam path based on your age & qualification',
                   color: const Color(0xFF4A148C),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => CareerRoadmapScreen(api: api))),
@@ -104,33 +145,13 @@ class ToolsScreen extends StatelessWidget {
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const DeptProfilesScreen())),
                 ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '📰',
-                  title: 'Daily Current Affairs',
-                  subtitle: 'Daily GK — for SSC/Banking exam prep',
-                  color: const Color(0xFFE65100),
-                  tag: 'New!',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => CurrentAffairsScreen(api: api))),
-                ),
                 const SizedBox(height: 20),
                 _buildSectionLabel('🚀 Coming Soon'),
                 const SizedBox(height: 10),
                 _ToolCard(
-                  emoji: '📝',
-                  title: 'Mock Tests',
-                  subtitle: 'SSC, Railway, Banking, Polity — 75 free questions',
-                  color: const Color(0xFF6A1B9A),
-                  tag: 'New!',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const MockTestScreen())),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
                   emoji: '🤖',
                   title: 'AI Job Match',
-                  subtitle: 'AI tells you which job suits you best',
+                  subtitle: 'AI tells you which jobs fit your profile best',
                   color: const Color(0xFF00695C),
                   comingSoon: true,
                   onTap: () => _showComingSoon(context, 'AI Job Match'),
@@ -151,7 +172,7 @@ class ToolsScreen extends StatelessWidget {
   void _showComingSoon(BuildContext context, String name) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$name — jaldi aa raha hai!', style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Text('$name — coming soon!', style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
