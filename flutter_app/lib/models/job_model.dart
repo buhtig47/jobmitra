@@ -182,7 +182,14 @@ class Job {
     return '$daysLeft days left';
   }
 
-  String get feeText => isFree ? 'Free' : '₹$fee';
+  // fee == 0  → confirmed free
+  // fee == -1 → unknown (not found in source)
+  // fee > 0   → has fee
+  String get feeText {
+    if (fee < 0) return 'N/A';
+    if (fee == 0) return 'Free';
+    return '₹$fee';
+  }
 
   String get vacanciesText {
     if (vacancies == 0) return 'N/A';

@@ -1,20 +1,19 @@
 """
 ╔══════════════════════════════════════════════════════════╗
-║       JobMitra - Sarkari Job Scraper  v10               ║
+║       JobMitra - Sarkari Job Scraper  v11               ║
 ╠══════════════════════════════════════════════════════════╣
-║  v9 (previous):                                         ║
-║  ✅ Best-score category Pass 2, published_at, freshness ║
-║  ✅ 86+ sources, 32 RSS workers, 12 direct workers      ║
-║                                                         ║
-║  v10 NEW improvements:                                  ║
+║  v10 (previous):                                        ║
 ║  ✅ Salary: per-month / lakh-p.a. / fixed-pay patterns  ║
-║  ✅ Salary: "honorarium", "fellowship", "remuneration"  ║
-║  ✅ NON_JOB filter: 20+ new noise patterns              ║
-║  ✅ GARBAGE titles: result/admit/schedule titles        ║
-║  ✅ Fee: Gen/OBC/SC-ST split pattern, "/-" notation     ║
-║  ✅ Age: "age as on" cutoff date patterns               ║
+║  ✅ NON_JOB filter, GARBAGE title patterns              ║
+║  ✅ Fee: Gen/OBC/SC-ST split pattern                    ║
 ║  ✅ 8 new RSS sources (state + national)                ║
-║  ✅ Scraper stats: % salary extracted, % "others" cat   ║
+║                                                         ║
+║  v11 NEW improvements:                                  ║
+║  ✅ content:encoded RSS parsing → full fee/vacancy data ║
+║  ✅ Fee = -1 (unknown) vs 0 (confirmed free)            ║
+║  ✅ Quality score gate — rejects SEO garbage titles     ║
+║  ✅ Bare qualification title patterns removed           ║
+║  ✅ Description: up to 3000 chars for extraction        ║
 ╚══════════════════════════════════════════════════════════╝
 """
 
@@ -869,6 +868,14 @@ GARBAGE_TITLE_PATTERNS = [
     r"\bprepare\s+for\b",
     r"\bhow\s+to\s+(?:crack|prepare|apply)\b",
     r"^\d+\s+(?:best|top|important)\b",
+    # v11: bare qualification / SEO bait patterns
+    r"^(?:post\s*graduate|graduate|10th|12th|matric|diploma|iti|btech|mtech)\s*(?:pass\s*)?(?:jobs?|vacancy|vacancies|recruitment|bharti|naukri)?\s*(?:2025|2026|2027)?\s*$",
+    r"^(?:latest\s+)?(?:sarkari\s+naukri|sarkari\s+jobs?|govt\s+jobs?|government\s+jobs?)\s*(?:2025|2026|2027|today)?\s*$",
+    r"^all\s+india\s+(?:jobs?|recruitment|vacancy)\s*(?:2025|2026)?\s*$",
+    r"^\d[\d,]+\s+(?:posts?|vacancies|jobs?)\s*(?:2025|2026)?\s*$",
+    r"^(?:new|latest|upcoming)\s+(?:govt|government|sarkari)\s+(?:vacancy|vacancies|naukri)\s*$",
+    r"^(?:free\s+)?job\s+alert\s*(?:2025|2026)?\s*$",
+    r"^sarkari\s+result\b",
 ]
 _GARBAGE_RES = [re.compile(p, re.IGNORECASE) for p in GARBAGE_TITLE_PATTERNS]
 
@@ -1269,7 +1276,7 @@ def _extract_fee(text: str) -> tuple:
                 amounts = [v]
 
     if not amounts:
-        return 0, 0, 0  # unknown — treat as free
+        return -1, -1, -1  # unknown — NOT the same as free
 
     # Deduplicate (same value repeated via different mentions)
     unique_amounts = sorted(set(amounts), reverse=True)
@@ -1332,6 +1339,71 @@ def _fetch(url: str, timeout: int = 15, retries: int = 3) -> str | None:
 def _soup(url: str, timeout: int = 15) -> BeautifulSoup | None:
     raw = _fetch(url, timeout)
     return BeautifulSoup(raw, "lxml") if raw else None
+
+# ════════════════════════════════════════════════════════
+#  v11: JOB QUALITY GATE
+#  Rejects SEO garbage and non-specific titles
+# ════════════════════════════════════════════════════════
+
+# Keywords that identify a specific post/role (not generic)
+_SPECIFIC_POST_KWS = {
+    "constable", "clerk", "officer", "engineer", "teacher", "nurse",
+    "doctor", "inspector", "supervisor", "manager", "assistant",
+    "pilot", "guard", "driver", "operator", "technician", "havildar",
+    "sepoy", "agniveer", "steno", "stenographer", "auditor", "accountant",
+    "advocate", "patwari", "lekhpal", "surveyor", "pharmacist",
+    "radiographer", "paramedic", "researcher", "scientist", "analyst",
+    " po ", "pgt", " tgt", " prt", " je ", " ae ", " jrf", " srf",
+    "postmaster", "fireman", "warder", "naib", "subedar", "rifleman",
+    "apprentice", "trainee", "instructor", "librarian", "curator",
+    "foreman", "electrician", "fitter", "welder", "plumber", "machinist",
+    "data entry", "computer operator", "field officer", "project associate",
+}
+
+_SPECIFIC_ORG_KWS = {
+    "ssc", "upsc", "ibps", "sbi", "rbi", "rrb", "rrc", "lic",
+    "isro", "drdo", "barc", "aiims", "esic", "nhm", "nabard",
+    "army", "navy", "airforce", "bsf", "crpf", "cisf", "itbp",
+    "kvs", "nvs", "psc", "ongc", "bhel", "sail", "hal", "hpcl",
+    "iocl", "bpcl", "gail", "npcil", "powergrid", "ntpc", "coal",
+    "dmrc", "bmrc", "irctc", "ircon", "rvnl", "metro",
+    "high court", "district court", "ministry", "department",
+    "corporation", "municipal", "nagar", "vikas", "nigam", "board",
+    "parishad", "mandal", "samiti", "sansthan", "mahavidyalaya",
+}
+
+def _job_quality_score(title: str, extra: str, vacancies: int, fee_gen: int) -> int:
+    """
+    v11: Compute quality score for a scraped job.
+    Score < 2 → reject as garbage/SEO noise.
+    """
+    combined = (title + " " + extra).lower()
+    score = 0
+
+    # Specific post/role keyword in title or description
+    t = title.lower()
+    if any(kw in t for kw in _SPECIFIC_POST_KWS):
+        score += 2
+    elif any(kw in combined for kw in _SPECIFIC_POST_KWS):
+        score += 1
+
+    # Specific organization name
+    if any(org in combined for org in _SPECIFIC_ORG_KWS):
+        score += 1
+
+    # Has a concrete vacancy count
+    if vacancies > 0:
+        score += 1
+
+    # Description has substantial content (not just a stub)
+    if len(extra.strip()) > 200:
+        score += 1
+
+    # Fee was explicitly found (positive signal: data-rich source)
+    if fee_gen > 0:
+        score += 1
+
+    return score
 
 # ════════════════════════════════════════════════════════
 #  JOB BUILDER
@@ -1403,6 +1475,11 @@ def build_job(title: str, url: str, source: str, extra: str = "",
 
     age_min, age_max = _extract_age(combined)
     fee_gen, fee_obc, fee_sc = _extract_fee(combined)
+    vacancies = extract_vacancies(combined)
+
+    # v11: quality gate — reject garbage/SEO-only entries
+    if _job_quality_score(title, extra, vacancies, fee_gen) < 2:
+        return None
 
     # v7: salary, notification type, application mode
     salary_info = extract_salary(combined)
@@ -1416,7 +1493,7 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         "source_url":        url,
         "category":          detect_category(combined),
         "qualifications":    detect_qualification(combined),
-        "vacancies":         extract_vacancies(combined),
+        "vacancies":         vacancies,
         "last_date":         last_date,
         "states":            _extract_states(combined),
         "age_min":           age_min,
@@ -1471,12 +1548,17 @@ def scrape_rss(name: str, url: str) -> list:
         if l_el is not None:
             link = (l_el.text or l_el.get("href") or "").strip()
 
-        d_el = (item.find("description")
-                or item.find("{http://www.w3.org/2005/Atom}summary")
-                or item.find("{http://www.w3.org/2005/Atom}content"))
+        # v11: prefer content:encoded (full article) over description stub
+        ce_el = item.find("{http://purl.org/rss/1.0/modules/content/}encoded")
+        d_el  = (item.find("description")
+                 or item.find("{http://www.w3.org/2005/Atom}summary")
+                 or item.find("{http://www.w3.org/2005/Atom}content"))
         desc = ""
-        if d_el is not None and d_el.text:
-            desc = BeautifulSoup(d_el.text, "html.parser").get_text(" ", strip=True)
+        if ce_el is not None and ce_el.text:
+            # Full article HTML → strip tags, keep up to 3000 chars for extraction
+            desc = BeautifulSoup(ce_el.text, "html.parser").get_text(" ", strip=True)[:3000]
+        elif d_el is not None and d_el.text:
+            desc = BeautifulSoup(d_el.text, "html.parser").get_text(" ", strip=True)[:1000]
 
         pub_el = (item.find("pubDate") or item.find("published")
                   or item.find("{http://www.w3.org/2005/Atom}published")
