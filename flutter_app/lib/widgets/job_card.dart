@@ -1,5 +1,7 @@
 // lib/widgets/job_card.dart
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 
 class JobCard extends StatefulWidget {
@@ -38,6 +40,24 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
   void _onTapDown(_) => _controller.reverse();
   void _onTapUp(_) { _controller.forward(); widget.onTap(); }
   void _onTapCancel() => _controller.forward();
+
+  Future<void> _shareJob(Job job) async {
+    final msg =
+        '🇮🇳 *Govt Job Alert!*\n\n'
+        '*${job.cleanTitle}*\n'
+        '${job.cleanDepartment}\n\n'
+        '📋 Vacancies: ${job.vacanciesText}\n'
+        '📅 Last Date: ${job.lastDate}\n'
+        '💰 Fee: ${job.feeText}\n\n'
+        'Details: ${job.sourceUrl}\n\n'
+        '_From JobMitra — track your eligible govt jobs!_';
+    final waUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(msg)}');
+    if (await canLaunchUrl(waUrl)) {
+      await launchUrl(waUrl);
+    } else {
+      Share.share(msg);
+    }
+  }
 
   Color get _categoryColor {
     const map = {
@@ -173,6 +193,20 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                                 : const Color(0xFF1565C0),
                           ),
                           const Spacer(),
+                          // Share button
+                          GestureDetector(
+                            onTap: () => _shareJob(job),
+                            child: Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                color: catColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.share_rounded,
+                                  size: 16, color: catColor.withValues(alpha: 0.7)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),

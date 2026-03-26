@@ -171,6 +171,7 @@ class _FeedTabState extends State<_FeedTab> {
   bool _freeOnly = false;  // free jobs toggle
   String _sortBy = 'deadline'; // deadline | vacancies | newest
   UserProfile? _profile;
+  int _activeAlertCount = 0;
 
   @override
   void initState() {
@@ -180,6 +181,17 @@ class _FeedTabState extends State<_FeedTab> {
       if (mounted) setState(() => _profile = p);
     });
     widget.api.syncFcmToken(widget.userId);
+    // Fire-and-forget: check saved job deadlines on app startup
+    // (also triggered on Saved tab open — this ensures users who
+    //  only browse the feed still get deadline alerts)
+    widget.api.getSavedJobs(widget.userId).then(
+      (saved) => NotificationService.checkDeadlines(saved),
+    );
+    // Load active alert count for bell badge
+    widget.api.getAlertRules().then((rules) {
+      final active = rules.where((r) => r.isActive).length;
+      if (mounted) setState(() => _activeAlertCount = active);
+    });
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
         if (!_isLoading && _hasMore) _loadMore();
@@ -323,17 +335,51 @@ class _FeedTabState extends State<_FeedTab> {
                       ),
                     ),
                   const SizedBox(width: 8),
-                  // Bell / Alerts button
+                  // Bell / Alerts button with active badge
                   GestureDetector(
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => AlertsScreen(api: widget.api))),
-                    child: Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => AlertsScreen(api: widget.api)),
+                    ).then((_) {
+                      // Refresh badge count when returning from AlertsScreen
+                      widget.api.getAlertRules().then((rules) {
+                        final active = rules.where((r) => r.isActive).length;
+                        if (mounted) setState(() => _activeAlertCount = active);
+                      });
+                    }),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                        ),
+                        if (_activeAlertCount > 0)
+                          Positioned(
+                            top: -2, right: -2,
+                            child: Container(
+                              width: 16, height: 16,
+                              decoration: const BoxDecoration(
+                                color: AppColors.accent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _activeAlertCount > 9 ? '9+' : '$_activeAlertCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
