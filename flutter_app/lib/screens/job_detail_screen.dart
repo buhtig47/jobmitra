@@ -711,10 +711,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       widget.jobId,
       wasSaved ? 'unsaved' : 'saved',
     );
-    if (success) {
+    if (success && mounted) {
       setState(() => _isSaved = !_isSaved);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -736,7 +735,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             duration: const Duration(seconds: 2),
           ),
         );
-      }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -731,7 +731,19 @@ class _MockTestScreenState extends State<MockTestScreen> {
     final local = [..._practicePacks, ..._pyqPacks]
         .where((p) => p.id == pack.id)
         .firstOrNull;
-    if (local != null) _startPack(local);
+    if (local != null) {
+      _startPack(local);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Questions unavailable — check connection and try again'),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _startTimer() {

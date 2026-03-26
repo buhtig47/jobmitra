@@ -166,6 +166,7 @@ def init_db():
             trust_score      INTEGER DEFAULT 5,
             published_at     TEXT    DEFAULT '',
             description      TEXT    DEFAULT '',
+            documents_needed TEXT    DEFAULT NULL,
             scraped_at       TEXT,
             is_active        INTEGER DEFAULT 1
         );
@@ -252,6 +253,7 @@ _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN trust_score INTEGER DEFAULT 5",
     "ALTER TABLE jobs ADD COLUMN published_at TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN description TEXT DEFAULT ''",
+    "ALTER TABLE jobs ADD COLUMN documents_needed TEXT DEFAULT NULL",
 ]
 for _sql in _MIGRATIONS:
     try:
@@ -515,24 +517,26 @@ def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
         else:
             fee = job["fee_general"]
 
+        docs_raw = job["documents_needed"] if "documents_needed" in dict(job) else None
         eligible_jobs.append({
-            "id":             job["id"],
-            "title":          job["title"],
-            "department":     job["department"],
-            "source":         job["source"],
-            "source_url":     job["source_url"],
-            "category":       job["category"],
-            "vacancies":      job["vacancies"],
-            "last_date":      job["last_date"],
-            "days_left":      days_left,
-            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
-            "fee":            fee,
-            "is_free":        fee == 0,
-            "qualifications": job_quals,
-            "states":         json.loads(job["states"] or '["all"]'),
-            "age_min":        job["age_min"],
-            "age_max":        job["age_max"],
-            "pay_scale":      job["pay_scale"] or "",
+            "id":               job["id"],
+            "title":            job["title"],
+            "department":       job["department"],
+            "source":           job["source"],
+            "source_url":       job["source_url"],
+            "category":         job["category"],
+            "vacancies":        job["vacancies"],
+            "last_date":        job["last_date"],
+            "days_left":        days_left,
+            "urgency":          "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "fee":              fee,
+            "is_free":          fee == 0,
+            "qualifications":   job_quals,
+            "states":           json.loads(job["states"] or '["all"]'),
+            "age_min":          job["age_min"],
+            "age_max":          job["age_max"],
+            "pay_scale":        job["pay_scale"] or "",
+            "documents_needed": json.loads(docs_raw) if docs_raw else None,
         })
 
     eligible_jobs.sort(key=lambda x: (x["days_left"], -x["vacancies"]))
@@ -583,24 +587,26 @@ def search_jobs(
         else:
             fee = job["fee_general"]
 
+        docs_raw = job["documents_needed"] if "documents_needed" in dict(job) else None
         results.append({
-            "id":             job["id"],
-            "title":          job["title"],
-            "department":     job["department"],
-            "source":         job["source"],
-            "source_url":     job["source_url"],
-            "category":       job["category"],
-            "vacancies":      job["vacancies"],
-            "last_date":      job["last_date"],
-            "days_left":      days_left,
-            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
-            "fee":            fee,
-            "is_free":        fee == 0,
-            "qualifications": json.loads(job["qualifications"] or "[]"),
-            "states":         json.loads(job["states"] or '["all"]'),
-            "age_min":        job["age_min"],
-            "age_max":        job["age_max"],
-            "pay_scale":      job["pay_scale"] or "",
+            "id":               job["id"],
+            "title":            job["title"],
+            "department":       job["department"],
+            "source":           job["source"],
+            "source_url":       job["source_url"],
+            "category":         job["category"],
+            "vacancies":        job["vacancies"],
+            "last_date":        job["last_date"],
+            "days_left":        days_left,
+            "urgency":          "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "fee":              fee,
+            "is_free":          fee == 0,
+            "qualifications":   json.loads(job["qualifications"] or "[]"),
+            "states":           json.loads(job["states"] or '["all"]'),
+            "age_min":          job["age_min"],
+            "age_max":          job["age_max"],
+            "pay_scale":        job["pay_scale"] or "",
+            "documents_needed": json.loads(docs_raw) if docs_raw else None,
         })
 
     return {"jobs": results, "query": q, "total": len(results)}
@@ -641,7 +647,8 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "is_free":        fee == 0,
         "states":         json.loads(job["states"] or '["all"]'),
         "pay_scale":      job["pay_scale"] or "",
-        "scraped_at":     job["scraped_at"],
+        "scraped_at":       job["scraped_at"],
+        "documents_needed": json.loads(job["documents_needed"]) if job["documents_needed"] else None,
     }
 
 
@@ -1006,6 +1013,7 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
     inserted = 0
     for job in jobs:
         try:
+            docs = job.get("documents_needed")
             conn.execute("""
                 INSERT OR IGNORE INTO jobs
                 (title, department, source, source_url, category,
@@ -1013,8 +1021,8 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
                  age_min, age_max, fee_general, fee_obc, fee_sc_st,
                  pay_scale, pay_level, grade_pay,
                  notification_type, application_mode, trust_score,
-                 published_at, description, scraped_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 published_at, description, documents_needed, scraped_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 job.get("title", ""), job.get("department", ""),
                 job.get("source", ""), job.get("source_url", ""),
@@ -1033,6 +1041,7 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
                 job.get("trust_score", 5),
                 job.get("published_at", ""),
                 job.get("description", ""),
+                json.dumps(docs) if docs else None,
                 job.get("scraped_at", "")
             ))
             inserted += 1

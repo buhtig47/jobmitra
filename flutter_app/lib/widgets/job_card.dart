@@ -187,10 +187,12 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                           const SizedBox(width: 8),
                           _StatChip(
                             icon: Icons.currency_rupee,
-                            label: job.isFree ? 'Free' : '₹${job.fee}',
+                            label: job.feeText,
                             color: job.isFree
                                 ? const Color(0xFF2E7D32)
-                                : const Color(0xFF1565C0),
+                                : job.fee < 0
+                                    ? Colors.grey
+                                    : const Color(0xFF1565C0),
                           ),
                           const Spacer(),
                           // Share button

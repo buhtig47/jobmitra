@@ -167,7 +167,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(profile.toJson()),
       ).timeout(_longTimeout);
-      if (res != null && res.statusCode == 200) {
+      if (res.statusCode == 200) {
         // Keep local cache in sync
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_profile', jsonEncode(profile.toJson()));

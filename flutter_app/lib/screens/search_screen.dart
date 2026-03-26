@@ -72,6 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() { _recentSearches = prefs.getStringList(_kRecentKey) ?? []; });
   }
 
@@ -97,6 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
     await _saveRecentSearch(q);
     setState(() { _isSearching = true; _lastQuery = q; _categoryFilter = null; });
     final results = await widget.api.searchJobs(q, userCategory: _userCategory);
+    if (!mounted) return;
     setState(() { _results = results; _isSearching = false; });
   }
 

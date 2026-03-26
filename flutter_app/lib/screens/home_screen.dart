@@ -199,6 +199,12 @@ class _FeedTabState extends State<_FeedTab> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadJobs({bool refresh = false}) async {
     if (refresh) {
       setState(() { _jobs.clear(); _page = 1; _hasMore = true; _isCached = false; });
