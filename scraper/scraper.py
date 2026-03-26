@@ -479,6 +479,35 @@ RSS_SOURCES = {
     "bhel_recr":         "https://careers.bhel.in/feed/",
     "becil_recr":        "https://www.becil.com/feed/",
     "hpcl_recr":         "https://hindustanpetroleum.com/feed/",
+
+    # ══ TIER 9: v13 new sources ══
+    # High-traffic job boards
+    "sarkariresultlive": "https://www.sarkariresultlive.com/feed/",
+    "govtjobszone":      "https://govtjobszone.com/feed/",
+    "naukrijagat":       "https://naukrijagat.com/feed/",
+    "sarkariexamnoti":   "https://sarkarinotiresult.com/feed/",
+    "quickrecruitment":  "https://www.quickrecruitment.in/feed/",
+    "jobsrankings":      "https://jobsrankings.com/feed/",
+    "rojgarbazar":       "https://rojgarbazar.com/feed/",
+    "govtjobswala":      "https://www.govtjobswala.com/feed/",
+    "sarkarigruh":       "https://www.sarkarigruh.com/feed/",
+    "freejobsalert_net": "https://freejobsalert.net/feed/",
+    # Official PSU/Govt RSS (highly reliable)
+    "sail_careers":      "https://www.sail.co.in/en/careers/rss",
+    "ongc_careers":      "https://ongcindia.com/wps/wcm/connect/ongc/rss",
+    "bel_recr":          "https://bel-india.in/careers/feed/",
+    "iocl_jobs":         "https://iocl.com/careers/feed",
+    "gail_jobs":         "https://gailonline.com/rss.xml",
+    # More state boards
+    "uttarakhand_jobs":  "https://ukpsc.gov.in/rss.xml",
+    "hp_jobs":           "https://hppsc.hp.gov.in/rss.xml",
+    "chhattisgarh_jobs": "https://cgvyapam.choice.gov.in/feed/",
+    "telangana_jobs":    "https://tspsc.gov.in/rss.xml",
+    "kerala_jobs":       "https://keralapsc.gov.in/feeds/posts/default?alt=rss",
+    # FJA extra categories
+    "fja_accounts":      "https://www.freejobalert.com/category/accounts-jobs/feed/",
+    "fja_admin":         "https://www.freejobalert.com/category/administrative-jobs/feed/",
+    "fja_law":           "https://www.freejobalert.com/category/law-jobs/feed/",
 }
 
 DIRECT_SOURCES = {

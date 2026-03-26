@@ -393,31 +393,86 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
 
 
 def notify_users_new_jobs(conn, new_count: int, categories: list[str]):
-    """Send push notification to all users with valid FCM tokens."""
-    if new_count == 0:
-        return 0
-    tokens = [
-        row["fcm_token"]
-        for row in conn.execute(
-            "SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL AND fcm_token != 'test'"
-        ).fetchall()
-        if row["fcm_token"]
-    ]
-    if not tokens:
+    """Legacy wrapper — kept for backward compat."""
+    return notify_users_personalized(conn, {c: 1 for c in categories})
+
+
+_CAT_LABELS = {
+    "railway": "Railway", "banking": "Banking", "ssc": "SSC",
+    "teaching": "Teaching", "police": "Police", "defence": "Defence",
+    "upsc": "UPSC/IAS", "anganwadi": "Anganwadi", "psu": "PSU",
+    "medical": "Medical", "research": "Research", "engineering": "Engineering",
+    "legal": "Legal", "postal": "Postal", "admin": "Admin",
+    "it_tech": "IT/Tech", "accounts": "Accounts", "forest": "Forest",
+}
+
+
+def notify_users_personalized(conn, cats_inserted: dict) -> int:
+    """
+    Send personalized push notifications based on user job_types preference.
+
+    Strategy:
+    - User has job_types → only notify if any of their preferred categories got new jobs
+    - User has no job_types → notify about all new jobs (generic)
+    - Group users by message content to minimise FCM calls
+    - Cap at 500 tokens to prevent timeouts on free tier
+    """
+    if not cats_inserted:
         return 0
 
-    # Build a catchy body
-    cat_str = ", ".join(categories[:3]) if categories else "Govt"
-    if len(categories) > 3:
-        cat_str += f" +{len(categories)-3} more"
-    body = f"{new_count} nai sarkari jobs: {cat_str}"
+    users = conn.execute(
+        "SELECT fcm_token, job_types FROM users "
+        "WHERE fcm_token IS NOT NULL AND fcm_token != 'test' AND fcm_token != ''"
+    ).fetchall()
+    if not users:
+        return 0
 
-    return send_fcm_to_tokens(
-        tokens,
-        title="🇮🇳 JobMitra — Nai Jobs Aayi!",
-        body=body,
-        data={"screen": "home"},
-    )
+    # Build message_content → [tokens] map to batch identical messages
+    msg_map: dict[tuple, list[str]] = {}
+
+    for user in users:
+        token = user["fcm_token"]
+        if not token:
+            continue
+        try:
+            job_types = json.loads(user["job_types"] or "[]")
+        except Exception:
+            job_types = []
+
+        if job_types:
+            # Personalised: only categories the user cares about
+            matched = {c: n for c, n in cats_inserted.items() if c in job_types}
+        else:
+            # Generic: all new categories
+            matched = cats_inserted
+
+        if not matched:
+            continue
+
+        total = sum(matched.values())
+        top_cats = sorted(matched.items(), key=lambda x: -x[1])[:3]
+        cat_str = ", ".join(_CAT_LABELS.get(c, c.title()) for c, _ in top_cats)
+        if len(matched) > 3:
+            cat_str += f" +{len(matched)-3} more"
+        body = f"{total} naye {'job' if total == 1 else 'jobs'}: {cat_str}"
+
+        key = (body,)
+        msg_map.setdefault(key, []).append(token)
+
+    sent = 0
+    total_tokens = sum(len(v) for v in msg_map.values())
+    # Cap to avoid Render timeout (free tier)
+    if total_tokens > 500:
+        msg_map = dict(list(msg_map.items())[:500 // max(1, len(msg_map))])
+
+    for (body,), tokens in msg_map.items():
+        sent += send_fcm_to_tokens(
+            tokens[:500],
+            title="🇮🇳 JobMitra — Nai Jobs Aayi!",
+            body=body,
+            data={"screen": "home"},
+        )
+    return sent
 
 
 # ─────────────────────────────────────────
@@ -787,6 +842,43 @@ def fix_fees(secret: str = Query(...)):
     return {"success": True, "message": "All fee_general=100 rows reset to 0"}
 
 
+def _insert_job(conn, job: dict) -> bool:
+    """Insert a single job dict. Returns True if new row was inserted."""
+    try:
+        docs = job.get("documents_needed")
+        conn.execute("""
+            INSERT OR IGNORE INTO jobs
+            (title, department, source, source_url, category,
+             qualifications, vacancies, last_date, states,
+             age_min, age_max, fee_general, fee_obc, fee_sc_st,
+             pay_scale, pay_level, grade_pay,
+             notification_type, application_mode, trust_score,
+             published_at, description, documents_needed, scraped_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            job["title"], job["department"], job["source"],
+            job["source_url"], job["category"],
+            json.dumps(job["qualifications"]),
+            job["vacancies"], job["last_date"],
+            json.dumps(job["states"]),
+            job["age_min"], job["age_max"],
+            job["fee_general"], job["fee_obc"], job["fee_sc_st"],
+            job.get("pay_scale", ""),
+            job.get("pay_level", 0),
+            job.get("grade_pay", 0),
+            job.get("notification_type", "new"),
+            job.get("application_mode", "online"),
+            job.get("trust_score", 5),
+            job.get("published_at", ""),
+            job.get("description", ""),
+            json.dumps(docs) if docs else None,
+            job["scraped_at"]
+        ))
+        return True
+    except Exception:
+        return False
+
+
 @app.post("/admin/scrape")
 def trigger_scrape(secret: str = Query(...)):
     if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
@@ -796,56 +888,26 @@ def trigger_scrape(secret: str = Query(...)):
         jobs = run_all_scrapers()
         conn = get_db()
         inserted = 0
+        cats_inserted: dict[str, int] = {}
         for job in jobs:
-            try:
-                conn.execute("""
-                    INSERT OR IGNORE INTO jobs
-                    (title, department, source, source_url, category,
-                     qualifications, vacancies, last_date, states,
-                     age_min, age_max, fee_general, fee_obc, fee_sc_st,
-                     pay_scale, pay_level, grade_pay,
-                     notification_type, application_mode, trust_score,
-                     published_at, description, scraped_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (
-                    job["title"], job["department"], job["source"],
-                    job["source_url"], job["category"],
-                    json.dumps(job["qualifications"]),
-                    job["vacancies"], job["last_date"],
-                    json.dumps(job["states"]),
-                    job["age_min"], job["age_max"],
-                    job["fee_general"], job["fee_obc"], job["fee_sc_st"],
-                    job.get("pay_scale", ""),
-                    job.get("pay_level", 0),
-                    job.get("grade_pay", 0),
-                    job.get("notification_type", "new"),
-                    job.get("application_mode", "online"),
-                    job.get("trust_score", 5),
-                    job.get("published_at", ""),
-                    job.get("description", ""),
-                    job["scraped_at"]
-                ))
+            if _insert_job(conn, job):
                 inserted += 1
-            except:
-                pass
+                cats_inserted[job["category"]] = cats_inserted.get(job["category"], 0) + 1
         # Auto-expire jobs past their last_date
         expired = 0
-        all_jobs = conn.execute("SELECT id, last_date FROM jobs WHERE is_active=1").fetchall()
-        today = datetime.now().strftime("%d/%m/%Y")
-        for j in all_jobs:
+        all_active = conn.execute("SELECT id, last_date FROM jobs WHERE is_active=1").fetchall()
+        for j in all_active:
             try:
-                ld = datetime.strptime(j["last_date"], "%d/%m/%Y")
-                if (ld - datetime.now()).days < 0:
+                if (datetime.strptime(j["last_date"], "%d/%m/%Y") - datetime.now()).days < 0:
                     conn.execute("UPDATE jobs SET is_active=0 WHERE id=?", (j["id"],))
                     expired += 1
-            except:
+            except Exception:
                 pass
-        # Send push notifications about new jobs
+        # Personalized push notifications
         notified = 0
         if inserted > 0:
             try:
-                new_cats = list({j["category"] for j in jobs})
-                notified = notify_users_new_jobs(conn, inserted, new_cats)
+                notified = notify_users_personalized(conn, cats_inserted)
             except Exception:
                 pass
         return {"success": True, "jobs_inserted": inserted, "jobs_expired": expired, "notified": notified}
@@ -880,39 +942,7 @@ def reset_jobs(secret: str = Query(...)):
         conn.execute("DELETE FROM jobs")
         from scraper import run_all as run_all_scrapers
         jobs = run_all_scrapers()
-        inserted = 0
-        for job in jobs:
-            try:
-                conn.execute("""
-                    INSERT OR IGNORE INTO jobs
-                    (title, department, source, source_url, category,
-                     qualifications, vacancies, last_date, states,
-                     age_min, age_max, fee_general, fee_obc, fee_sc_st,
-                     pay_scale, pay_level, grade_pay,
-                     notification_type, application_mode, trust_score,
-                     published_at, description, scraped_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (
-                    job["title"], job["department"], job["source"],
-                    job["source_url"], job["category"],
-                    json.dumps(job["qualifications"]),
-                    job["vacancies"], job["last_date"],
-                    json.dumps(job["states"]),
-                    job["age_min"], job["age_max"],
-                    job["fee_general"], job["fee_obc"], job["fee_sc_st"],
-                    job.get("pay_scale", ""),
-                    job.get("pay_level", 0),
-                    job.get("grade_pay", 0),
-                    job.get("notification_type", "new"),
-                    job.get("application_mode", "online"),
-                    job.get("trust_score", 5),
-                    job.get("published_at", ""),
-                    job.get("description", ""),
-                    job["scraped_at"]
-                ))
-                inserted += 1
-            except:
-                pass
+        inserted = sum(1 for job in jobs if _insert_job(conn, job))
         return {"success": True, "jobs_inserted": inserted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
