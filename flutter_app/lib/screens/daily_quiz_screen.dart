@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 
 class _Q {
   final String q;
@@ -496,7 +497,8 @@ const _allSets = <List<_Q>>[
 ];
 
 class DailyQuizScreen extends StatefulWidget {
-  const DailyQuizScreen({super.key});
+  final ApiService? api;
+  const DailyQuizScreen({super.key, this.api});
 
   @override
   State<DailyQuizScreen> createState() => _DailyQuizScreenState();
@@ -533,8 +535,23 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     final dayOfYear = DateTime.now().difference(DateTime(DateTime.now().year)).inDays;
     final setIndex = dayOfYear % _allSets.length;
 
+    // Try API first; fall back to hardcoded sets if API is empty or unreachable
+    List<_Q>? apiQuestions;
+    if (widget.api != null) {
+      try {
+        final raw = await widget.api!.getDailyQuizQuestions(setIndex);
+        if (raw != null && raw.length >= 5) {
+          apiQuestions = raw.map((q) => _Q(
+            q['question'] as String,
+            List<String>.from(q['options'] as List),
+            q['correct'] as int,
+          )).toList();
+        }
+      } catch (_) {}
+    }
+
     setState(() {
-      _questions = _allSets[setIndex];
+      _questions = apiQuestions ?? _allSets[setIndex];
       _loading = false;
     });
   }

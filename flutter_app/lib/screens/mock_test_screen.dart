@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ class _Pack {
   final Color color;
   final bool isPyq;
   final List<_Q> questions;
+  final int? questionCount; // set for API packs before questions are loaded
+  int get count => questionCount ?? questions.length;
   const _Pack({
     required this.id,
     required this.title,
@@ -26,6 +29,7 @@ class _Pack {
     required this.color,
     required this.questions,
     this.isPyq = false,
+    this.questionCount,
   });
 }
 
@@ -570,7 +574,8 @@ const _pyqPacks = [
 enum _Stage { list, quiz, result }
 
 class MockTestScreen extends StatefulWidget {
-  const MockTestScreen({super.key});
+  final ApiService? api;
+  const MockTestScreen({super.key, this.api});
   @override
   State<MockTestScreen> createState() => _MockTestScreenState();
 }
@@ -579,6 +584,19 @@ class _MockTestScreenState extends State<MockTestScreen> {
   _Stage _stage   = _Stage.list;
   late _Pack _pack;
   Map<String, int> _bestScores = {};
+
+  // API-loaded packs (null = not fetched yet, empty = API returned nothing)
+  List<_Pack>? _apiPracticePacks;
+  List<_Pack>? _apiPyqPacks;
+  bool _packLoading = false; // loading questions for a specific pack
+
+  // effective packs — API if loaded, else static
+  List<_Pack> get _effectivePractice => (_apiPracticePacks != null && _apiPracticePacks!.isNotEmpty)
+      ? _apiPracticePacks!
+      : _practicePacks;
+  List<_Pack> get _effectivePyq => (_apiPyqPacks != null && _apiPyqPacks!.isNotEmpty)
+      ? _apiPyqPacks!
+      : _pyqPacks;
 
   // quiz state
   int  _qIndex    = 0;
@@ -596,16 +614,60 @@ class _MockTestScreenState extends State<MockTestScreen> {
   void initState() {
     super.initState();
     _loadBestScores();
+    _loadApiPacks();
   }
 
   Future<void> _loadBestScores() async {
     final prefs = await SharedPreferences.getInstance();
-    final all = {..._practicePacks, ..._pyqPacks};
     final map = <String, int>{};
     for (final p in [..._practicePacks, ..._pyqPacks]) {
       map[p.id] = prefs.getInt('mock_best_${p.id}') ?? -1;
     }
     if (mounted) setState(() => _bestScores = map);
+  }
+
+  Future<void> _loadApiPacks() async {
+    if (widget.api == null) return;
+    try {
+      final raw = await widget.api!.getMockTestPacks();
+      if (raw == null || raw.isEmpty) return;
+
+      final practice = <_Pack>[];
+      final pyq = <_Pack>[];
+      for (final p in raw) {
+        final pack = _Pack(
+          id:            p['pack_id'] as String,
+          title:         p['title'] as String,
+          subtitle:      (p['subtitle'] as String?) ?? '',
+          emoji:         (p['emoji'] as String?) ?? '📝',
+          color:         _colorFromHex((p['color_hex'] as String?) ?? '#1565C0'),
+          isPyq:         p['is_pyq'] == true,
+          questions:     const [],
+          questionCount: p['question_count'] as int?,
+        );
+        if (pack.isPyq) pyq.add(pack); else practice.add(pack);
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final map = Map<String, int>.from(_bestScores);
+      for (final p in [...practice, ...pyq]) {
+        map[p.id] = prefs.getInt('mock_best_${p.id}') ?? -1;
+      }
+      if (mounted) setState(() {
+        _apiPracticePacks = practice;
+        _apiPyqPacks = pyq;
+        _bestScores = map;
+      });
+    } catch (_) {}
+  }
+
+  static Color _colorFromHex(String hex) {
+    try {
+      final h = hex.replaceAll('#', '');
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return const Color(0xFF1565C0);
+    }
   }
 
   Future<void> _saveBestScore(String id, int score) async {
@@ -619,16 +681,57 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   void _startPack(_Pack pack) {
     setState(() {
-      _pack      = pack;
-      _qIndex    = 0;
-      _selected  = -1;
-      _answered  = false;
-      _score     = 0;
-      _secsLeft  = _secsPerQ;
+      _pack        = pack;
+      _qIndex      = 0;
+      _selected    = -1;
+      _answered    = false;
+      _score       = 0;
+      _secsLeft    = _secsPerQ;
       _userAnswers = [];
-      _stage     = _Stage.quiz;
+      _stage       = _Stage.quiz;
+      _packLoading = false;
     });
     _startTimer();
+  }
+
+  /// Tap handler — lazily fetches questions for API packs if needed.
+  Future<void> _tapPack(_Pack pack) async {
+    if (pack.questions.isNotEmpty) {
+      _startPack(pack);
+      return;
+    }
+    // API pack with lazy questions
+    if (widget.api == null) {
+      // No API — try matching static fallback
+      final local = [..._practicePacks, ..._pyqPacks]
+          .where((p) => p.id == pack.id)
+          .firstOrNull;
+      if (local != null) _startPack(local);
+      return;
+    }
+    setState(() => _packLoading = true);
+    try {
+      final raw = await widget.api!.getMockTestQuestions(pack.id);
+      if (raw != null && raw.isNotEmpty) {
+        final qs = raw.map((q) => _Q(
+          q['question'] as String,
+          List<String>.from(q['options'] as List),
+          q['correct'] as int,
+        )).toList();
+        _startPack(_Pack(
+          id: pack.id, title: pack.title, subtitle: pack.subtitle,
+          emoji: pack.emoji, color: pack.color, isPyq: pack.isPyq,
+          questions: qs,
+        ));
+        return;
+      }
+    } catch (_) {}
+    setState(() => _packLoading = false);
+    // Fallback to local pack
+    final local = [..._practicePacks, ..._pyqPacks]
+        .where((p) => p.id == pack.id)
+        .firstOrNull;
+    if (local != null) _startPack(local);
   }
 
   void _startTimer() {
@@ -680,20 +783,31 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: switch (_stage) {
-        _Stage.list   => _buildList(),
-        _Stage.quiz   => _buildQuiz(),
-        _Stage.result => _buildResult(),
-      },
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          body: switch (_stage) {
+            _Stage.list   => _buildList(),
+            _Stage.quiz   => _buildQuiz(),
+            _Stage.result => _buildResult(),
+          },
+        ),
+        if (_packLoading)
+          const ColoredBox(
+            color: Color(0x88000000),
+            child: Center(child: CircularProgressIndicator(color: Colors.white)),
+          ),
+      ],
     );
   }
 
   // ── Test List ─────────────────────────────────────────────────────────────
 
   Widget _buildList() {
-    final totalPacks = _practicePacks.length + _pyqPacks.length;
+    final practice   = _effectivePractice;
+    final pyq        = _effectivePyq;
+    final totalPacks = practice.length + pyq.length;
     final attempted  = _bestScores.values.where((s) => s >= 0).length;
 
     return CustomScrollView(
@@ -701,7 +815,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
         SliverToBoxAdapter(child: _buildHeader(totalPacks, attempted)),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          sliver: SliverToBoxAdapter(child: _sectionLabel('📚 Practice Tests', '${_practicePacks.length} sets')),
+          sliver: SliverToBoxAdapter(child: _sectionLabel('📚 Practice Tests', '${practice.length} sets')),
         ),
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -710,18 +824,18 @@ class _MockTestScreenState extends State<MockTestScreen> {
               (_, i) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _PackCard(
-                  pack: _practicePacks[i],
-                  bestScore: _bestScores[_practicePacks[i].id] ?? -1,
-                  onTap: () => _startPack(_practicePacks[i]),
+                  pack: practice[i],
+                  bestScore: _bestScores[practice[i].id] ?? -1,
+                  onTap: () => _tapPack(practice[i]),
                 ),
               ),
-              childCount: _practicePacks.length,
+              childCount: practice.length,
             ),
           ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          sliver: SliverToBoxAdapter(child: _sectionLabel('🏆 Previous Year Papers', '${_pyqPacks.length} exams')),
+          sliver: SliverToBoxAdapter(child: _sectionLabel('🏆 Previous Year Papers', '${pyq.length} exams')),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
@@ -730,12 +844,12 @@ class _MockTestScreenState extends State<MockTestScreen> {
               (_, i) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _PackCard(
-                  pack: _pyqPacks[i],
-                  bestScore: _bestScores[_pyqPacks[i].id] ?? -1,
-                  onTap: () => _startPack(_pyqPacks[i]),
+                  pack: pyq[i],
+                  bestScore: _bestScores[pyq[i].id] ?? -1,
+                  onTap: () => _tapPack(pyq[i]),
                 ),
               ),
-              childCount: _pyqPacks.length,
+              childCount: pyq.length,
             ),
           ),
         ),
@@ -1232,7 +1346,7 @@ class _PackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = pack.questions.length;
+    final total = pack.count;
     final hasBest = bestScore >= 0;
 
     return GestureDetector(

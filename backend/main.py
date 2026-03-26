@@ -203,12 +203,40 @@ def init_db():
             scraped_at  TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS mock_packs (
+            pack_id      TEXT PRIMARY KEY,
+            title        TEXT NOT NULL,
+            subtitle     TEXT DEFAULT '',
+            emoji        TEXT DEFAULT '📝',
+            color_hex    TEXT DEFAULT '#1565C0',
+            is_pyq       INTEGER DEFAULT 0,
+            sort_order   INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS questions (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            type         TEXT NOT NULL DEFAULT 'quiz',
+            pack_id      TEXT DEFAULT NULL,
+            set_index    INTEGER DEFAULT NULL,
+            question     TEXT NOT NULL,
+            option_a     TEXT NOT NULL,
+            option_b     TEXT NOT NULL,
+            option_c     TEXT NOT NULL,
+            option_d     TEXT NOT NULL,
+            correct      INTEGER NOT NULL,
+            topic        TEXT DEFAULT '',
+            sort_order   INTEGER DEFAULT 0
+        );
+
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
         CREATE INDEX IF NOT EXISTS idx_jobs_active    ON jobs(is_active);
         CREATE INDEX IF NOT EXISTS idx_saved_user     ON saved_jobs(user_id);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url ON jobs(source_url);
         CREATE INDEX IF NOT EXISTS idx_ca_date        ON current_affairs(pub_date);
-        CREATE INDEX IF NOT EXISTS idx_ca_category    ON current_affairs(category)
+        CREATE INDEX IF NOT EXISTS idx_ca_category    ON current_affairs(category);
+        CREATE INDEX IF NOT EXISTS idx_q_type         ON questions(type);
+        CREATE INDEX IF NOT EXISTS idx_q_pack         ON questions(pack_id);
+        CREATE INDEX IF NOT EXISTS idx_q_set          ON questions(set_index)
     """)
 
 init_db()
@@ -247,6 +275,28 @@ class SaveJobRequest(BaseModel):
     user_id: int
     job_id:  int
     status:  str = "saved"
+
+class QuestionIn(BaseModel):
+    type:      str = "quiz"        # "quiz" or "mock"
+    pack_id:   Optional[str] = None
+    set_index: Optional[int] = None
+    question:  str
+    option_a:  str
+    option_b:  str
+    option_c:  str
+    option_d:  str
+    correct:   int                 # 0-3
+    topic:     str = ""
+    sort_order: int = 0
+
+class MockPackIn(BaseModel):
+    pack_id:    str
+    title:      str
+    subtitle:   str = ""
+    emoji:      str = "📝"
+    color_hex:  str = "#1565C0"
+    is_pyq:     bool = False
+    sort_order: int = 0
 
 # ─────────────────────────────────────────
 # EDUCATION HIERARCHY
@@ -989,3 +1039,142 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
         except:
             pass
     return {"inserted": inserted, "total": len(jobs)}
+
+
+# ─────────────────────────────────────────
+# QUIZ / MOCK TEST ENDPOINTS
+# ─────────────────────────────────────────
+
+@app.get("/daily-quiz")
+def get_daily_quiz(set_index: int = Query(0)):
+    """Return 5 questions for the given daily quiz set (0-based index)."""
+    conn = get_db()
+    conn.execute(
+        "SELECT * FROM questions WHERE type='quiz' AND set_index=? ORDER BY sort_order",
+        (set_index,)
+    )
+    rows = conn.fetchall()
+    if not rows:
+        return {"questions": [], "set_index": set_index}
+    questions = [
+        {
+            "id": r["id"],
+            "question": r["question"],
+            "options": [r["option_a"], r["option_b"], r["option_c"], r["option_d"]],
+            "correct": r["correct"],
+            "topic": r["topic"],
+        }
+        for r in rows
+    ]
+    return {"questions": questions, "set_index": set_index}
+
+
+@app.get("/mock-tests")
+def get_mock_packs():
+    """Return all mock test packs with question counts."""
+    conn = get_db()
+    conn.execute("SELECT * FROM mock_packs ORDER BY is_pyq, sort_order")
+    packs = conn.fetchall()
+    result = []
+    for p in packs:
+        conn.execute(
+            "SELECT COUNT(*) as cnt FROM questions WHERE type='mock' AND pack_id=?",
+            (p["pack_id"],)
+        )
+        cnt_row = conn.fetchone()
+        cnt = cnt_row["cnt"] if cnt_row else 0
+        result.append({
+            "pack_id":    p["pack_id"],
+            "title":      p["title"],
+            "subtitle":   p["subtitle"],
+            "emoji":      p["emoji"],
+            "color_hex":  p["color_hex"],
+            "is_pyq":     bool(p["is_pyq"]),
+            "sort_order": p["sort_order"],
+            "question_count": cnt,
+        })
+    return {"packs": result}
+
+
+@app.get("/mock-tests/{pack_id}")
+def get_mock_questions(pack_id: str):
+    """Return all questions for a given mock test pack."""
+    conn = get_db()
+    conn.execute(
+        "SELECT * FROM questions WHERE type='mock' AND pack_id=? ORDER BY sort_order",
+        (pack_id,)
+    )
+    rows = conn.fetchall()
+    questions = [
+        {
+            "id": r["id"],
+            "question": r["question"],
+            "options": [r["option_a"], r["option_b"], r["option_c"], r["option_d"]],
+            "correct": r["correct"],
+            "topic": r["topic"],
+        }
+        for r in rows
+    ]
+    return {"pack_id": pack_id, "questions": questions}
+
+
+@app.post("/admin/questions")
+def admin_add_questions(secret: str = Query(...), payload: dict = Body(...)):
+    """Bulk-insert quiz/mock questions. payload = {"questions": [...]}"""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    qs = payload.get("questions", [])
+    conn = get_db()
+    inserted = 0
+    for q in qs:
+        try:
+            conn.execute(
+                """INSERT INTO questions
+                   (type, pack_id, set_index, question,
+                    option_a, option_b, option_c, option_d,
+                    correct, topic, sort_order)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    q.get("type", "quiz"),
+                    q.get("pack_id"),
+                    q.get("set_index"),
+                    q["question"],
+                    q["option_a"], q["option_b"], q["option_c"], q["option_d"],
+                    q["correct"],
+                    q.get("topic", ""),
+                    q.get("sort_order", 0),
+                )
+            )
+            inserted += 1
+        except Exception:
+            pass
+    return {"inserted": inserted, "total": len(qs)}
+
+
+@app.post("/admin/mock-pack")
+def admin_upsert_mock_pack(secret: str = Query(...), payload: MockPackIn = Body(...)):
+    """Upsert a mock test pack definition."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    conn.execute(
+        """INSERT OR REPLACE INTO mock_packs
+           (pack_id, title, subtitle, emoji, color_hex, is_pyq, sort_order)
+           VALUES (?,?,?,?,?,?,?)""",
+        (payload.pack_id, payload.title, payload.subtitle, payload.emoji,
+         payload.color_hex, int(payload.is_pyq), payload.sort_order)
+    )
+    return {"success": True, "pack_id": payload.pack_id}
+
+
+@app.delete("/admin/questions/{q_type}")
+def admin_clear_questions(q_type: str, secret: str = Query(...), pack_id: Optional[str] = Query(None)):
+    """Delete questions by type ('quiz'/'mock') and optionally by pack_id."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    if pack_id:
+        conn.execute("DELETE FROM questions WHERE type=? AND pack_id=?", (q_type, pack_id))
+    else:
+        conn.execute("DELETE FROM questions WHERE type=?", (q_type,))
+    return {"success": True}

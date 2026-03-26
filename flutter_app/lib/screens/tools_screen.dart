@@ -85,7 +85,7 @@ class ToolsScreen extends StatelessWidget {
                   color: const Color(0xFF4A148C),
                   tag: 'Daily!',
                   onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const DailyQuizScreen())),
+                      MaterialPageRoute(builder: (_) => DailyQuizScreen(api: api))),
                 ),
                 const SizedBox(height: 12),
                 _ToolCard(
@@ -94,7 +94,7 @@ class ToolsScreen extends StatelessWidget {
                   subtitle: 'SSC, RRB, Banking, UPSC — 185 PYQ-based questions',
                   color: const Color(0xFF1565C0),
                   onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const MockTestScreen())),
+                      MaterialPageRoute(builder: (_) => MockTestScreen(api: api))),
                 ),
                 const SizedBox(height: 12),
                 _ToolCard(

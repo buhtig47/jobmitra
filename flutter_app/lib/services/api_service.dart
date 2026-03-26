@@ -329,6 +329,47 @@ class ApiService {
     } catch (_) {}
   }
 
+  // ── Quiz / Mock Test ─────────────────────────────────────────
+
+  /// Returns questions for a daily quiz set from the API.
+  /// Returns null if the API has no questions for that set.
+  Future<List<Map<String, dynamic>>?> getDailyQuizQuestions(int setIndex) async {
+    try {
+      final res = await _get('$kApiBase/daily-quiz?set_index=$setIndex');
+      if (res == null) return null;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final qs = data['questions'] as List?;
+      if (qs == null || qs.isEmpty) return null;
+      return qs.map((q) => q as Map<String, dynamic>).toList();
+    } catch (_) { return null; }
+  }
+
+  /// Returns mock test pack list from the API.
+  /// Returns null if the API returns no packs.
+  Future<List<Map<String, dynamic>>?> getMockTestPacks() async {
+    try {
+      final res = await _get('$kApiBase/mock-tests');
+      if (res == null) return null;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final packs = data['packs'] as List?;
+      if (packs == null || packs.isEmpty) return null;
+      return packs.map((p) => p as Map<String, dynamic>).toList();
+    } catch (_) { return null; }
+  }
+
+  /// Returns questions for a specific mock test pack from the API.
+  /// Returns null if the API returns no questions.
+  Future<List<Map<String, dynamic>>?> getMockTestQuestions(String packId) async {
+    try {
+      final res = await _get('$kApiBase/mock-tests/${Uri.encodeComponent(packId)}');
+      if (res == null) return null;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final qs = data['questions'] as List?;
+      if (qs == null || qs.isEmpty) return null;
+      return qs.map((q) => q as Map<String, dynamic>).toList();
+    } catch (_) { return null; }
+  }
+
   // ── Current Affairs ──────────────────────────────────────────
   Future<List<CurrentAffair>> getCurrentAffairs({String? category, int days = 7}) async {
     try {
