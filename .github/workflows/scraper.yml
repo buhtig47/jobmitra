@@ -2,7 +2,8 @@ name: Auto Scraper
 
 on:
   schedule:
-    - cron: '0 */12 * * *'
+    - cron: '0 1 * * *'   # 6:30 AM IST daily
+    - cron: '0 13 * * *'  # 6:30 PM IST daily
   workflow_dispatch:
 
 jobs:
@@ -15,8 +16,15 @@ jobs:
       - name: Wait for server to wake
         run: sleep 60
 
-      - name: Run scraper
-        run: curl -s -X POST "https://jobmitra-api.onrender.com/admin/scrape?secret=${{ secrets.SCRAPER_SECRET }}"
+      - name: Scrape jobs
+        run: |
+          curl -s -X POST "https://jobmitra-api.onrender.com/admin/scrape?secret=${{ secrets.SCRAPER_SECRET }}"
+          echo ""
 
-      - name: Show job count
+      - name: Scrape current affairs
+        run: |
+          curl -s -X POST "https://jobmitra-api.onrender.com/admin/scrape-current-affairs?secret=${{ secrets.SCRAPER_SECRET }}"
+          echo ""
+
+      - name: Show stats
         run: curl -s "https://jobmitra-api.onrender.com/stats"
