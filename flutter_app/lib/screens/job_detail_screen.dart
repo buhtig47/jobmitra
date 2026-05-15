@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../utils/constants.dart';
 import '../widgets/profile_fill_sheet.dart';
+import '../services/cheatsheet_pdf.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -393,6 +394,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         if (job.documentsNeeded != null) _buildDocumentsCard(),
         const SizedBox(height: 12),
 
+        // Pre-fill cheat-sheet PDF (uses local PersonalInfo)
+        _buildCheatsheetCard(),
+        const SizedBox(height: 12),
+
         // Qualifications
         _buildSection(
           '🎓 Qualifications',
@@ -557,6 +562,108 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildCheatsheetCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 12, offset: const Offset(0, 4)),
+        ],
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.picture_as_pdf_rounded,
+                    color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Form-Fill Cheat-Sheet',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
+                    SizedBox(height: 2),
+                    Text(
+                      'Printable PDF — name, DOB, address, docs list. Cyber cafe le ja sako.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 11.5,
+                          height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _generateCheatsheet,
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Generate PDF'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generateCheatsheet() async {
+    if (_job == null) return;
+    final info = await widget.api.getPersonalInfo();
+    if (!mounted) return;
+    if (info.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Pehle Profile -> Form Fill Details bharo, fir cheat-sheet generate hogi'),
+          backgroundColor: Colors.orange[700],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+    try {
+      await CheatsheetPdf.shareForJob(job: _job!, info: info);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF generate nahi hua: $e'),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Widget _buildSection(String title, String content) {

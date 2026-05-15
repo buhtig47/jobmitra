@@ -45,6 +45,11 @@ dependencies:
   share_plus: ^8.0.2
   connectivity_plus: ^6.0.3
 
+  # PDF generation (form-fill cheat-sheet)
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  path_provider: ^2.1.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
