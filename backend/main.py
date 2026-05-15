@@ -12,8 +12,26 @@ import json
 import os
 import base64
 import hashlib
+import logging
 import requests as _requests
 from datetime import datetime, timedelta
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger("jobmitra")
+
+
+def _safe_json_loads(raw, fallback):
+    """Decode a JSON column safely. Old/corrupt rows return the fallback rather
+    than crash the request handler."""
+    if not raw:
+        return fallback
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return fallback
 
 app = FastAPI(title="JobMitra API", version="1.0.0")
 
@@ -428,7 +446,7 @@ def _get_fcm_access_token() -> Optional[str]:
             credentials.refresh(ga_requests.Request())
             return credentials.token
         except Exception as e:
-            print(f"FCM (B64) token error: {e}")
+            log.warning(f"FCM (B64) token error: {e}")
 
     # ADC fallback — works on Cloud Run when the SA has Firebase Messaging access.
     try:
@@ -437,7 +455,7 @@ def _get_fcm_access_token() -> Optional[str]:
         credentials.refresh(ga_requests.Request())
         return credentials.token
     except Exception as e:
-        print(f"FCM (ADC) token error: {e}")
+        log.warning(f"FCM (ADC) token error: {e}")
         return None
 
 
@@ -469,10 +487,10 @@ def send_fcm_to_topic(topic: str, title: str, body: str, data: dict = None) -> b
             timeout=10,
         )
         if r.status_code != 200:
-            print(f"FCM topic send {r.status_code}: {r.text[:200]}")
+            log.warning(f"FCM topic send {r.status_code}: {r.text[:200]}")
         return r.status_code == 200
     except Exception as e:
-        print(f"FCM topic error: {e}")
+        log.warning(f"FCM topic error: {e}")
         return False
 
 
@@ -499,6 +517,16 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
     }
     data_payload = {k: str(v) for k, v in (data or {}).items()}
 
+    # FCM returns these when token is permanently dead — we strip such tokens
+    # from the DB so the next scrape doesn't keep fanning out to phantoms.
+    DEAD_TOKEN_ERRORS = {
+        "UNREGISTERED",
+        "INVALID_ARGUMENT",
+        "SENDER_ID_MISMATCH",
+        "NOT_FOUND",
+    }
+    dead_tokens: list[str] = []
+
     def _send(token: str) -> bool:
         if not token or token == "test":
             return False
@@ -517,8 +545,25 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
         }
         try:
             r = _requests.post(url, headers=headers, json=payload, timeout=10)
-            return r.status_code == 200
-        except Exception:
+            if r.status_code == 200:
+                return True
+            # Inspect FCM v1 error payload for dead-token signals (404/400 + error code)
+            if r.status_code in (400, 404):
+                try:
+                    err = r.json().get("error", {})
+                    details = err.get("details", []) or []
+                    for d in details:
+                        if d.get("errorCode") in DEAD_TOKEN_ERRORS:
+                            dead_tokens.append(token)
+                            break
+                    else:
+                        if err.get("status") in DEAD_TOKEN_ERRORS:
+                            dead_tokens.append(token)
+                except (ValueError, AttributeError):
+                    pass
+            return False
+        except Exception as e:
+            log.warning(f"FCM send error: {e}")
             return False
 
     # 20 workers keeps us under FCM's recommended QPS while still finishing
@@ -527,6 +572,18 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
     workers = min(20, max(1, len(tokens)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(_send, tokens))
+
+    # Detach dead tokens so saved_jobs / users rows aren't deleted, but future
+    # pushes skip these phantoms entirely.
+    if dead_tokens:
+        try:
+            conn = get_db()
+            for t in set(dead_tokens):
+                conn.execute("UPDATE users SET fcm_token = NULL WHERE fcm_token = ?", (t,))
+            log.info(f"cleaned {len(set(dead_tokens))} dead FCM tokens")
+        except Exception as e:
+            log.warning(f"dead-token cleanup failed: {e}")
+
     return sum(1 for r in results if r)
 
 
@@ -598,14 +655,18 @@ def notify_users_personalized(conn, cats_inserted: dict) -> int:
         msg_map.setdefault(key, []).append(token)
 
     sent = 0
+    # Cap total push fan-out per scrape — Cloud Run request times out at 60s
+    # and 20-worker threadpool tops out around ~2k tokens within budget.
+    # We cap at 2000 total tokens, splitting fairly across message groups.
+    MAX_TOTAL_TOKENS = 2000
     total_tokens = sum(len(v) for v in msg_map.values())
-    # Cap to avoid Render timeout (free tier)
-    if total_tokens > 500:
-        msg_map = dict(list(msg_map.items())[:500 // max(1, len(msg_map))])
+    if total_tokens > MAX_TOTAL_TOKENS:
+        scale = MAX_TOTAL_TOKENS / total_tokens
+        msg_map = {k: v[: max(1, int(len(v) * scale))] for k, v in msg_map.items()}
 
     for (body,), tokens in msg_map.items():
         sent += send_fcm_to_tokens(
-            tokens[:500],
+            tokens,
             title="🇮🇳 JobMitra — Nai Jobs Aayi!",
             body=body,
             data={"screen": "home"},
@@ -735,8 +796,9 @@ def get_job_feed(
         try:
             last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
             days_left = (last_date - today).days
-        except:
-            days_left = 30
+        except (ValueError, TypeError):
+            # Missing/malformed date — skip the job rather than fake a 30-day window
+            continue
 
         if days_left < 0:
             continue
@@ -805,8 +867,8 @@ def search_jobs(
         try:
             last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
             days_left = (last_date - datetime.now()).days
-        except:
-            days_left = 30
+        except (ValueError, TypeError):
+            continue
 
         if days_left < 0:
             continue
@@ -832,12 +894,12 @@ def search_jobs(
             "urgency":          "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
             "fee":              fee,
             "is_free":          fee == 0,
-            "qualifications":   json.loads(job["qualifications"] or "[]"),
-            "states":           json.loads(job["states"] or '["all"]'),
+            "qualifications":   _safe_json_loads(job["qualifications"], []),
+            "states":           _safe_json_loads(job["states"], ["all"]),
             "age_min":          job["age_min"],
             "age_max":          job["age_max"],
             "pay_scale":        job["pay_scale"] or "",
-            "documents_needed": json.loads(docs_raw) if docs_raw else None,
+            "documents_needed": _safe_json_loads(docs_raw, None),
         })
 
     return {"jobs": results, "query": q, "total": len(results)}
@@ -853,8 +915,8 @@ def get_job_detail(job_id: int, user_category: str = "general"):
     try:
         last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
         days_left = (last_date - datetime.now()).days
-    except:
-        days_left = 30
+    except (ValueError, TypeError):
+        days_left = 0
 
     fee = job["fee_general"]
     if user_category == "obc":             fee = job["fee_obc"]
@@ -867,7 +929,7 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "source":         job["source"],
         "source_url":     job["source_url"],
         "category":       job["category"],
-        "qualifications": json.loads(job["qualifications"] or "[]"),
+        "qualifications": _safe_json_loads(job["qualifications"], []),
         "vacancies":      job["vacancies"],
         "last_date":      job["last_date"],
         "days_left":      days_left,
@@ -876,10 +938,10 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "age_max":        job["age_max"],
         "fee":            fee,
         "is_free":        fee == 0,
-        "states":         json.loads(job["states"] or '["all"]'),
+        "states":         _safe_json_loads(job["states"], ["all"]),
         "pay_scale":      job["pay_scale"] or "",
         "scraped_at":       job["scraped_at"],
-        "documents_needed": json.loads(job["documents_needed"]) if job["documents_needed"] else None,
+        "documents_needed": _safe_json_loads(job["documents_needed"], None),
     }
 
 
@@ -929,8 +991,8 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
         try:
             ld = datetime.strptime(row["last_date"], "%d/%m/%Y")
             days_left = (ld - datetime.now()).days
-        except:
-            days_left = 30
+        except (ValueError, TypeError):
+            days_left = 0
 
         if cat == "obc":
             fee = row["fee_obc"]
@@ -1708,8 +1770,8 @@ def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
                 job.get("scraped_at", "")
             ))
             inserted += 1
-        except:
-            pass
+        except Exception as e:
+            log.warning(f"insert failed for {job.get('source_url', '?')[:80]}: {e}")
     return {"inserted": inserted, "total": len(jobs)}
 
 

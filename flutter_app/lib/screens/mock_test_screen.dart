@@ -761,6 +761,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
   void _submitAnswer(int chosen) {
     if (_answered) return;
     _timer?.cancel();
+    // Timer can fire one tick after _nextQuestion() pushed us past the last
+    // question — guard against an index overrun on _pack.questions.
+    if (_qIndex < 0 || _qIndex >= _pack.questions.length) return;
     final correct = _pack.questions[_qIndex].ans;
     setState(() {
       _selected  = chosen;
@@ -772,6 +775,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   void _nextQuestion() {
     if (_qIndex + 1 >= _pack.questions.length) {
+      _timer?.cancel();
       _saveBestScore(_pack.id, _score);
       setState(() => _stage = _Stage.result);
       return;
@@ -966,8 +970,11 @@ class _MockTestScreenState extends State<MockTestScreen> {
   // ── Quiz ──────────────────────────────────────────────────────────────────
 
   Widget _buildQuiz() {
-    final q = _pack.questions[_qIndex];
     final total = _pack.questions.length;
+    if (total == 0 || _qIndex < 0 || _qIndex >= total) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final q = _pack.questions[_qIndex];
     final timeProgress = _secsLeft / _secsPerQ;
     final timerColor = _secsLeft <= 10
         ? Colors.red

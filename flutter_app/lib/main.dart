@@ -41,9 +41,16 @@ Future<void> _bootstrap() async {
   // 0. Warm Cloud Run backend — fire-and-forget so cold start begins immediately
   http.get(Uri.parse('$kApiBase/stats')).then((_) {}, onError: (_) {});
 
-  // 1. Offline cache
-  await Hive.initFlutter();
-  await Hive.openBox('jobs_cache');
+  // 1. Offline cache. Hive init can fail on a corrupted file (rare, but a
+  // single bad write during an OOM kill can leave the box unreadable). Swallow
+  // and continue — api_service's _safeBox() falls back to network-only mode.
+  // Crashlytics isn't initialised yet at this point, so we just print.
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('jobs_cache');
+  } catch (e) {
+    debugPrint('Hive init failed, running network-only: $e');
+  }
 
   // 2. Firebase (needs to be before NotificationService which uses FirebaseMessaging)
   try {

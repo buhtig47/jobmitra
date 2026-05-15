@@ -13,6 +13,19 @@ class ApiService {
   static const _recentKey     = 'recently_viewed_jobs';
   static const _longTimeout   = Duration(seconds: 60);
 
+  // Defensive coercion — backend hiccups, partial responses, or future schema
+  // changes should never crash the UI. Always return a usable empty value.
+  static List _asList(dynamic v) => v is List ? v : const [];
+  static Map<String, dynamic> _asMap(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+  /// Open the Hive cache box safely. If Hive failed to init at boot, return
+  /// null so callers degrade to network-only mode instead of crashing.
+  static dynamic _safeBox() {
+    try { return Hive.box('jobs_cache'); }
+    catch (_) { return null; }
+  }
+
   Future<void> wakeUpServer() async {
     try {
       await http.get(Uri.parse('$kApiBase/stats')).timeout(_longTimeout);
@@ -49,8 +62,9 @@ class ApiService {
     try {
       final res = await _post('$kApiBase/users/register', profile.toJson());
       if (res != null && res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final userId = data['user_id'] as int;
+        final data = _asMap(jsonDecode(res.body));
+        final userId = data['user_id'];
+        if (userId is! int) return null;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_userIdKey, userId);
         await prefs.setString(_profileKey, jsonEncode(profile.toJson()));
@@ -87,14 +101,15 @@ class ApiService {
   /// reloads, producing a visible flicker.
   Future<List<Job>> getCachedFeed({String? stateOverride}) async {
     try {
-      final box = Hive.box('jobs_cache');
+      final box = _safeBox();
+      if (box == null) return [];
       final key = (stateOverride == null || stateOverride.isEmpty)
           ? 'feed_jobs'
           : 'feed_jobs_${stateOverride.toLowerCase()}';
       final cached = box.get(key) as String?;
       if (cached == null) return [];
-      final data = jsonDecode(cached);
-      return (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+      final data = _asMap(jsonDecode(cached));
+      return _asList(data['jobs']).map((j) => Job.fromJson(j)).toList();
     } catch (_) { return []; }
   }
 
@@ -105,7 +120,7 @@ class ApiService {
     int page = 1,
     String? stateOverride,
   }) async {
-    final box = Hive.box('jobs_cache');
+    final box = _safeBox();
     final params = StringBuffer('user_id=$userId&page=$page&page_size=20');
     if (stateOverride != null && stateOverride.isNotEmpty) {
       params.write('&state=${Uri.encodeQueryComponent(stateOverride)}');
@@ -119,9 +134,9 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/jobs/feed?$params');
       if (res != null) {
-        final data = jsonDecode(res.body);
-        final jobs = (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
-        if (page == 1) {
+        final data = _asMap(jsonDecode(res.body));
+        final jobs = _asList(data['jobs']).map((j) => Job.fromJson(j)).toList();
+        if (page == 1 && box != null) {
           await box.put(cacheKey, res.body);
           await box.put(cacheTsKey, DateTime.now().toIso8601String());
         }
@@ -134,12 +149,15 @@ class ApiService {
       }
     } catch (e) { print('Feed error: $e'); }
 
+    if (box == null) {
+      return {'jobs': <Job>[], 'total': 0, 'has_more': false, 'is_cached': false};
+    }
     final cached = box.get(cacheKey) as String?;
     final timestamp = box.get(cacheTsKey) as String?;
     if (cached != null) {
       try {
-        final data = jsonDecode(cached);
-        final jobs = (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+        final data = _asMap(jsonDecode(cached));
+        final jobs = _asList(data['jobs']).map((j) => Job.fromJson(j)).toList();
         return {
           'jobs': jobs,
           'total': jobs.length,
@@ -165,8 +183,8 @@ class ApiService {
       final url = '$kApiBase/jobs/search?q=${Uri.encodeComponent(query)}&user_category=$userCategory';
       final res = await _get(url);
       if (res != null) {
-        final data = jsonDecode(res.body);
-        return (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
+        final data = _asMap(jsonDecode(res.body));
+        return _asList(data['jobs']).map((j) => Job.fromJson(j)).toList();
       }
     } catch (e) { print('Search error: $e'); }
     return [];
@@ -176,7 +194,11 @@ class ApiService {
   Future<String?> getJobStatus(int userId, int jobId) async {
     try {
       final res = await _get('$kApiBase/users/$userId/job/$jobId/status');
-      if (res != null) return jsonDecode(res.body)['status'] as String?;
+      if (res != null) {
+        final data = _asMap(jsonDecode(res.body));
+        final s = data['status'];
+        return s is String ? s : null;
+      }
     } catch (e) { print('Job status error: $e'); }
     return null;
   }
@@ -223,8 +245,8 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/users/$userId/saved');
       if (res != null) {
-        final data = jsonDecode(res.body);
-        return (data['saved_jobs'] as List).map((j) => Job.fromJson(j)).toList();
+        final data = _asMap(jsonDecode(res.body));
+        return _asList(data['saved_jobs']).map((j) => Job.fromJson(j)).toList();
       }
     } catch (e) { print('Saved jobs error: $e'); }
     return [];
@@ -233,7 +255,7 @@ class ApiService {
   Future<Map<String, dynamic>?> getStats() async {
     try {
       final res = await _get('$kApiBase/stats');
-      if (res != null) return jsonDecode(res.body);
+      if (res != null) return _asMap(jsonDecode(res.body));
     } catch (e) { print('Stats error: $e'); }
     return null;
   }
@@ -372,10 +394,10 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/daily-quiz?set_index=$setIndex');
       if (res == null) return null;
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final qs = data['questions'] as List?;
-      if (qs == null || qs.isEmpty) return null;
-      return qs.map((q) => q as Map<String, dynamic>).toList();
+      final data = _asMap(jsonDecode(res.body));
+      final qs = _asList(data['questions']);
+      if (qs.isEmpty) return null;
+      return qs.whereType<Map>().map((q) => Map<String, dynamic>.from(q)).toList();
     } catch (_) { return null; }
   }
 
@@ -385,10 +407,10 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/mock-tests');
       if (res == null) return null;
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final packs = data['packs'] as List?;
-      if (packs == null || packs.isEmpty) return null;
-      return packs.map((p) => p as Map<String, dynamic>).toList();
+      final data = _asMap(jsonDecode(res.body));
+      final packs = _asList(data['packs']);
+      if (packs.isEmpty) return null;
+      return packs.whereType<Map>().map((p) => Map<String, dynamic>.from(p)).toList();
     } catch (_) { return null; }
   }
 
@@ -398,10 +420,10 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/mock-tests/${Uri.encodeComponent(packId)}');
       if (res == null) return null;
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final qs = data['questions'] as List?;
-      if (qs == null || qs.isEmpty) return null;
-      return qs.map((q) => q as Map<String, dynamic>).toList();
+      final data = _asMap(jsonDecode(res.body));
+      final qs = _asList(data['questions']);
+      if (qs.isEmpty) return null;
+      return qs.whereType<Map>().map((q) => Map<String, dynamic>.from(q)).toList();
     } catch (_) { return null; }
   }
 
@@ -413,8 +435,12 @@ class ApiService {
       final uri = Uri.parse('$kApiBase/current-affairs').replace(queryParameters: params);
       final res = await _get(uri.toString());
       if (res == null) return [];
-      final data = jsonDecode(res.body) as List;
-      return data.map((j) => CurrentAffair.fromJson(j as Map<String, dynamic>)).toList();
+      final decoded = jsonDecode(res.body);
+      if (decoded is! List) return [];
+      return decoded
+          .whereType<Map>()
+          .map((j) => CurrentAffair.fromJson(Map<String, dynamic>.from(j)))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -428,9 +454,10 @@ class ApiService {
       final uri = Uri.parse('$kApiBase/announcements').replace(queryParameters: params);
       final res = await _get(uri.toString());
       if (res == null) return [];
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return (data['announcements'] as List)
-          .map((j) => Announcement.fromJson(j as Map<String, dynamic>))
+      final data = _asMap(jsonDecode(res.body));
+      return _asList(data['announcements'])
+          .whereType<Map>()
+          .map((j) => Announcement.fromJson(Map<String, dynamic>.from(j)))
           .toList();
     } catch (_) {
       return [];
@@ -441,9 +468,13 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/announcements/counts');
       if (res == null) return {};
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final raw = data['counts'] as Map<String, dynamic>? ?? {};
-      return raw.map((k, v) => MapEntry(k, (v as num).toInt()));
+      final data = _asMap(jsonDecode(res.body));
+      final raw = _asMap(data['counts']);
+      final out = <String, int>{};
+      raw.forEach((k, v) {
+        if (v is num) out[k] = v.toInt();
+      });
+      return out;
     } catch (_) {
       return {};
     }

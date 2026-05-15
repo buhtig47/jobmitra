@@ -578,15 +578,18 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
   void _answer(int idx) {
     if (_answered) return;
+    final qs = _questions;
+    if (qs == null || _qIndex < 0 || _qIndex >= qs.length) return;
     setState(() {
       _selected = idx;
       _answered = true;
-      if (idx == _questions![_qIndex].ans) _score++;
+      if (idx == qs[_qIndex].ans) _score++;
     });
   }
 
   void _next() {
-    if (_qIndex + 1 >= _questions!.length) {
+    final qs = _questions;
+    if (qs == null || _qIndex + 1 >= qs.length) {
       _onFinish();
       return;
     }
@@ -669,7 +672,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
   // ── Quiz UI ──────────────────────────────────────────────────
   Widget _buildQuiz() {
-    final qs = _questions!;
+    final qs = _questions;
+    if (qs == null || qs.isEmpty || _qIndex < 0 || _qIndex >= qs.length) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final q = qs[_qIndex];
     final progress = (_qIndex + 1) / qs.length;
 
