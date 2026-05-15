@@ -1,6 +1,7 @@
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,7 +39,7 @@ class ApiService {
         final res = await http.get(Uri.parse(url)).timeout(_longTimeout);
         if (res.statusCode == 200) return res;
       } catch (e) {
-        if (i == retries) print('GET failed: $e');
+        if (i == retries) debugPrint('GET failed: $e');
         await Future.delayed(Duration(seconds: 2));
       }
     }
@@ -53,7 +54,7 @@ class ApiService {
         body: jsonEncode(body),
       ).timeout(_longTimeout);
     } catch (e) {
-      print('POST failed: $e');
+      debugPrint('POST failed: $e');
       return null;
     }
   }
@@ -70,7 +71,7 @@ class ApiService {
         await prefs.setString(_profileKey, jsonEncode(profile.toJson()));
         return userId;
       }
-    } catch (e) { print('Register error: $e'); }
+    } catch (e) { debugPrint('Register error: $e'); }
     return null;
   }
 
@@ -147,7 +148,7 @@ class ApiService {
           'is_cached': false,
         };
       }
-    } catch (e) { print('Feed error: $e'); }
+    } catch (e) { debugPrint('Feed error: $e'); }
 
     if (box == null) {
       return {'jobs': <Job>[], 'total': 0, 'has_more': false, 'is_cached': false};
@@ -165,7 +166,7 @@ class ApiService {
           'is_cached': true,
           'cached_at': timestamp,
         };
-      } catch (e) { print('Cache load error: $e'); }
+      } catch (e) { debugPrint('Cache load error: $e'); }
     }
     return {'jobs': <Job>[], 'total': 0, 'has_more': false, 'is_cached': false};
   }
@@ -174,7 +175,7 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/jobs/$jobId?user_category=$category');
       if (res != null) return Job.fromJson(jsonDecode(res.body));
-    } catch (e) { print('Job detail error: $e'); }
+    } catch (e) { debugPrint('Job detail error: $e'); }
     return null;
   }
 
@@ -186,7 +187,7 @@ class ApiService {
         final data = _asMap(jsonDecode(res.body));
         return _asList(data['jobs']).map((j) => Job.fromJson(j)).toList();
       }
-    } catch (e) { print('Search error: $e'); }
+    } catch (e) { debugPrint('Search error: $e'); }
     return [];
   }
 
@@ -199,7 +200,7 @@ class ApiService {
         final s = data['status'];
         return s is String ? s : null;
       }
-    } catch (e) { print('Job status error: $e'); }
+    } catch (e) { debugPrint('Job status error: $e'); }
     return null;
   }
 
@@ -216,7 +217,7 @@ class ApiService {
         await prefs.setString('user_profile', jsonEncode(profile.toJson()));
         return true;
       }
-    } catch (e) { print('Update profile error: $e'); }
+    } catch (e) { debugPrint('Update profile error: $e'); }
     return false;
   }
 
@@ -248,7 +249,7 @@ class ApiService {
         final data = _asMap(jsonDecode(res.body));
         return _asList(data['saved_jobs']).map((j) => Job.fromJson(j)).toList();
       }
-    } catch (e) { print('Saved jobs error: $e'); }
+    } catch (e) { debugPrint('Saved jobs error: $e'); }
     return [];
   }
 
@@ -256,7 +257,7 @@ class ApiService {
     try {
       final res = await _get('$kApiBase/stats');
       if (res != null) return _asMap(jsonDecode(res.body));
-    } catch (e) { print('Stats error: $e'); }
+    } catch (e) { debugPrint('Stats error: $e'); }
     return null;
   }
 

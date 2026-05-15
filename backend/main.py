@@ -305,7 +305,7 @@ init_db()
 # ── Schema migration ──────────────────────────────────────
 # Persistent marker so we don't re-run ALTERs on every cold start.
 # Bump SCHEMA_VERSION whenever new ALTERs are added.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN pay_scale TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN pay_level INTEGER DEFAULT 0",
@@ -336,6 +336,13 @@ _MIGRATIONS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_alert_rules_user ON user_alert_rules(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_alert_rules_active ON user_alert_rules(is_active)",
+    # v4: deduplicate saved_jobs and enforce one row per (user, job).
+    # Manual upsert logic remained correct, but a concurrent double-tap on
+    # Save could insert two rows before either UPDATE landed.
+    """DELETE FROM saved_jobs WHERE id NOT IN (
+        SELECT MAX(id) FROM saved_jobs GROUP BY user_id, job_id
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_uniq ON saved_jobs(user_id, job_id)",
 ]
 
 def _maybe_run_migrations():
@@ -727,15 +734,43 @@ def register_user(profile: UserProfile):
         ))
         user_id = existing["id"]
     else:
-        conn.execute("""
-            INSERT INTO users (fcm_token, install_id, state, education, category, age, job_types, language)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            fcm_token, profile.install_id, profile.state, profile.education,
-            profile.category, profile.age,
-            json.dumps(profile.job_types), profile.language
-        ))
-        user_id = conn.lastrowid
+        # Two parallel registrations with the same install_id/fcm_token can
+        # both fall through the existing=None branch and race INSERT. Catch
+        # the UNIQUE violation and retry the UPDATE path on the winner row.
+        try:
+            conn.execute("""
+                INSERT INTO users (fcm_token, install_id, state, education, category, age, job_types, language)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                fcm_token, profile.install_id, profile.state, profile.education,
+                profile.category, profile.age,
+                json.dumps(profile.job_types), profile.language
+            ))
+            user_id = conn.lastrowid
+        except Exception as e:
+            log.info(f"register INSERT race resolving via update: {e}")
+            row = None
+            if profile.install_id:
+                row = conn.execute(
+                    "SELECT id FROM users WHERE install_id = ?", (profile.install_id,)
+                ).fetchone()
+            if not row and fcm_token:
+                row = conn.execute(
+                    "SELECT id FROM users WHERE fcm_token = ?", (fcm_token,)
+                ).fetchone()
+            if not row:
+                raise HTTPException(status_code=500, detail="Register failed") from e
+            conn.execute("""
+                UPDATE users SET fcm_token=?, install_id=COALESCE(?, install_id),
+                    state=?, education=?, category=?, age=?, job_types=?, language=?
+                WHERE id=?
+            """, (
+                fcm_token, profile.install_id,
+                profile.state, profile.education, profile.category,
+                profile.age, json.dumps(profile.job_types), profile.language,
+                row["id"],
+            ))
+            user_id = row["id"]
 
     return {"success": True, "user_id": user_id}
 
@@ -948,22 +983,15 @@ def get_job_detail(job_id: int, user_category: str = "general"):
 @app.post("/jobs/save")
 def save_job(req: SaveJobRequest):
     conn = get_db()
-    # saved_jobs has no unique(user_id,job_id) constraint, so INSERT OR REPLACE
-    # would always insert a new row — instead, upsert manually.
-    existing = conn.execute(
-        "SELECT id FROM saved_jobs WHERE user_id=? AND job_id=? LIMIT 1",
-        (req.user_id, req.job_id)
-    ).fetchone()
-    if existing:
-        conn.execute(
-            "UPDATE saved_jobs SET status=?, saved_at=CURRENT_TIMESTAMP WHERE id=?",
-            (req.status, existing["id"])
-        )
-    else:
-        conn.execute(
-            "INSERT INTO saved_jobs (user_id, job_id, status) VALUES (?, ?, ?)",
-            (req.user_id, req.job_id, req.status)
-        )
+    # Relies on UNIQUE INDEX idx_saved_uniq(user_id, job_id) from migration v4.
+    # ON CONFLICT collapses the concurrent-double-tap race that the old
+    # SELECT-then-UPDATE pattern still allowed.
+    conn.execute("""
+        INSERT INTO saved_jobs (user_id, job_id, status) VALUES (?, ?, ?)
+        ON CONFLICT(user_id, job_id) DO UPDATE
+            SET status = excluded.status,
+                saved_at = CURRENT_TIMESTAMP
+    """, (req.user_id, req.job_id, req.status))
     return {"success": True}
 
 
