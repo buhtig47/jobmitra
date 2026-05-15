@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -899,6 +900,10 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildSectionTitle('Language'),
                       const SizedBox(height: 10),
                       _buildLanguageTile(),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('About'),
+                      const SizedBox(height: 10),
+                      _buildAboutTile(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -1179,6 +1184,101 @@ class _ProfileTabState extends State<_ProfileTab> {
         );
       },
     );
+  }
+
+  Widget _buildAboutTile() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          _aboutRow(
+            icon: Icons.privacy_tip_outlined,
+            color: const Color(0xFF1565C0),
+            title: 'Privacy Policy',
+            subtitle: 'How we handle your data',
+            onTap: () => _openExternal(
+                'https://buhtig47.github.io/jobmitra/privacy.html'),
+          ),
+          const Divider(height: 1, indent: 56),
+          _aboutRow(
+            icon: Icons.email_outlined,
+            color: const Color(0xFF2E7D32),
+            title: 'Contact Support',
+            subtitle: 'ayushsrivastava47@gmail.com',
+            onTap: () => _openExternal(
+                'mailto:ayushsrivastava47@gmail.com?subject=JobMitra%20Feedback'),
+          ),
+          const Divider(height: 1, indent: 56),
+          _aboutRow(
+            icon: Icons.info_outline_rounded,
+            color: const Color(0xFF6A1B9A),
+            title: 'App Version',
+            subtitle: '1.1.0 (build 2)',
+            onTap: null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _aboutRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExternal(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _buildLanguageTile() {
