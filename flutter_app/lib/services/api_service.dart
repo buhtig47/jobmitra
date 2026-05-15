@@ -385,4 +385,33 @@ class ApiService {
       return [];
     }
   }
+
+  // ── Announcements (admit cards / results / answer keys / cut-offs) ────────
+  Future<List<Announcement>> getAnnouncements({String? type, int limit = 50}) async {
+    try {
+      final params = <String, String>{'limit': limit.toString()};
+      if (type != null && type.isNotEmpty) params['type'] = type;
+      final uri = Uri.parse('$kApiBase/announcements').replace(queryParameters: params);
+      final res = await _get(uri.toString());
+      if (res == null) return [];
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return (data['announcements'] as List)
+          .map((j) => Announcement.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Map<String, int>> getAnnouncementCounts() async {
+    try {
+      final res = await _get('$kApiBase/announcements/counts');
+      if (res == null) return {};
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final raw = data['counts'] as Map<String, dynamic>? ?? {};
+      return raw.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (_) {
+      return {};
+    }
+  }
 }

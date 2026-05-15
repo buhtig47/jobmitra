@@ -34,6 +34,13 @@ jobs:
             --max-time 120 || true
           echo ""
 
+      - name: Scrape announcements (admit cards, results, answer keys, cut-offs)
+        run: |
+          curl -s -X POST \
+            "${API_BASE}/admin/scrape-announcements?secret=${{ secrets.SCRAPER_SECRET }}" \
+            --max-time 480 || true
+          echo ""
+
       - name: Show stats
         run: curl -s "${API_BASE}/stats" || true
 

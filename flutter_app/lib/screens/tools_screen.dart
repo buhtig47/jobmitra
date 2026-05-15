@@ -11,6 +11,7 @@ import 'current_affairs_screen.dart';
 import 'mock_test_screen.dart';
 import 'age_calculator_screen.dart';
 import 'daily_quiz_screen.dart';
+import 'announcements_screen.dart';
 
 class ToolsScreen extends StatelessWidget {
   final ApiService api;
@@ -104,6 +105,16 @@ class ToolsScreen extends StatelessWidget {
                   color: const Color(0xFFE65100),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => CurrentAffairsScreen(api: api))),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  emoji: '🎟️',
+                  title: 'Admit Cards & Results',
+                  subtitle: 'Admit cards, results, answer keys, cut-offs — all exams',
+                  color: const Color(0xFFC62828),
+                  tag: 'New!',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => AnnouncementsScreen(api: api))),
                 ),
                 const SizedBox(height: 20),
                 _buildSectionLabel('📅 Planning'),

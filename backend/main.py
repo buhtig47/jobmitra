@@ -241,6 +241,19 @@ def init_db():
             question_hash TEXT DEFAULT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS announcements (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            type          TEXT NOT NULL,       -- admit_card | result | answer_key | cutoff | syllabus | exam_date
+            title         TEXT NOT NULL,
+            exam_name     TEXT DEFAULT '',
+            organisation  TEXT DEFAULT '',
+            release_date  TEXT DEFAULT '',
+            source        TEXT DEFAULT '',
+            source_url    TEXT UNIQUE,
+            description   TEXT DEFAULT '',
+            scraped_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
         CREATE INDEX IF NOT EXISTS idx_jobs_active    ON jobs(is_active);
         CREATE INDEX IF NOT EXISTS idx_saved_user     ON saved_jobs(user_id);
@@ -250,7 +263,9 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_q_type         ON questions(type);
         CREATE INDEX IF NOT EXISTS idx_q_pack         ON questions(pack_id);
         CREATE INDEX IF NOT EXISTS idx_q_set          ON questions(set_index);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_q_hash  ON questions(question_hash)
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_q_hash  ON questions(question_hash);
+        CREATE INDEX IF NOT EXISTS idx_ann_type       ON announcements(type);
+        CREATE INDEX IF NOT EXISTS idx_ann_scraped    ON announcements(scraped_at)
     """)
 
 init_db()
@@ -1083,6 +1098,119 @@ def import_current_affairs(secret: str = Query(...), payload: dict = Body(...)):
         except Exception:
             pass
     return {"success": True, "inserted": inserted, "total": len(articles)}
+
+
+# ─────────────────────────────────────────
+# ANNOUNCEMENTS (admit cards, results, answer keys, cut-offs)
+# ─────────────────────────────────────────
+
+_ANNOUNCEMENT_TYPES = {"admit_card", "result", "answer_key", "cutoff", "syllabus", "exam_date"}
+
+
+@app.get("/announcements")
+def list_announcements(
+    type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Public read. Optional ?type=admit_card|result|answer_key|cutoff|syllabus|exam_date"""
+    conn = get_db()
+    if type and type not in _ANNOUNCEMENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"invalid type; one of {sorted(_ANNOUNCEMENT_TYPES)}")
+    if type:
+        rows = conn.execute(
+            "SELECT * FROM announcements WHERE type = ? ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
+            (type, limit, offset),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM announcements ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+    return {"announcements": [dict(r) for r in rows], "count": len(rows)}
+
+
+@app.get("/announcements/counts")
+def announcement_counts():
+    """One-shot tab counts: how many items per type."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT type, COUNT(*) AS n FROM announcements GROUP BY type"
+    ).fetchall()
+    return {"counts": {r["type"]: r["n"] for r in rows}}
+
+
+@app.post("/admin/announcements")
+def bulk_insert_announcements(secret: str = Query(...), payload: dict = Body(...)):
+    """Idempotent bulk insert keyed by source_url."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    items = payload.get("announcements", [])
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="announcements must be a list")
+    conn = get_db()
+    inserted = 0
+    for it in items:
+        t = (it.get("type") or "").strip()
+        url = (it.get("source_url") or "").strip()
+        title = (it.get("title") or "").strip()
+        if not t or not url or not title or t not in _ANNOUNCEMENT_TYPES:
+            continue
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO announcements
+                (type, title, exam_name, organisation, release_date,
+                 source, source_url, description, scraped_at)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (
+                t, title[:300],
+                (it.get("exam_name") or "")[:120],
+                (it.get("organisation") or "")[:120],
+                it.get("release_date") or "",
+                (it.get("source") or "")[:80],
+                url,
+                (it.get("description") or "")[:800],
+                it.get("scraped_at") or datetime.now().isoformat(),
+            ))
+            inserted += 1
+        except Exception:
+            pass
+    return {"inserted": inserted, "total": len(items)}
+
+
+@app.post("/admin/scrape-announcements")
+def scrape_announcements_endpoint(secret: str = Query(...)):
+    """Run the scraper's announcement pass and bulk-insert results."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    try:
+        import scraper as _scr
+        items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"scrape error: {e}")
+    conn = get_db()
+    inserted = 0
+    for it in items:
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO announcements
+                (type, title, exam_name, organisation, release_date,
+                 source, source_url, description, scraped_at)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (
+                it["type"], it["title"][:300],
+                it.get("exam_name", "")[:120],
+                it.get("organisation", "")[:120],
+                it.get("release_date", ""),
+                it.get("source", "")[:80],
+                it["source_url"],
+                it.get("description", "")[:800],
+                it.get("scraped_at") or datetime.now().isoformat(),
+            ))
+            inserted += 1
+        except Exception:
+            pass
+    return {"inserted": inserted, "total": len(items)}
 
 
 @app.post("/admin/bulk_import")

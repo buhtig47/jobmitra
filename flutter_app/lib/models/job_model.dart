@@ -427,3 +427,63 @@ class CurrentAffair {
     sourceUrl:  j['source_url']  ?? '',
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// Announcement (admit cards, results, answer keys, cut-offs, syllabus, exam dates)
+// ─────────────────────────────────────────────────────────────
+class Announcement {
+  final int    id;
+  final String type;           // admit_card | result | answer_key | cutoff | syllabus | exam_date
+  final String title;
+  final String organisation;   // e.g. SSC, UPSC, RRB
+  final String releaseDate;    // ISO yyyy-mm-dd or empty
+  final String source;
+  final String sourceUrl;
+  final String description;
+  final String scrapedAt;
+
+  const Announcement({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.organisation,
+    required this.releaseDate,
+    required this.source,
+    required this.sourceUrl,
+    required this.description,
+    required this.scrapedAt,
+  });
+
+  factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
+    id:           j['id']           ?? 0,
+    type:         j['type']         ?? 'result',
+    title:        j['title']        ?? '',
+    organisation: j['organisation'] ?? '',
+    releaseDate:  j['release_date'] ?? '',
+    source:       j['source']       ?? '',
+    sourceUrl:    j['source_url']   ?? '',
+    description:  j['description']  ?? '',
+    scrapedAt:    j['scraped_at']   ?? '',
+  );
+
+  static const Map<String, String> typeLabels = {
+    'admit_card': 'Admit Cards',
+    'result':     'Results',
+    'answer_key': 'Answer Keys',
+    'cutoff':     'Cut-offs',
+    'syllabus':   'Syllabus',
+    'exam_date':  'Exam Dates',
+  };
+
+  static const Map<String, String> typeEmojis = {
+    'admit_card': '🎟️',
+    'result':     '📊',
+    'answer_key': '🔑',
+    'cutoff':     '✂️',
+    'syllabus':   '📚',
+    'exam_date':  '📅',
+  };
+
+  String get typeLabel => typeLabels[type] ?? type;
+  String get typeEmoji => typeEmojis[type] ?? '📌';
+}
