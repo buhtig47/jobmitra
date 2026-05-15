@@ -9,7 +9,10 @@ plugins {
 }
 android {
     namespace = "com.example.jobmitra"
-    compileSdk = flutter.compileSdkVersion
+    // Bumped from flutter.compileSdkVersion (30) — androidx.core 1.17.0
+    // (transitively pulled in by the `printing` package) requires compileSdk
+    // 36. Stays compatible with minSdk 21 via runtime checks.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -38,7 +41,10 @@ android {
     defaultConfig {
         applicationId = "com.jobmitra.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Play Store requires targetSdk 34+ for new app submissions as of
+        // Aug 2024. Bumped from flutter.targetSdkVersion (33) to clear the
+        // listing reviewer warning and the `printing` package's API 31 deps.
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
