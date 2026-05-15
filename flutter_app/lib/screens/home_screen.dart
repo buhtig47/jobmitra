@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -172,11 +173,33 @@ class _FeedTabState extends State<_FeedTab> {
   String _sortBy = 'deadline'; // deadline | vacancies | newest
   UserProfile? _profile;
   int _activeAlertCount = 0;
+  String? _stateOverride; // null = use profile state; "all_india" = drop filter
+
+  static const _kStatePrefKey = 'home_state_override';
+
+  // Top-12 traffic states for govt-job searches in India (incl. All India)
+  static const List<(String, String)> _stateChips = [
+    ('', '🇮🇳 All India'),
+    ('up',           '🛕 UP'),
+    ('bihar',        '🪔 Bihar'),
+    ('maharashtra',  '🏙️ Maharashtra'),
+    ('rajasthan',    '🏜️ Rajasthan'),
+    ('mp',           '🌾 MP'),
+    ('west bengal',  '🐅 West Bengal'),
+    ('karnataka',    '☕ Karnataka'),
+    ('tamil nadu',   '🌴 Tamil Nadu'),
+    ('gujarat',      '🦁 Gujarat'),
+    ('delhi',        '🏛️ Delhi'),
+    ('punjab',       '🌾 Punjab'),
+    ('haryana',      '🌾 Haryana'),
+    ('odisha',       '🏛️ Odisha'),
+    ('telangana',    '🏛️ Telangana'),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadJobs();
+    _restoreStateOverride().then((_) => _loadJobs());
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
     });
@@ -222,7 +245,11 @@ class _FeedTabState extends State<_FeedTab> {
       setState(() => _isLoading = true);
     }
 
-    final data = await widget.api.getJobFeed(userId: widget.userId, page: _page);
+    final data = await widget.api.getJobFeed(
+      userId: widget.userId,
+      page: _page,
+      stateOverride: _stateOverride,
+    );
     if (!mounted) return;
     final freshJobs = data['jobs'] as List<Job>;
     final wasCached = data['is_cached'] as bool? ?? false;
@@ -396,6 +423,8 @@ class _FeedTabState extends State<_FeedTab> {
       ),
       body: Column(
         children: [
+          // State landing chips (top-traffic Indian states)
+          _buildStateBar(),
           // Category filter chips + free toggle
           _buildFilterBar(),
           // Sort bar
@@ -492,6 +521,65 @@ class _FeedTabState extends State<_FeedTab> {
             child: Icon(Icons.refresh_rounded, size: 20, color: Colors.amber[800]),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _restoreStateOverride() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kStatePrefKey);
+    if (mounted) setState(() => _stateOverride = saved);
+  }
+
+  Future<void> _setStateOverride(String? code) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (code == null || code.isEmpty) {
+      await prefs.remove(_kStatePrefKey);
+    } else {
+      await prefs.setString(_kStatePrefKey, code);
+    }
+    if (!mounted) return;
+    setState(() => _stateOverride = (code == null || code.isEmpty) ? null : code);
+    _loadJobs(refresh: true);
+  }
+
+  Widget _buildStateBar() {
+    return Container(
+      height: 44,
+      color: Colors.white,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        itemCount: _stateChips.length,
+        itemBuilder: (ctx, i) {
+          final (code, label) = _stateChips[i];
+          final isAll       = code.isEmpty;
+          final isAllIndia  = isAll;
+          final apiValue    = isAllIndia ? 'all_india' : code;
+          final selected = isAllIndia
+              ? (_stateOverride == 'all_india')
+              : (_stateOverride == code);
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: (_) => _setStateOverride(selected ? null : apiValue),
+              selectedColor: AppColors.primary.withValues(alpha: 0.18),
+              labelStyle: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 12,
+              ),
+              visualDensity: VisualDensity.compact,
+              side: BorderSide(
+                color: selected
+                    ? AppColors.primary.withValues(alpha: 0.4)
+                    : Colors.grey.shade300,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

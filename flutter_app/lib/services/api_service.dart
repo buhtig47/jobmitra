@@ -92,17 +92,32 @@ class ApiService {
     } catch (_) { return []; }
   }
 
-  Future<Map<String, dynamic>> getJobFeed({required int userId, int page = 1}) async {
+  /// [stateOverride] — optional. Pass a state code (eg "up", "bihar") to override
+  /// the user's profile state for this call, or "all_india" to drop state filter.
+  Future<Map<String, dynamic>> getJobFeed({
+    required int userId,
+    int page = 1,
+    String? stateOverride,
+  }) async {
     final box = Hive.box('jobs_cache');
+    final params = StringBuffer('user_id=$userId&page=$page&page_size=20');
+    if (stateOverride != null && stateOverride.isNotEmpty) {
+      params.write('&state=${Uri.encodeQueryComponent(stateOverride)}');
+    }
+    // Cache key isolates per state so switching tabs doesn't clobber the default feed
+    final cacheKey = (stateOverride == null || stateOverride.isEmpty)
+        ? 'feed_jobs'
+        : 'feed_jobs_${stateOverride.toLowerCase()}';
+    final cacheTsKey = '${cacheKey}_ts';
+
     try {
-      final res = await _get('$kApiBase/jobs/feed?user_id=$userId&page=$page&page_size=20');
+      final res = await _get('$kApiBase/jobs/feed?$params');
       if (res != null) {
         final data = jsonDecode(res.body);
         final jobs = (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();
-        // Cache first page for offline fallback
         if (page == 1) {
-          await box.put('feed_jobs', res.body);
-          await box.put('feed_timestamp', DateTime.now().toIso8601String());
+          await box.put(cacheKey, res.body);
+          await box.put(cacheTsKey, DateTime.now().toIso8601String());
         }
         return {
           'jobs': jobs,
@@ -113,9 +128,8 @@ class ApiService {
       }
     } catch (e) { print('Feed error: $e'); }
 
-    // Network failed — load from Hive cache
-    final cached = box.get('feed_jobs') as String?;
-    final timestamp = box.get('feed_timestamp') as String?;
+    final cached = box.get(cacheKey) as String?;
+    final timestamp = box.get(cacheTsKey) as String?;
     if (cached != null) {
       try {
         final data = jsonDecode(cached);

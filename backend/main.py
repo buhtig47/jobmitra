@@ -626,13 +626,24 @@ def register_user(profile: UserProfile):
 
 
 @app.get("/jobs/feed")
-def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
+def get_job_feed(
+    user_id: int,
+    page: int = 1,
+    page_size: int = 20,
+    state: Optional[str] = None,
+):
+    """
+    state=<code>     → override profile state filter for this call
+    state=all_india  → drop state filter entirely
+    state=None       → use the user's saved profile state (default)
+    """
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user_state     = user["state"]
+    user_state     = state if state else user["state"]
+    skip_state     = (state or "").lower() == "all_india"
     user_education = user["education"]
     user_category  = user["category"]
     user_age       = user["age"]
@@ -659,8 +670,9 @@ def get_job_feed(user_id: int, page: int = 1, page_size: int = 20):
     eligible_jobs = []
     for job in jobs_raw:
         job_states = json.loads(job["states"] or '["all"]')
-        if "all" not in job_states and user_state.lower() not in [s.lower() for s in job_states]:
-            continue
+        if not skip_state:
+            if "all" not in job_states and user_state.lower() not in [s.lower() for s in job_states]:
+                continue
 
         job_quals = json.loads(job["qualifications"] or '["graduate"]')
         if not user_qualifies(user_education, job_quals):
