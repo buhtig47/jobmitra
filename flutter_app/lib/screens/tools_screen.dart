@@ -1,5 +1,6 @@
 // lib/screens/tools_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
 import 'salary_calculator_screen.dart';
@@ -13,17 +14,233 @@ import 'age_calculator_screen.dart';
 import 'daily_quiz_screen.dart';
 import 'announcements_screen.dart';
 
-class ToolsScreen extends StatelessWidget {
+class ToolsScreen extends StatefulWidget {
   final ApiService api;
   const ToolsScreen({super.key, required this.api});
 
   @override
+  State<ToolsScreen> createState() => _ToolsScreenState();
+}
+
+// Pin + Recent persistence keys. Bump _kPrefsVersion if the tool ID set ever
+// breaks compat (e.g. an ID is renamed) so stale prefs flush cleanly.
+const _kPinnedKey  = 'tools_pinned_ids_v1';
+const _kRecentKey  = 'tools_recent_ids_v1';
+const _kRecentMax  = 3;
+
+class _ToolsScreenState extends State<ToolsScreen> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  Set<String> _pinned = {};
+  List<String> _recent = [];
+  Map<String, int> _annCounts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+    _loadAnnouncementCounts();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _pinned = (prefs.getStringList(_kPinnedKey) ?? const <String>[]).toSet();
+      _recent = prefs.getStringList(_kRecentKey) ?? const <String>[];
+    });
+  }
+
+  Future<void> _loadAnnouncementCounts() async {
+    final counts = await widget.api.getAnnouncementCounts();
+    if (!mounted) return;
+    setState(() => _annCounts = counts);
+  }
+
+  Future<void> _togglePin(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final next = Set<String>.from(_pinned);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    await prefs.setStringList(_kPinnedKey, next.toList());
+    if (!mounted) return;
+    setState(() => _pinned = next);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(next.contains(id) ? 'Pinned' : 'Unpinned',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  Future<void> _markRecent(String id) async {
+    final next = <String>[id, ..._recent.where((x) => x != id)];
+    if (next.length > _kRecentMax) next.removeRange(_kRecentMax, next.length);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kRecentKey, next);
+    if (!mounted) return;
+    setState(() => _recent = next);
+  }
+
+  void _open(_ToolDef def) {
+    _markRecent(def.id);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => def.builder(widget.api)));
+  }
+
+  // ── Source of truth for every tile. Add a new tool here and it shows up
+  // in search, pin, and recents automatically.
+  List<_ToolDef> get _allTools => [
+        _ToolDef(
+          id: 'salary',
+          emoji: '💰',
+          title: 'Salary Calculator',
+          subtitle: '7th CPC in-hand salary — levels 1–18, tax, DA, 5-yr growth',
+          section: 'Finance',
+          color: const Color(0xFF2E7D32),
+          builder: (_) => const SalaryCalculatorScreen(),
+        ),
+        _ToolDef(
+          id: 'age',
+          emoji: '🎂',
+          title: 'Age Eligibility Calculator',
+          subtitle: 'Check if you qualify — UPSC, SSC, RRB, Banking by category',
+          section: 'Finance',
+          color: const Color(0xFF6A1B9A),
+          builder: (_) => const AgeCalculatorScreen(),
+        ),
+        _ToolDef(
+          id: 'quiz',
+          emoji: '🧠',
+          title: 'Daily GK Quiz',
+          subtitle: '5 questions every day — streak, score, 60-day rotation',
+          section: 'Practice',
+          color: const Color(0xFF4A148C),
+          tag: 'Daily',
+          builder: (api) => DailyQuizScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'mock',
+          emoji: '📝',
+          title: 'Mock Tests',
+          subtitle: 'SSC, RRB, Banking, UPSC — 185 PYQ-based questions',
+          section: 'Practice',
+          color: const Color(0xFF1565C0),
+          builder: (api) => MockTestScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'ca',
+          emoji: '📰',
+          title: 'Daily Current Affairs',
+          subtitle: 'Auto-updated twice daily — polity, economy, science',
+          section: 'Practice',
+          color: const Color(0xFFE65100),
+          builder: (api) => CurrentAffairsScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'ann',
+          emoji: '🎟️',
+          title: 'Admit Cards & Results',
+          subtitle: 'Admit cards, results, answer keys, cut-offs — all exams',
+          section: 'Practice',
+          color: const Color(0xFFC62828),
+          badge: () => _annTotal,
+          builder: (api) => AnnouncementsScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'cal',
+          emoji: '🗓️',
+          title: 'Exam Calendar',
+          subtitle: 'UPSC, SSC, Banking, Railway — 2025-26 important dates',
+          section: 'Planning',
+          color: const Color(0xFF1565C0),
+          builder: (_) => const ExamCalendarScreen(),
+        ),
+        _ToolDef(
+          id: 'compete',
+          emoji: '⚔️',
+          title: 'Competition Analysis',
+          subtitle: 'How many candidates per post? See your real odds',
+          section: 'Analysis',
+          color: const Color(0xFFB71C1C),
+          builder: (_) => const CompetitionScreen(),
+        ),
+        _ToolDef(
+          id: 'roadmap',
+          emoji: '🗺️',
+          title: 'Career Roadmap',
+          subtitle: 'Best exam path based on your age & qualification',
+          section: 'Analysis',
+          color: const Color(0xFF4A148C),
+          builder: (api) => CareerRoadmapScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'dept',
+          emoji: '🏢',
+          title: 'Department Profiles',
+          subtitle: 'DRDO, ISRO, Railways, Banks — salary & perks',
+          section: 'Analysis',
+          color: const Color(0xFF1A237E),
+          builder: (_) => const DeptProfilesScreen(),
+        ),
+      ];
+
+  int get _annTotal =>
+      _annCounts.values.fold<int>(0, (sum, n) => sum + n);
+
+  bool _matchesQuery(_ToolDef t) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return t.title.toLowerCase().contains(q) ||
+        t.subtitle.toLowerCase().contains(q) ||
+        t.section.toLowerCase().contains(q);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final tools = _allTools;
+    final byId = {for (final t in tools) t.id: t};
+    final filtered = tools.where(_matchesQuery).toList();
+
+    final pinnedTiles = _pinned
+        .map((id) => byId[id])
+        .whereType<_ToolDef>()
+        .where(_matchesQuery)
+        .toList();
+    final recentTiles = _recent
+        .map((id) => byId[id])
+        .whereType<_ToolDef>()
+        .where((t) => !_pinned.contains(t.id))
+        .where(_matchesQuery)
+        .toList();
+
+    // Group remainder by section, dropping anything already in pinned/recent.
+    final shown = {...pinnedTiles.map((t) => t.id), ...recentTiles.map((t) => t.id)};
+    final remaining = filtered.where((t) => !shown.contains(t.id)).toList();
+    final bySection = <String, List<_ToolDef>>{};
+    for (final t in remaining) {
+      bySection.putIfAbsent(t.section, () => <_ToolDef>[]).add(t);
+    }
+    const sectionOrder = ['Finance', 'Practice', 'Planning', 'Analysis'];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          // ── Header ──
+          // ── Header + search ──
           SliverToBoxAdapter(
             child: Container(
               decoration: const BoxDecoration(
@@ -36,13 +253,44 @@ class ToolsScreen extends StatelessWidget {
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('🛠️ Tools', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+                      const Text('🛠️ Tools',
+                          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Text('Salary, GK Quiz, eligibility, roadmap — all in one place', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                      Text('Long-press to pin • Tap to use',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12)),
+                      const SizedBox(height: 14),
+                      // Search field
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: (v) => setState(() => _query = v.trim()),
+                          decoration: InputDecoration(
+                            hintText: 'Search tools — quiz, salary, calendar…',
+                            hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () {
+                                      _searchCtrl.clear();
+                                      setState(() => _query = '');
+                                    },
+                                  ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -50,124 +298,42 @@ class ToolsScreen extends StatelessWidget {
             ),
           ),
 
-          // ── Tool cards ──
+          // ── Body ──
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                const SizedBox(height: 4),
-                _buildSectionLabel('💰 Finance'),
-                const SizedBox(height: 10),
-                _ToolCard(
-                  emoji: '💰',
-                  title: 'Salary Calculator',
-                  subtitle: '7th CPC in-hand salary — levels 1–18, tax, DA, 5-yr growth',
-                  color: const Color(0xFF2E7D32),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const SalaryCalculatorScreen())),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '🎂',
-                  title: 'Age Eligibility Calculator',
-                  subtitle: 'Check if you qualify — UPSC, SSC, RRB, Banking by category',
-                  color: const Color(0xFF6A1B9A),
-                  tag: 'New!',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const AgeCalculatorScreen())),
-                ),
-                const SizedBox(height: 20),
-                _buildSectionLabel('📚 Practice'),
-                const SizedBox(height: 10),
-                _ToolCard(
-                  emoji: '🧠',
-                  title: 'Daily GK Quiz',
-                  subtitle: '5 questions every day — streak, score, 60-day rotation',
-                  color: const Color(0xFF4A148C),
-                  tag: 'Daily!',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => DailyQuizScreen(api: api))),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '📝',
-                  title: 'Mock Tests',
-                  subtitle: 'SSC, RRB, Banking, UPSC — 185 PYQ-based questions',
-                  color: const Color(0xFF1565C0),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => MockTestScreen(api: api))),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '📰',
-                  title: 'Daily Current Affairs',
-                  subtitle: 'Auto-updated twice daily — polity, economy, science',
-                  color: const Color(0xFFE65100),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => CurrentAffairsScreen(api: api))),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '🎟️',
-                  title: 'Admit Cards & Results',
-                  subtitle: 'Admit cards, results, answer keys, cut-offs — all exams',
-                  color: const Color(0xFFC62828),
-                  tag: 'New!',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => AnnouncementsScreen(api: api))),
-                ),
-                const SizedBox(height: 20),
-                _buildSectionLabel('📅 Planning'),
-                const SizedBox(height: 10),
-                _ToolCard(
-                  emoji: '🗓️',
-                  title: 'Exam Calendar',
-                  subtitle: 'UPSC, SSC, Banking, Railway — 2025-26 important dates',
-                  color: const Color(0xFF1565C0),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ExamCalendarScreen())),
-                ),
-                const SizedBox(height: 20),
-                _buildSectionLabel('📊 Analysis'),
-                const SizedBox(height: 10),
-                _ToolCard(
-                  emoji: '⚔️',
-                  title: 'Competition Analysis',
-                  subtitle: 'How many candidates per post? See your real odds',
-                  color: const Color(0xFFB71C1C),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CompetitionScreen())),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '🗺️',
-                  title: 'Career Roadmap',
-                  subtitle: 'Best exam path based on your age & qualification',
-                  color: const Color(0xFF4A148C),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => CareerRoadmapScreen(api: api))),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  emoji: '🏢',
-                  title: 'Department Profiles',
-                  subtitle: 'DRDO, ISRO, Railways, Banks — salary & perks',
-                  color: const Color(0xFF1A237E),
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const DeptProfilesScreen())),
-                ),
-                const SizedBox(height: 20),
-                _buildSectionLabel('🚀 Coming Soon'),
-                const SizedBox(height: 10),
-                _ToolCard(
-                  emoji: '🤖',
-                  title: 'AI Job Match',
-                  subtitle: 'AI tells you which jobs fit your profile best',
-                  color: const Color(0xFF00695C),
-                  comingSoon: true,
-                  onTap: () => _showComingSoon(context, 'AI Job Match'),
-                ),
-                const SizedBox(height: 32),
+                if (pinnedTiles.isEmpty && recentTiles.isEmpty && remaining.isEmpty)
+                  _buildEmptyState(),
+                if (pinnedTiles.isNotEmpty) ...[
+                  _buildSectionLabel('📌 Pinned'),
+                  const SizedBox(height: 10),
+                  for (final t in pinnedTiles) ...[
+                    _buildTile(t, isPinned: true),
+                    const SizedBox(height: 12),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+                if (recentTiles.isNotEmpty) ...[
+                  _buildSectionLabel('🕒 Recently Used'),
+                  const SizedBox(height: 10),
+                  for (final t in recentTiles) ...[
+                    _buildTile(t, isPinned: false),
+                    const SizedBox(height: 12),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+                for (final s in sectionOrder)
+                  if ((bySection[s] ?? const []).isNotEmpty) ...[
+                    _buildSectionLabel('${_sectionEmoji(s)} $s'),
+                    const SizedBox(height: 10),
+                    for (final t in bySection[s]!) ...[
+                      _buildTile(t, isPinned: false),
+                      const SizedBox(height: 12),
+                    ],
+                    const SizedBox(height: 8),
+                  ],
+                const SizedBox(height: 24),
               ]),
             ),
           ),
@@ -176,75 +342,139 @@ class ToolsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionLabel(String text) {
-    return Text(text, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textSecondary));
+  String _sectionEmoji(String section) => switch (section) {
+        'Finance'  => '💰',
+        'Practice' => '📚',
+        'Planning' => '📅',
+        'Analysis' => '📊',
+        _          => '🔧',
+      };
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          Icon(Icons.search_off_rounded, size: 56, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text('"$_query" se koi tool match nahi hua',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          const SizedBox(height: 6),
+          Text('Try: salary, quiz, calendar, exam',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+        ],
+      ),
+    );
   }
 
-  void _showComingSoon(BuildContext context, String name) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$name — coming soon!', style: const TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
+  Widget _buildSectionLabel(String text) {
+    return Text(text,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textSecondary));
+  }
+
+  Widget _buildTile(_ToolDef t, {required bool isPinned}) {
+    return _ToolCard(
+      def: t,
+      isPinned: isPinned,
+      badgeCount: t.badge?.call(),
+      onTap: () => _open(t),
+      onLongPress: () => _togglePin(t.id),
     );
   }
 }
 
-class _ToolCard extends StatelessWidget {
-  final String       emoji;
-  final String       title;
-  final String       subtitle;
-  final Color        color;
-  final String?      tag;
-  final bool         comingSoon;
-  final VoidCallback onTap;
+class _ToolDef {
+  final String id;
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final String section;
+  final Color  color;
+  final String? tag;
+  final int Function()? badge;
+  final Widget Function(ApiService api) builder;
 
-  const _ToolCard({
+  const _ToolDef({
+    required this.id,
     required this.emoji,
     required this.title,
     required this.subtitle,
+    required this.section,
     required this.color,
-    required this.onTap,
+    required this.builder,
     this.tag,
-    this.comingSoon = false,
+    this.badge,
+  });
+}
+
+class _ToolCard extends StatelessWidget {
+  final _ToolDef def;
+  final bool     isPinned;
+  final int?     badgeCount;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const _ToolCard({
+    required this.def,
+    required this.isPinned,
+    required this.badgeCount,
+    required this.onTap,
+    required this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
+    final showBadge = badgeCount != null && badgeCount! > 0;
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
-          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 3))],
+          border: Border.all(color: def.color.withValues(alpha: 0.15)),
+          boxShadow: [BoxShadow(color: def.color.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: Row(
             children: [
-              // Color side bar
-              Container(
-                width: 6,
-                height: 80,
-                color: comingSoon ? Colors.grey[300] : color,
-              ),
+              Container(width: 6, height: 80, color: def.color),
               const SizedBox(width: 16),
-              // Icon
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: (comingSoon ? Colors.grey : color).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      color: def.color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(child: Text(def.emoji, style: const TextStyle(fontSize: 26))),
+                  ),
+                  if (showBadge)
+                    Positioned(
+                      top: -4, right: -4,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.red[700],
+                          shape: badgeCount! > 9 ? BoxShape.rectangle : BoxShape.circle,
+                          borderRadius: badgeCount! > 9 ? BorderRadius.circular(10) : null,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: Center(
+                          child: Text(
+                            badgeCount! > 99 ? '99+' : badgeCount!.toString(),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 14),
-              // Text
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -253,34 +483,37 @@ class _ToolCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: comingSoon ? Colors.grey[400] : AppColors.textPrimary)),
-                          if (tag != null) ...[
-                            const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(def.title,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
+                          ),
+                          if (def.tag != null) ...[
+                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(6)),
-                              child: Text(tag!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
+                              child: Text(def.tag!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
                             ),
                           ],
-                          if (comingSoon) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6)),
-                              child: Text('Soon', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey[500])),
-                            ),
+                          if (isPinned) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.push_pin, size: 12, color: AppColors.primary),
                           ],
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: TextStyle(fontSize: 12, color: comingSoon ? Colors.grey[400] : AppColors.textSecondary, height: 1.3)),
+                      Text(def.subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3)),
                     ],
                   ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.only(right: 14),
-                child: Icon(Icons.chevron_right_rounded, color: comingSoon ? Colors.grey[300] : color.withValues(alpha: 0.6)),
+                child: Icon(Icons.chevron_right_rounded, color: def.color.withValues(alpha: 0.6)),
               ),
             ],
           ),
