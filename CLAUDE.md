@@ -123,7 +123,17 @@ curl -X POST "https://jobmitra-api-830207301447.asia-south1.run.app/admin/scrape
 curl https://jobmitra-api-830207301447.asia-south1.run.app/stats
 
 # Clear app data
-adb shell pm clear com.example.jobmitra
+adb shell pm clear com.jobmitra.app
+
+# Release APK build (real AdMob unit IDs injected at build time)
+cd ~/jobmitra/flutter_app && flutter build apk --release \
+  --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
+  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182
+
+# Release AAB (for Play Store)
+cd ~/jobmitra/flutter_app && flutter build appbundle --release \
+  --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
+  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182
 
 # Flutter run
 cd ~/jobmitra/flutter_app && flutter run
