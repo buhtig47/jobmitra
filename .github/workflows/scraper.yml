@@ -5,6 +5,7 @@ on:
     - cron: '0 1 * * *'    # 6:30 AM IST — morning job scrape
     - cron: '0 13 * * *'   # 6:30 PM IST — evening job scrape
     - cron: '30 0 * * *'   # 6:00 AM IST — daily quiz scrape (once/day)
+    - cron: '30 2 * * *'   # 8:00 AM IST — deadline reminder push
   workflow_dispatch:
 
 env:
@@ -14,8 +15,8 @@ jobs:
   scrape-jobs:
     runs-on: ubuntu-latest
     if: >
-      github.event.schedule != '30 0 * * *' ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.schedule != '30 0 * * *' && github.event.schedule != '30 2 * * *')
     steps:
       - name: Warm Cloud Run
         run: curl -s --max-time 30 "${API_BASE}/stats" || true
@@ -65,3 +66,19 @@ jobs:
         run: |
           curl -s \
             "${API_BASE}/admin/quiz-stats?secret=${{ secrets.SCRAPER_SECRET }}" || true
+
+  deadline-alerts:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.schedule == '30 2 * * *' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Warm Cloud Run
+        run: curl -s --max-time 30 "${API_BASE}/stats" || true
+
+      - name: Fire deadline reminders for saved jobs
+        run: |
+          curl -s -X POST \
+            "${API_BASE}/admin/deadline-alerts?secret=${{ secrets.SCRAPER_SECRET }}" \
+            --max-time 120 || true
+          echo ""

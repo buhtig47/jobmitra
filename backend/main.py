@@ -1054,6 +1054,67 @@ def manual_notify(secret: str = Query(...), title: str = Query("🇮🇳 JobMitr
     return {"sent": sent, "total_users": len(tokens)}
 
 
+@app.post("/admin/deadline-alerts")
+def deadline_alerts(secret: str = Query(...)):
+    """
+    Send a personalised push to every user whose saved jobs are 0, 1, or 3
+    days from the last date. One push per user, batched by horizon.
+    Designed to be called once a day by GitHub Actions cron.
+    """
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT u.id AS user_id, u.fcm_token, j.title, j.last_date
+        FROM saved_jobs s
+        JOIN jobs j  ON s.job_id  = j.id
+        JOIN users u ON s.user_id = u.id
+        WHERE s.status = 'saved'
+          AND j.is_active = 1
+          AND u.fcm_token IS NOT NULL
+          AND u.fcm_token NOT IN ('', 'test')
+    """).fetchall()
+
+    today = datetime.now().date()
+    # per-user → list of (job_title, days_left) for jobs hitting the trigger
+    bucket: dict[tuple[int, str], list[tuple[str, int]]] = {}
+    for r in rows:
+        try:
+            ld = datetime.strptime(r["last_date"], "%d/%m/%Y").date()
+        except Exception:
+            continue
+        days_left = (ld - today).days
+        if days_left not in (0, 1, 3):
+            continue
+        key = (r["user_id"], r["fcm_token"])
+        bucket.setdefault(key, []).append((r["title"], days_left))
+
+    sent = 0
+    for (_, token), jobs in bucket.items():
+        # Pick most urgent for body
+        jobs.sort(key=lambda x: x[1])
+        first_title, first_days = jobs[0]
+        if first_days == 0:
+            hdr = "Aaj last date hai!"
+        elif first_days == 1:
+            hdr = "Kal last date hai!"
+        else:
+            hdr = f"{first_days} din mein last date"
+        if len(jobs) == 1:
+            body = f"{first_title[:90]} — {hdr}"
+        else:
+            body = f"{first_title[:60]}… +{len(jobs)-1} aur saved jobs — {hdr}"
+        ok = send_fcm_to_tokens(
+            [token],
+            title="⏰ Deadline reminder",
+            body=body[:240],
+            data={"deeplink": "saved", "days": first_days},
+        )
+        if ok:
+            sent += 1
+    return {"users_notified": sent, "buckets": len(bucket), "rows_scanned": len(rows)}
+
+
 @app.post("/admin/reset_jobs")
 def reset_jobs(secret: str = Query(...)):
     """Delete all jobs and re-scrape fresh — fixes duplicates"""
