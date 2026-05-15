@@ -1457,35 +1457,55 @@ ANNOUNCEMENT_ORG_TOPICS = {
 }
 
 
+# Announcements older than this drop off public reads. Stale admit cards
+# and results clutter the feed and confuse users into thinking the exam is
+# still live. Stored rows aren't deleted — just filtered out — so audit
+# history stays intact.
+_ANNOUNCEMENT_TTL_DAYS = 90
+
+
+def _announcement_cutoff_iso() -> str:
+    return (datetime.now() - timedelta(days=_ANNOUNCEMENT_TTL_DAYS)).isoformat()
+
+
 @app.get("/announcements")
 def list_announcements(
     type: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    """Public read. Optional ?type=admit_card|result|answer_key|cutoff|syllabus|exam_date"""
+    """Public read. Returns only announcements scraped within the last
+    _ANNOUNCEMENT_TTL_DAYS (90 days). Optional ?type filter."""
     conn = get_db()
     if type and type not in _ANNOUNCEMENT_TYPES:
         raise HTTPException(status_code=400, detail=f"invalid type; one of {sorted(_ANNOUNCEMENT_TYPES)}")
+    cutoff = _announcement_cutoff_iso()
     if type:
         rows = conn.execute(
-            "SELECT * FROM announcements WHERE type = ? ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
-            (type, limit, offset),
+            "SELECT * FROM announcements "
+            "WHERE type = ? AND scraped_at >= ? "
+            "ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
+            (type, cutoff, limit, offset),
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT * FROM announcements ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
+            "SELECT * FROM announcements "
+            "WHERE scraped_at >= ? "
+            "ORDER BY scraped_at DESC LIMIT ? OFFSET ?",
+            (cutoff, limit, offset),
         ).fetchall()
     return {"announcements": [dict(r) for r in rows], "count": len(rows)}
 
 
 @app.get("/announcements/counts")
 def announcement_counts():
-    """One-shot tab counts: how many items per type."""
+    """One-shot tab counts within the same TTL window list_announcements uses,
+    otherwise the badge numbers diverge from the feed contents."""
     conn = get_db()
     rows = conn.execute(
-        "SELECT type, COUNT(*) AS n FROM announcements GROUP BY type"
+        "SELECT type, COUNT(*) AS n FROM announcements "
+        "WHERE scraped_at >= ? GROUP BY type",
+        (_announcement_cutoff_iso(),),
     ).fetchall()
     return {"counts": {r["type"]: r["n"] for r in rows}}
 

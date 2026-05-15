@@ -2310,12 +2310,25 @@ _ANN_ORG_RE = re.compile(
 )
 
 def _classify_announcement(text: str):
+    """Return the announcement type with the strongest signal in `text`.
+
+    The previous implementation returned the *first* matching regex in
+    declaration order, so a single clickbait article mentioning "admit card,
+    result, answer key" all got classified as admit_card. We now count match
+    hits per pattern (each occurrence is a vote) and pick the highest score;
+    ties resolve by the declaration order, which doubles as a priority list
+    (admit_card before answer_key before result, etc.)."""
     if not text:
         return None
-    for kind, pat in _ANNOUNCE_PATTERNS:
-        if pat.search(text):
-            return kind
-    return None
+    scores: list[tuple[int, int, str]] = []  # (-score, priority, kind)
+    for priority, (kind, pat) in enumerate(_ANNOUNCE_PATTERNS):
+        n = len(pat.findall(text))
+        if n > 0:
+            scores.append((-n, priority, kind))
+    if not scores:
+        return None
+    scores.sort()  # most matches first; lower priority index wins on tie
+    return scores[0][2]
 
 
 def _extract_announcement_org(title: str) -> str:
