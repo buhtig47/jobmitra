@@ -9,6 +9,7 @@ import '../services/ad_service.dart';
 import '../utils/constants.dart';
 import '../widgets/profile_fill_sheet.dart';
 import '../services/cheatsheet_pdf.dart';
+import 'compare_exams_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -398,6 +399,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         _buildCheatsheetCard(),
         const SizedBox(height: 12),
 
+        // Compare with another exam
+        _buildCompareTile(),
+        const SizedBox(height: 12),
+
         // Qualifications
         _buildSection(
           '🎓 Qualifications',
@@ -664,6 +669,66 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildCompareTile() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        if (_job == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CompareJobPicker(seed: _job!, api: widget.api),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE65100).withValues(alpha: 0.18)),
+          boxShadow: [
+            BoxShadow(
+                color: const Color(0xFFE65100).withValues(alpha: 0.06),
+                blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE65100).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.compare_arrows_rounded,
+                  color: Color(0xFFE65100), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Compare with another exam',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  SizedBox(height: 2),
+                  Text(
+                    'Side-by-side — vacancy, fee, age, last date dekho ek saath',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11.5,
+                        height: 1.35),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSection(String title, String content) {
