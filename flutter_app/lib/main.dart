@@ -50,6 +50,12 @@ void main() async {
       final prefs2 = await SharedPreferences.getInstance();
       await prefs2.setString('fcm_token', token);
     });
+
+    // Topic subscription — backend pushes announcement digest to this topic.
+    // Free fan-out, no per-token storage on backend.
+    try {
+      await FirebaseMessaging.instance.subscribeToTopic('jobmitra_announcements');
+    } catch (_) {}
   } catch (_) {}
 
   // 3. Local notifications + FCM foreground handler

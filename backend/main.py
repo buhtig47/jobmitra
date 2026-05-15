@@ -379,28 +379,72 @@ def user_qualifies(user_education: str, job_qualifications: list) -> bool:
 
 def _get_fcm_access_token() -> Optional[str]:
     """
-    Get OAuth2 access token for FCM v1 API.
-    Requires FIREBASE_CREDENTIALS_B64 env var — base64-encoded service account JSON.
-    Get it: Firebase Console → Project Settings → Service accounts → Generate new private key
-    Then: base64 -w0 serviceAccountKey.json
+    Get OAuth2 access token for FCM v1 API. Two strategies:
+
+      1) FIREBASE_CREDENTIALS_B64 env var (base64 service account JSON) — legacy
+      2) Application Default Credentials (Cloud Run compute SA with role
+         roles/firebasecloudmessaging.admin) — preferred on Google infra
+
+    Returns None when neither strategy works.
     """
+    import google.auth.transport.requests as ga_requests
+    scopes = ["https://www.googleapis.com/auth/firebase.messaging"]
+
     creds_b64 = os.getenv("FIREBASE_CREDENTIALS_B64", "")
-    if not creds_b64:
-        return None
+    if creds_b64:
+        try:
+            creds_json = json.loads(base64.b64decode(creds_b64).decode())
+            import google.oauth2.service_account as sa
+            credentials = sa.Credentials.from_service_account_info(creds_json, scopes=scopes)
+            credentials.refresh(ga_requests.Request())
+            return credentials.token
+        except Exception as e:
+            print(f"FCM (B64) token error: {e}")
+
+    # ADC fallback — works on Cloud Run when the SA has Firebase Messaging access.
     try:
-        creds_json = json.loads(base64.b64decode(creds_b64).decode())
-        # Use google-auth to get access token
-        import google.oauth2.service_account as sa
-        import google.auth.transport.requests as ga_requests
-        credentials = sa.Credentials.from_service_account_info(
-            creds_json,
-            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
-        )
+        import google.auth
+        credentials, _ = google.auth.default(scopes=scopes)
         credentials.refresh(ga_requests.Request())
         return credentials.token
     except Exception as e:
-        print(f"FCM token error: {e}")
+        print(f"FCM (ADC) token error: {e}")
         return None
+
+
+def send_fcm_to_topic(topic: str, title: str, body: str, data: dict = None) -> bool:
+    """Send one FCM v1 message to a topic. Returns True on HTTP 200."""
+    access_token = _get_fcm_access_token()
+    if not access_token:
+        return False
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "jobmitra-17db0")
+    url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+    payload = {
+        "message": {
+            "topic": topic,
+            "notification": {"title": title, "body": body},
+            "android": {
+                "notification": {
+                    "channel_id": "new_jobs_channel",
+                    "sound": "default",
+                }
+            },
+            "data": {k: str(v) for k, v in (data or {}).items()},
+        }
+    }
+    try:
+        r = _requests.post(
+            url,
+            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=10,
+        )
+        if r.status_code != 200:
+            print(f"FCM topic send {r.status_code}: {r.text[:200]}")
+        return r.status_code == 200
+    except Exception as e:
+        print(f"FCM topic error: {e}")
+        return False
 
 
 def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = None) -> int:
@@ -1178,9 +1222,19 @@ def bulk_insert_announcements(secret: str = Query(...), payload: dict = Body(...
     return {"inserted": inserted, "total": len(items)}
 
 
+@app.post("/admin/test-push")
+def test_push(secret: str = Query(...), topic: str = Query("jobmitra_announcements"),
+              title: str = Query("Test"), body: str = Query("Smoke test")):
+    """Admin smoke test for FCM topic push."""
+    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    ok = send_fcm_to_topic(topic, title, body, data={"deeplink": "announcements"})
+    return {"pushed": ok, "topic": topic}
+
+
 @app.post("/admin/scrape-announcements")
 def scrape_announcements_endpoint(secret: str = Query(...)):
-    """Run the scraper's announcement pass and bulk-insert results."""
+    """Run the scraper's announcement pass, insert results, push digest."""
     if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
@@ -1188,9 +1242,15 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
         items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"scrape error: {e}")
+
     conn = get_db()
-    inserted = 0
+    new_count = 0
+    per_type: dict[str, int] = {}
     for it in items:
+        url = it["source_url"]
+        existed = conn.execute(
+            "SELECT 1 FROM announcements WHERE source_url = ?", (url,)
+        ).fetchone()
         try:
             conn.execute("""
                 INSERT OR IGNORE INTO announcements
@@ -1203,14 +1263,39 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
                 it.get("organisation", "")[:120],
                 it.get("release_date", ""),
                 it.get("source", "")[:80],
-                it["source_url"],
+                url,
                 it.get("description", "")[:800],
                 it.get("scraped_at") or datetime.now().isoformat(),
             ))
-            inserted += 1
+            if not existed:
+                new_count += 1
+                per_type[it["type"]] = per_type.get(it["type"], 0) + 1
         except Exception:
             pass
-    return {"inserted": inserted, "total": len(items)}
+
+    # Digest push notification to topic — only when there are NEW items
+    pushed = False
+    if new_count > 0:
+        ann_labels = {
+            "admit_card": "admit cards", "result": "results",
+            "answer_key": "answer keys", "cutoff": "cut-offs",
+            "syllabus": "syllabus updates", "exam_date": "exam dates",
+        }
+        parts = []
+        for t, n in sorted(per_type.items(), key=lambda x: -x[1])[:3]:
+            parts.append(f"{n} {ann_labels.get(t, t)}")
+        body = ", ".join(parts) if parts else f"{new_count} new"
+        pushed = send_fcm_to_topic(
+            "jobmitra_announcements",
+            title="🇮🇳 Naye Updates",
+            body=body[:240],
+            data={"deeplink": "announcements", "count": new_count},
+        )
+
+    return {
+        "inserted": new_count, "total": len(items),
+        "by_type": per_type, "pushed": pushed,
+    }
 
 
 @app.post("/admin/bulk_import")

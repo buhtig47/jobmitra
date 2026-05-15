@@ -2,8 +2,10 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
+import '../screens/announcements_screen.dart';
 import '../main.dart' show navigatorKey;
 
 // Top-level handler — must be outside the class (FCM requirement)
@@ -58,18 +60,31 @@ class NotificationService {
         body: n.body ?? '',
         channelId: _newJobsChannelId,
         channelName: 'New Jobs',
-        payload: msg.data['screen'] ?? 'home',
+        payload: msg.data['deeplink'] ?? msg.data['screen'] ?? 'home',
       );
     });
 
     // Handle notification tap when app opened from background/terminated
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
-      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      _routeForPayload(msg.data['deeplink'] ?? msg.data['screen']);
     });
   }
 
   static void _onNotificationTap(NotificationResponse response) {
-    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    _routeForPayload(response.payload);
+  }
+
+  static void _routeForPayload(String? payload) {
+    final ctx = navigatorKey.currentContext;
+    final nav = navigatorKey.currentState;
+    if (nav == null || ctx == null) return;
+    if (payload == 'announcements') {
+      nav.push(MaterialPageRoute(
+        builder: (_) => AnnouncementsScreen(api: ApiService()),
+      ));
+    } else {
+      nav.popUntil((route) => route.isFirst);
+    }
   }
 
   static Future<void> _showLocalNotification({
