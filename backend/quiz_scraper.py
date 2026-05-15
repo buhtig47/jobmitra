@@ -25,7 +25,7 @@ import glob
 import hashlib
 
 # ── Config ──────────────────────────────────────────────────────────────────
-API_BASE = os.getenv("API_BASE", "https://jobmitra-api.onrender.com")
+API_BASE = os.getenv("API_BASE", "https://jobmitra-api-830207301447.asia-south1.run.app")
 SECRET   = os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024")
 HEADERS  = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 "

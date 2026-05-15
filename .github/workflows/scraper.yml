@@ -7,59 +7,54 @@ on:
     - cron: '30 0 * * *'   # 6:00 AM IST — daily quiz scrape (once/day)
   workflow_dispatch:
 
+env:
+  API_BASE: https://jobmitra-api-830207301447.asia-south1.run.app
+
 jobs:
   scrape-jobs:
     runs-on: ubuntu-latest
-    # Run on all schedules EXCEPT the quiz-only one (00:30 UTC)
     if: >
       github.event.schedule != '30 0 * * *' ||
       github.event_name == 'workflow_dispatch'
     steps:
-      - name: Wake up Render server
-        run: curl -s --max-time 60 "https://jobmitra-api.onrender.com/stats" || true
-
-      - name: Wait for cold start
-        run: sleep 60
+      - name: Warm Cloud Run
+        run: curl -s --max-time 30 "${API_BASE}/stats" || true
 
       - name: Scrape jobs
         run: |
           curl -s -X POST \
-            "https://jobmitra-api.onrender.com/admin/scrape?secret=${{ secrets.SCRAPER_SECRET }}" \
+            "${API_BASE}/admin/scrape?secret=${{ secrets.SCRAPER_SECRET }}" \
             --max-time 480 || true
           echo ""
 
       - name: Scrape current affairs
         run: |
           curl -s -X POST \
-            "https://jobmitra-api.onrender.com/admin/scrape-ca?secret=${{ secrets.SCRAPER_SECRET }}" \
+            "${API_BASE}/admin/scrape-ca?secret=${{ secrets.SCRAPER_SECRET }}" \
             --max-time 120 || true
           echo ""
 
       - name: Show stats
-        run: curl -s "https://jobmitra-api.onrender.com/stats" || true
+        run: curl -s "${API_BASE}/stats" || true
 
   scrape-quiz:
     runs-on: ubuntu-latest
-    needs: []   # run independently (different schedule)
-    # Only run on the 00:30 UTC schedule (daily quiz), or manual dispatch
+    needs: []
     if: >
       github.event.schedule == '30 0 * * *' ||
       github.event_name == 'workflow_dispatch'
     steps:
-      - name: Wake up Render server
-        run: curl -s --max-time 60 "https://jobmitra-api.onrender.com/stats" || true
-
-      - name: Wait for cold start
-        run: sleep 60
+      - name: Warm Cloud Run
+        run: curl -s --max-time 30 "${API_BASE}/stats" || true
 
       - name: Scrape quiz questions
         run: |
           curl -s -X POST \
-            "https://jobmitra-api.onrender.com/admin/scrape-quiz?secret=${{ secrets.SCRAPER_SECRET }}" \
+            "${API_BASE}/admin/scrape-quiz?secret=${{ secrets.SCRAPER_SECRET }}" \
             --max-time 600 || true
           echo ""
 
       - name: Show quiz stats
         run: |
           curl -s \
-            "https://jobmitra-api.onrender.com/admin/quiz-stats?secret=${{ secrets.SCRAPER_SECRET }}" || true
+            "${API_BASE}/admin/quiz-stats?secret=${{ secrets.SCRAPER_SECRET }}" || true

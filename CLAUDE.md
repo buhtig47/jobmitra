@@ -1,15 +1,18 @@
 ## Project Overview
 Indian Sarkari Naukri aggregator Android app.
-- **Live API**: https://jobmitra-api.onrender.com
+- **Live API**: https://jobmitra-api-830207301447.asia-south1.run.app (Google Cloud Run, asia-south1)
+- **Legacy API**: https://jobmitra-api.onrender.com (Render, deprecated — kill once Flutter ships)
 - **GitHub**: https://github.com/buhtig47/jobmitra
 - **Local path**: ~/jobmitra/
-- **Scraper secret**: `jobmitra_secret_2024`
+- **GCP project**: jobmitra-17db0
+- **Scraper secret**: `jobmitra_secret_2024` (synced to Secret Manager `SCRAPER_SECRET:latest` for Cloud Run, also in GitHub Secrets). Rotate later as a security pass.
 
 ## Stack
 | Layer | Tech |
 |-------|------|
-| Backend | FastAPI + SQLite, Python 3.11.8 |
-| Deploy | Render.com free tier |
+| Backend | FastAPI + Turso (libsql cloud), Python 3.11.8 |
+| Deploy | Google Cloud Run, asia-south1, scale-to-zero |
+| Secrets | Google Secret Manager (TURSO_URL, TURSO_TOKEN, SCRAPER_SECRET) |
 | Frontend | Flutter Android |
 | Font | Google Fonts — Poppins |
 | HTTP | package:http |
@@ -75,8 +78,8 @@ After adding: copy scraper.py to backend/ and push to GitHub.
 
 | Bug | Fix |
 |-----|-----|
-| Render cold start 50s | wakeUpServer() added in main.dart |
-| DB resets on Render redeploy | Re-run scraper after every deploy |
+| ~~Render cold start 50s~~ | Migrated to Cloud Run (asia-south1). Cold start ~2s. wakeUpServer() in main.dart now redundant — remove next pass |
+| ~~DB resets on Render redeploy~~ | Stale — Turso (cloud DB) used; persistent across deploys |
 | Hindi garbled text | Force UTF-8, filter mojibake in scraper |
 | user_id mismatch | adb shell pm clear com.example.jobmitra |
 
@@ -105,14 +108,19 @@ background = Color(0xFFF5F7F5)
 
 ## Deploy Commands
 ```bash
-# Push + auto-deploy
-cd ~/jobmitra && git add . && git commit -m "msg" && git push
+# Cloud Run redeploy (from backend/)
+cd ~/jobmitra/backend && gcloud run deploy jobmitra-api \
+  --source=. --region=asia-south1 --project=jobmitra-17db0 \
+  --set-secrets=TURSO_URL=TURSO_URL:latest,TURSO_TOKEN=TURSO_TOKEN:latest,SCRAPER_SECRET=SCRAPER_SECRET:latest
 
-# Import jobs to cloud
-curl -X POST "https://jobmitra-api.onrender.com/admin/scrape?secret=jobmitra_secret_2024"
+# Fetch SCRAPER_SECRET (for curl admin endpoints)
+SECRET=$(gcloud secrets versions access latest --secret=SCRAPER_SECRET --project=jobmitra-17db0)
 
-# Check cloud
-curl https://jobmitra-api.onrender.com/stats
+# Trigger scrape
+curl -X POST "https://jobmitra-api-830207301447.asia-south1.run.app/admin/scrape?secret=${SECRET}"
+
+# Check stats
+curl https://jobmitra-api-830207301447.asia-south1.run.app/stats
 
 # Clear app data
 adb shell pm clear com.example.jobmitra

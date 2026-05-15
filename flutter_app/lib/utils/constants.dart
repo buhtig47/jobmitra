@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // ─────────────────────────────────────────
-// API CONFIG — Change this to your Render URL
+// API CONFIG — Google Cloud Run (asia-south1, Mumbai)
 // ─────────────────────────────────────────
-// const String kApiBase = "https://jobmitra-api.onrender.com";
-// For local testing:
-const String kApiBase = "https://jobmitra-api.onrender.com";  // Android emulator
+const String kApiBase = "https://jobmitra-api-830207301447.asia-south1.run.app";
+// const String kApiBase = "https://jobmitra-api.onrender.com";  // legacy Render
 // const String kApiBase = "http://localhost:8000";  // iOS simulator
 
 // ─────────────────────────────────────────
