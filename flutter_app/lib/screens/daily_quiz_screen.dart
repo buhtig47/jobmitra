@@ -1,5 +1,7 @@
 // lib/screens/daily_quiz_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
@@ -547,9 +549,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             q['correct'] as int,
           )).toList();
         }
-      } catch (_) {}
+      } catch (e, st) {
+        if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
+      }
     }
 
+    if (!mounted) return;
     setState(() {
       _questions = apiQuestions ?? _allSets[setIndex];
       _loading = false;

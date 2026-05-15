@@ -131,9 +131,13 @@ List<Job> _deduplicateJobs(List<Job> jobs) {
   final drop = List<bool>.filled(jobs.length, false);
   for (var i = 0; i < jobs.length; i++) {
     if (drop[i]) continue;
+    // An empty token set has nothing to match — skip rather than risk a
+    // false-positive Jaccard=1.0 collapse of two empty-titled jobs.
+    if (tokens[i].isEmpty) continue;
     final stI = jobs[i].states.map((s) => s.toLowerCase()).toSet();
     for (var j = i + 1; j < jobs.length; j++) {
       if (drop[j]) continue;
+      if (tokens[j].isEmpty) continue;
       if (jobs[i].category != jobs[j].category) continue;
       final stJ = jobs[j].states.map((s) => s.toLowerCase()).toSet();
       final bothExplicit = !stI.contains('all') && stI.isNotEmpty &&
@@ -172,6 +176,10 @@ class _FeedTabState extends State<_FeedTab> {
   int  _page      = 1;
   bool _isCached  = false;
   DateTime? _cachedAt;
+  // Reentrancy guard — prevents a pull-to-refresh from racing an in-flight
+  // load and interleaving the resulting setState calls (which produced
+  // duplicate page-1 jobs and a brief flicker between cached/fresh).
+  bool _fetchInFlight = false;
 
   String? _selectedFilter; // null = all
   bool _freeOnly = false;  // free jobs toggle
@@ -234,52 +242,64 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   Future<void> _loadJobs({bool refresh = false}) async {
-    if (refresh) {
-      setState(() { _jobs.clear(); _page = 1; _hasMore = true; _isCached = false; });
-    }
+    if (_fetchInFlight) return;
+    _fetchInFlight = true;
+    try {
+      if (refresh) {
+        if (!mounted) return;
+        setState(() { _jobs.clear(); _page = 1; _hasMore = true; _isCached = false; });
+      }
 
-    // Page 1 first-load: show Hive cache immediately, then fetch fresh in background
-    if (_page == 1 && _jobs.isEmpty) {
-      final cached = await widget.api.getCachedFeed(stateOverride: _stateOverride);
-      if (cached.isNotEmpty && mounted) {
-        setState(() { _jobs.addAll(_deduplicateJobs(cached)); _isCached = true; _isLoading = false; });
+      // Page 1 first-load: show Hive cache immediately, then fetch fresh in background
+      if (_page == 1 && _jobs.isEmpty) {
+        final cached = await widget.api.getCachedFeed(stateOverride: _stateOverride);
+        if (!mounted) return;
+        if (cached.isNotEmpty) {
+          setState(() { _jobs.addAll(_deduplicateJobs(cached)); _isCached = true; _isLoading = false; });
+        } else {
+          setState(() => _isLoading = true);
+        }
       } else {
+        if (!mounted) return;
         setState(() => _isLoading = true);
       }
-    } else {
-      setState(() => _isLoading = true);
-    }
 
-    final data = await widget.api.getJobFeed(
-      userId: widget.userId,
-      page: _page,
-      stateOverride: _stateOverride,
-    );
-    if (!mounted) return;
-    final freshJobs = data['jobs'] as List<Job>;
-    final wasCached = data['is_cached'] as bool? ?? false;
-    setState(() {
-      if (_page == 1) _jobs.clear();
-      final existingIds = _jobs.map((j) => j.id).toSet();
-      _jobs.addAll(freshJobs.where((j) => !existingIds.contains(j.id)));
-      final deduped = _deduplicateJobs(List<Job>.from(_jobs));
-      _jobs..clear()..addAll(deduped);
-      _hasMore  = data['has_more'] as bool;
-      _isLoading = false;
-      _isCached  = wasCached;
-      if (wasCached && data['cached_at'] != null) {
-        _cachedAt = DateTime.tryParse(data['cached_at'] as String);
-      } else {
-        _isCached = false;
+      final data = await widget.api.getJobFeed(
+        userId: widget.userId,
+        page: _page,
+        stateOverride: _stateOverride,
+      );
+      if (!mounted) return;
+      final freshJobs = (data['jobs'] is List<Job>)
+          ? data['jobs'] as List<Job>
+          : <Job>[];
+      final wasCached = data['is_cached'] as bool? ?? false;
+      setState(() {
+        if (_page == 1) _jobs.clear();
+        final existingIds = _jobs.map((j) => j.id).toSet();
+        _jobs.addAll(freshJobs.where((j) => !existingIds.contains(j.id)));
+        final deduped = _deduplicateJobs(List<Job>.from(_jobs));
+        _jobs..clear()..addAll(deduped);
+        _hasMore  = data['has_more'] as bool? ?? false;
+        _isLoading = false;
+        _isCached  = wasCached;
+        if (wasCached && data['cached_at'] != null) {
+          _cachedAt = DateTime.tryParse(data['cached_at'] as String);
+        } else {
+          _isCached = false;
+        }
+      });
+      // Check smart alert rules against fresh (non-cached) jobs
+      if (!wasCached && _page == 1) {
+        NotificationService.checkAlerts(freshJobs, widget.api);
       }
-    });
-    // Check smart alert rules against fresh (non-cached) jobs
-    if (!wasCached && _page == 1) {
-      NotificationService.checkAlerts(freshJobs, widget.api);
+    } finally {
+      _fetchInFlight = false;
     }
   }
 
   void _loadMore() {
+    if (_fetchInFlight) return;
     _page++;
     _loadJobs();
   }

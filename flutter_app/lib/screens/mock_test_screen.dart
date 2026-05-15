@@ -1,6 +1,8 @@
 // lib/screens/mock_test_screen.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
@@ -658,7 +660,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
         _apiPyqPacks = pyq;
         _bestScores = map;
       });
-    } catch (_) {}
+    } catch (e, st) {
+      if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
+    }
   }
 
   static Color _colorFromHex(String hex) {
@@ -725,7 +729,10 @@ class _MockTestScreenState extends State<MockTestScreen> {
         ));
         return;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
+    }
+    if (!mounted) return;
     setState(() => _packLoading = false);
     // Fallback to local pack
     final local = [..._practicePacks, ..._pyqPacks]
