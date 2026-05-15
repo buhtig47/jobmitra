@@ -1080,12 +1080,25 @@ def manual_notify(secret: str = Query(...), title: str = Query("🇮🇳 JobMitr
     return {"sent": sent, "total_users": len(tokens)}
 
 
+# Per-horizon push copy. Audit recommended 3 separate sends — 2-day (more
+# action time), 1-day (last call), 0-day (final morning). Each horizon gets
+# its own push so a user with multiple saved jobs gets distinct nudges as
+# their deadlines roll in, instead of one merged blast on day 3.
+_DEADLINE_HORIZONS = (0, 1, 2)
+_DEADLINE_COPY = {
+    0: ("⏰ Aaj last date!",   "Aaj last date hai"),
+    1: ("⏰ Kal last date",    "Kal last date — apply karo"),
+    2: ("⏰ 2 din baad",       "2 din mein last date"),
+}
+
+
 @app.post("/admin/deadline-alerts")
 def deadline_alerts(secret: str = Query(...)):
     """
-    Send a personalised push to every user whose saved jobs are 0, 1, or 3
-    days from the last date. One push per user, batched by horizon.
-    Designed to be called once a day by GitHub Actions cron.
+    Send personalised pushes to every user whose saved jobs are 0, 1, or 2
+    days from the last date. One push **per (user, horizon)** so a user with
+    a job expiring today and another in 2 days gets two distinct nudges
+    instead of a single merged blast. Designed for a daily 8 AM IST cron.
     """
     require_admin(secret)
     conn = get_db()
@@ -1101,43 +1114,43 @@ def deadline_alerts(secret: str = Query(...)):
     """).fetchall()
 
     today = datetime.now().date()
-    # per-user → list of (job_title, days_left) for jobs hitting the trigger
-    bucket: dict[tuple[int, str], list[tuple[str, int]]] = {}
+    # (user_id, fcm_token, horizon) -> list[job_title]
+    bucket: dict[tuple[int, str, int], list[str]] = {}
     for r in rows:
         try:
             ld = datetime.strptime(r["last_date"], "%d/%m/%Y").date()
         except Exception:
             continue
         days_left = (ld - today).days
-        if days_left not in (0, 1, 3):
+        if days_left not in _DEADLINE_HORIZONS:
             continue
-        key = (r["user_id"], r["fcm_token"])
-        bucket.setdefault(key, []).append((r["title"], days_left))
+        key = (r["user_id"], r["fcm_token"], days_left)
+        bucket.setdefault(key, []).append(r["title"])
 
     sent = 0
-    for (_, token), jobs in bucket.items():
-        # Pick most urgent for body
-        jobs.sort(key=lambda x: x[1])
-        first_title, first_days = jobs[0]
-        if first_days == 0:
-            hdr = "Aaj last date hai!"
-        elif first_days == 1:
-            hdr = "Kal last date hai!"
+    per_horizon: dict[int, int] = {h: 0 for h in _DEADLINE_HORIZONS}
+    for (_, token, horizon), titles in bucket.items():
+        title_text, hdr = _DEADLINE_COPY[horizon]
+        first = titles[0]
+        if len(titles) == 1:
+            body = f"{first[:120]} — {hdr}"
         else:
-            hdr = f"{first_days} din mein last date"
-        if len(jobs) == 1:
-            body = f"{first_title[:90]} — {hdr}"
-        else:
-            body = f"{first_title[:60]}… +{len(jobs)-1} aur saved jobs — {hdr}"
+            body = f"{first[:60]}… +{len(titles) - 1} aur saved jobs — {hdr}"
         ok = send_fcm_to_tokens(
             [token],
-            title="⏰ Deadline reminder",
+            title=title_text,
             body=body[:240],
-            data={"deeplink": "saved", "days": first_days},
+            data={"deeplink": "saved", "days": horizon},
         )
         if ok:
             sent += 1
-    return {"users_notified": sent, "buckets": len(bucket), "rows_scanned": len(rows)}
+            per_horizon[horizon] = per_horizon.get(horizon, 0) + 1
+    return {
+        "users_notified":  sent,
+        "buckets":         len(bucket),
+        "rows_scanned":    len(rows),
+        "per_horizon":     per_horizon,
+    }
 
 
 @app.post("/admin/reset_jobs")
