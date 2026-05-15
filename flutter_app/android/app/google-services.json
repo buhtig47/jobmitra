@@ -9,18 +9,143 @@
       "client_info": {
         "mobilesdk_app_id": "1:830207301447:android:035810e4a51703930b1e62",
         "android_client_info": {
-          "package_name": "com.jobmitra.app"
+          "package_name": "com.example.jobmitra"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAc8lMootikjlWy5m3tOW6x_2O7kT9MP5E"
+        },
+        {
+          "current_key": "AIzaSyAwKUsOWTkCj8yDWjqYKjPcZIS4ko5EAHg"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830207301447:android:28b11ec392be298c0b1e62",
+        "android_client_info": {
+          "package_name": "com.jobmitra.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAc8lMootikjlWy5m3tOW6x_2O7kT9MP5E"
+        },
+        {
+          "current_key": "AIzaSyAwKUsOWTkCj8yDWjqYKjPcZIS4ko5EAHg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830207301447:android:fa245260474ee5320b1e62",
+        "android_client_info": {
+          "package_name": "com.leadmaps.leadmaps_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830207301447-vb3b54379cudlkv01eak8op09ubbf51a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leadmaps.leadmaps_app",
+            "certificate_hash": "7dcbebf6c6a887621ede02c2dd6d09f7ef18e01a"
+          }
+        },
+        {
+          "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAc8lMootikjlWy5m3tOW6x_2O7kT9MP5E"
+        },
+        {
+          "current_key": "AIzaSyAwKUsOWTkCj8yDWjqYKjPcZIS4ko5EAHg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830207301447:android:0447c6ff52be658f0b1e62",
+        "android_client_info": {
+          "package_name": "com.leadsmap.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830207301447-j5qcl5r731q28c37nfb23cgnekq9mif1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leadsmap.app",
+            "certificate_hash": "7dcbebf6c6a887621ede02c2dd6d09f7ef18e01a"
+          }
+        },
+        {
+          "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAc8lMootikjlWy5m3tOW6x_2O7kT9MP5E"
+        },
+        {
+          "current_key": "AIzaSyAwKUsOWTkCj8yDWjqYKjPcZIS4ko5EAHg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830207301447-2f624t8p6f6nvfif5ddb6mrak35saku1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
