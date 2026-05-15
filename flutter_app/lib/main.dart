@@ -1,10 +1,13 @@
 // lib/main.dart
+import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
@@ -25,6 +28,13 @@ Future<String> _ensureInstallId(SharedPreferences prefs) async {
 }
 
 void main() async {
+  // Wrap entry in a Zone so async errors hit Crashlytics too.
+  await runZonedGuarded<Future<void>>(_bootstrap, (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
+}
+
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 0. Warm Cloud Run backend — fire-and-forget so cold start begins immediately
@@ -37,6 +47,14 @@ void main() async {
   // 2. Firebase (needs to be before NotificationService which uses FirebaseMessaging)
   try {
     await Firebase.initializeApp();
+
+    // Crashlytics: only collect in release builds. Debug crashes stay local.
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
     await FirebaseMessaging.instance.requestPermission(
       alert: true, badge: true, sound: true,
     );
