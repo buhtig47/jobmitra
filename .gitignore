@@ -9,3 +9,8 @@ build/
 .dart_tool/
 *.g.dart
 pubspec.lock
+
+# Release signing — NEVER commit
+**/keystore.properties
+**/*.jks
+**/*.keystore

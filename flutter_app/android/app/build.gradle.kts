@@ -27,7 +27,8 @@ android {
             val propsFile = rootProject.file("keystore.properties")
             if (propsFile.exists()) {
                 props.load(propsFile.inputStream())
-                storeFile = file(props.getProperty("storeFile"))
+                // Resolve storeFile relative to android/ (rootProject), not android/app/
+                storeFile = rootProject.file(props.getProperty("storeFile"))
                 storePassword = props.getProperty("storePassword")
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
