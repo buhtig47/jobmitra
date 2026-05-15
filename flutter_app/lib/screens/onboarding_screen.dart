@@ -446,6 +446,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     final profile = UserProfile(
       fcmToken:  prefs.getString('fcm_token') ?? '',
+      installId: prefs.getString('install_id'),
       state:     _selectedState!,
       education: _selectedEducation!,
       category:  _selectedCategory!,

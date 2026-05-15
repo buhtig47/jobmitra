@@ -1,10 +1,8 @@
 // lib/services/ad_service.dart
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../utils/ad_ids.dart';
 
 class AdService {
-  // TODO: Replace with real IDs from AdMob console before release
-  static const _interstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
-
   static final AdService _instance = AdService._();
   factory AdService() => _instance;
   AdService._();
@@ -19,7 +17,7 @@ class AdService {
   // ── Interstitial Ad ──────────────────────────────────────
   void loadInterstitial() {
     InterstitialAd.load(
-      adUnitId: _interstitialAdUnitId,
+      adUnitId: AdIds.interstitial,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {

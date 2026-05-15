@@ -72,6 +72,7 @@ class ApiService {
     final json = jsonDecode(str);
     return UserProfile(
       fcmToken:  json['fcm_token']  ?? '',
+      installId: json['install_id'] ?? prefs.getString('install_id'),
       state:     json['state']      ?? '',
       education: json['education']  ?? 'graduate',
       category:  json['category']   ?? 'general',

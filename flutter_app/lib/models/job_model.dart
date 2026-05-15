@@ -346,6 +346,7 @@ class AlertRule {
 class UserProfile {
   final int?   id;
   final String fcmToken;
+  final String? installId;
   final String state;
   final String education;
   final String category;
@@ -356,6 +357,7 @@ class UserProfile {
   const UserProfile({
     this.id,
     required this.fcmToken,
+    this.installId,
     required this.state,
     required this.education,
     required this.category,
@@ -365,22 +367,24 @@ class UserProfile {
   });
 
   Map<String, dynamic> toJson() => {
-    'fcm_token': fcmToken,
-    'state':     state,
-    'education': education,
-    'category':  category,
-    'age':       age,
-    'job_types': jobTypes,
-    'language':  language,
+    'fcm_token':  fcmToken,
+    'install_id': installId,
+    'state':      state,
+    'education':  education,
+    'category':   category,
+    'age':        age,
+    'job_types':  jobTypes,
+    'language':   language,
   };
 
   UserProfile copyWith({
-    int? id, String? fcmToken, String? state, String? education,
+    int? id, String? fcmToken, String? installId, String? state, String? education,
     String? category, int? age, List<String>? jobTypes, String? language,
   }) {
     return UserProfile(
       id:        id        ?? this.id,
       fcmToken:  fcmToken  ?? this.fcmToken,
+      installId: installId ?? this.installId,
       state:     state     ?? this.state,
       education: education ?? this.education,
       category:  category  ?? this.category,

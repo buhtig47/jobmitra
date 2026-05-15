@@ -17,11 +17,20 @@ from datetime import datetime, timedelta
 
 app = FastAPI(title="JobMitra API", version="1.0.0")
 
+# CORS: the Android app uses native http client (no preflight), so we only
+# need to allow the legacy Render host (transition) plus dev/admin local use.
+_ALLOWED_ORIGINS = [
+    "https://jobmitra-api.onrender.com",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://localhost:8000",
+    "http://localhost:3000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # ─────────────────────────────────────────
@@ -246,8 +255,10 @@ def init_db():
 
 init_db()
 
-# ── Schema migration: safely add new columns to existing Turso DB ──
-# These ALTER TABLE calls fail silently if the column already exists.
+# ── Schema migration ──────────────────────────────────────
+# Persistent marker so we don't re-run ALTERs on every cold start.
+# Bump SCHEMA_VERSION whenever new ALTERs are added.
+SCHEMA_VERSION = 2
 _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN pay_scale TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN pay_level INTEGER DEFAULT 0",
@@ -260,12 +271,34 @@ _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN documents_needed TEXT DEFAULT NULL",
     "ALTER TABLE questions ADD COLUMN question_hash TEXT DEFAULT NULL",
     "ALTER TABLE questions ADD COLUMN explanation TEXT DEFAULT ''",
+    # v2: stable client-generated UUID — primary identity, decoupled from FCM token
+    "ALTER TABLE users ADD COLUMN install_id TEXT DEFAULT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_install_id ON users(install_id)",
 ]
-for _sql in _MIGRATIONS:
+
+def _maybe_run_migrations():
+    """Skip ALTER TABLEs after first successful run. Saves ~11 RTs per cold start."""
+    conn = get_db()
     try:
-        get_db().execute(_sql)
+        conn.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)")
+        conn.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
+        row = conn.fetchone()
+        current = row["version"] if row else 0
+        if current >= SCHEMA_VERSION:
+            return
+    except Exception:
+        pass  # fall through and try migrations
+    for _sql in _MIGRATIONS:
+        try:
+            get_db().execute(_sql)
+        except Exception:
+            pass
+    try:
+        get_db().execute("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
     except Exception:
         pass
+
+_maybe_run_migrations()
 
 # ─────────────────────────────────────────
 # MODELS
@@ -278,6 +311,7 @@ class UserProfile(BaseModel):
     age:        int
     job_types:  list[str]
     language:   str = "hinglish"
+    install_id: Optional[str] = None  # stable client UUID; preferred over fcm_token
 
 class SaveJobRequest(BaseModel):
     user_id: int
@@ -493,26 +527,37 @@ def root():
 @app.post("/users/register")
 def register_user(profile: UserProfile):
     conn = get_db()
-    existing = conn.execute(
-        "SELECT id FROM users WHERE fcm_token = ?", (profile.fcm_token,)
-    ).fetchone()
+
+    # Identity resolution: prefer install_id (stable across FCM token rotations
+    # and Firebase reinstalls). Fall back to fcm_token for legacy clients.
+    existing = None
+    if profile.install_id:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE install_id = ?", (profile.install_id,)
+        ).fetchone()
+    if not existing and profile.fcm_token:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE fcm_token = ?", (profile.fcm_token,)
+        ).fetchone()
 
     if existing:
         conn.execute("""
-            UPDATE users SET state=?, education=?, category=?, age=?,
-            job_types=?, language=? WHERE fcm_token=?
+            UPDATE users SET fcm_token=?, install_id=COALESCE(?, install_id),
+                state=?, education=?, category=?, age=?, job_types=?, language=?
+            WHERE id=?
         """, (
+            profile.fcm_token, profile.install_id,
             profile.state, profile.education, profile.category,
-            profile.age, json.dumps(profile.job_types),
-            profile.language, profile.fcm_token
+            profile.age, json.dumps(profile.job_types), profile.language,
+            existing["id"],
         ))
         user_id = existing["id"]
     else:
         conn.execute("""
-            INSERT INTO users (fcm_token, state, education, category, age, job_types, language)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (fcm_token, install_id, state, education, category, age, job_types, language)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            profile.fcm_token, profile.state, profile.education,
+            profile.fcm_token, profile.install_id, profile.state, profile.education,
             profile.category, profile.age,
             json.dumps(profile.job_types), profile.language
         ))
@@ -1116,29 +1161,31 @@ def get_daily_quiz(set_index: int = Query(0)):
 
 @app.get("/mock-tests")
 def get_mock_packs():
-    """Return all mock test packs with question counts."""
+    """Return all mock test packs with question counts. Single SQL query (no N+1)."""
     conn = get_db()
-    conn.execute("SELECT * FROM mock_packs ORDER BY is_pyq, sort_order")
-    packs = conn.fetchall()
-    result = []
-    for p in packs:
-        conn.execute(
-            "SELECT COUNT(*) as cnt FROM questions WHERE type='mock' AND pack_id=?",
-            (p["pack_id"],)
-        )
-        cnt_row = conn.fetchone()
-        cnt = cnt_row["cnt"] if cnt_row else 0
-        result.append({
-            "pack_id":    p["pack_id"],
-            "title":      p["title"],
-            "subtitle":   p["subtitle"],
-            "emoji":      p["emoji"],
-            "color_hex":  p["color_hex"],
-            "is_pyq":     bool(p["is_pyq"]),
-            "sort_order": p["sort_order"],
-            "question_count": cnt,
-        })
-    return {"packs": result}
+    rows = conn.execute("""
+        SELECT p.pack_id, p.title, p.subtitle, p.emoji, p.color_hex,
+               p.is_pyq, p.sort_order,
+               COALESCE(q.cnt, 0) AS question_count
+        FROM mock_packs p
+        LEFT JOIN (
+            SELECT pack_id, COUNT(*) AS cnt
+            FROM questions
+            WHERE type = 'mock'
+            GROUP BY pack_id
+        ) q ON q.pack_id = p.pack_id
+        ORDER BY p.is_pyq, p.sort_order
+    """).fetchall()
+    return {"packs": [{
+        "pack_id":        r["pack_id"],
+        "title":          r["title"],
+        "subtitle":       r["subtitle"],
+        "emoji":          r["emoji"],
+        "color_hex":      r["color_hex"],
+        "is_pyq":         bool(r["is_pyq"]),
+        "sort_order":     r["sort_order"],
+        "question_count": r["question_count"],
+    } for r in rows]}
 
 
 @app.get("/mock-tests/{pack_id}")

@@ -76,6 +76,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     final newProfile = UserProfile(
       fcmToken:  existingFcmToken,
+      installId: prefs.getString('install_id'),
       state:     _selectedState!,
       education: _selectedEducation!,
       category:  _selectedCategory!,
