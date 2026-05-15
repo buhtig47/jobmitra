@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -1199,6 +1200,22 @@ class _ProfileTabState extends State<_ProfileTab> {
       child: Column(
         children: [
           _aboutRow(
+            icon: Icons.share_rounded,
+            color: const Color(0xFF1A6B3C),
+            title: 'Share JobMitra',
+            subtitle: 'Apne friends ko bhi naukri alerts dilaao',
+            onTap: _shareApp,
+          ),
+          const Divider(height: 1, indent: 56),
+          _aboutRow(
+            icon: Icons.star_outline_rounded,
+            color: const Color(0xFFE65100),
+            title: 'Rate App on Play Store',
+            subtitle: '5-star reviews app ko grow karte hain',
+            onTap: _rateApp,
+          ),
+          const Divider(height: 1, indent: 56),
+          _aboutRow(
             icon: Icons.privacy_tip_outlined,
             color: const Color(0xFF1565C0),
             title: 'Privacy Policy',
@@ -1226,6 +1243,29 @@ class _ProfileTabState extends State<_ProfileTab> {
         ],
       ),
     );
+  }
+
+  static const _playStoreId = 'com.jobmitra.app';
+
+  Future<void> _shareApp() async {
+    const msg =
+        '🇮🇳 *JobMitra — Sarkari Naukri Alerts*\n\n'
+        'Govt jobs, admit cards, results — sab ek hi app me. Eligibility '
+        'filter, push alerts, form-fill cheat-sheet PDF.\n\n'
+        'Download: https://play.google.com/store/apps/details?id=$_playStoreId';
+    await Share.share(msg);
+  }
+
+  Future<void> _rateApp() async {
+    // market:// opens Play Store app directly. https fallback for emulator
+    // or devices without Play Store installed.
+    final marketUri = Uri.parse('market://details?id=$_playStoreId');
+    if (await canLaunchUrl(marketUri)) {
+      await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    await _openExternal(
+        'https://play.google.com/store/apps/details?id=$_playStoreId');
   }
 
   Widget _aboutRow({
