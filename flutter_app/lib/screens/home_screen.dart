@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/i18n.dart';
 import '../widgets/job_card.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'package:shimmer/shimmer.dart';
@@ -12,6 +13,7 @@ import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
 import 'profile_edit_screen.dart';
 import 'notification_prefs_screen.dart';
+import 'language_picker_screen.dart';
 import 'personal_info_screen.dart';
 import 'tools_screen.dart';
 import 'alerts_screen.dart';
@@ -51,31 +53,31 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work, color: AppColors.primary),
-            label: 'Jobs',
+            icon: const Icon(Icons.work_outline),
+            selectedIcon: const Icon(Icons.work, color: AppColors.primary),
+            label: L10n.tr('nav_jobs'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.search),
-            selectedIcon: Icon(Icons.search, color: AppColors.primary),
-            label: 'Search',
+            icon: const Icon(Icons.search),
+            selectedIcon: const Icon(Icons.search, color: AppColors.primary),
+            label: L10n.tr('nav_search'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.bookmark_outline),
-            selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
-            label: 'Saved',
+            icon: const Icon(Icons.bookmark_outline),
+            selectedIcon: const Icon(Icons.bookmark, color: AppColors.primary),
+            label: L10n.tr('nav_saved'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.handyman_outlined),
-            selectedIcon: Icon(Icons.handyman, color: AppColors.primary),
-            label: 'Tools',
+            icon: const Icon(Icons.handyman_outlined),
+            selectedIcon: const Icon(Icons.handyman, color: AppColors.primary),
+            label: L10n.tr('nav_tools'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: AppColors.primary),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person, color: AppColors.primary),
+            label: L10n.tr('nav_profile'),
           ),
         ],
       ),
@@ -893,6 +895,10 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildSectionTitle('Notifications'),
                       const SizedBox(height: 10),
                       _buildNotifPrefsTile(),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Language'),
+                      const SizedBox(height: 10),
+                      _buildLanguageTile(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -1172,6 +1178,56 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLanguageTile() {
+    final label = L10n.supported[L10n.current] ?? 'Hinglish';
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LanguagePickerScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6A1B9A).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.translate_rounded,
+                  color: Color(0xFF6A1B9A), size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Language',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Currently: $label',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+          ],
+        ),
+      ),
     );
   }
 

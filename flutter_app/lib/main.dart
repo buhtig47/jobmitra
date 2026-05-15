@@ -14,6 +14,7 @@ import 'screens/home_screen.dart';
 import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'utils/constants.dart';
+import 'utils/i18n.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -123,6 +124,7 @@ Future<void> _bootstrap() async {
 
   final prefs = await SharedPreferences.getInstance();
   await _ensureInstallId(prefs);  // stable identity across reinstalls/token rotations
+  await L10n.loadFromPrefs();     // pick language from prefs once at boot
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final userId = prefs.getInt('user_id');
 
