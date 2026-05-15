@@ -84,9 +84,25 @@ Future<void> _bootstrap() async {
         'fci', 'lic', 'sebi', 'bsnl', 'npcil', 'csir', 'icmr',
         'bsf', 'crpf', 'capf', 'cds', 'nda', 'afcat',
       ];
+      final prefs = await SharedPreferences.getInstance();
+      // Honour per-org opt-outs persisted by NotificationPrefsScreen.
       for (final o in orgs) {
-        try { await fm.subscribeToTopic('announcements_org_$o'); } catch (_) {}
+        final enabled = prefs.getBool('notif_org_$o') ?? true;
+        try {
+          if (enabled) {
+            await fm.subscribeToTopic('announcements_org_$o');
+          } else {
+            await fm.unsubscribeFromTopic('announcements_org_$o');
+          }
+        } catch (_) {}
       }
+      // Allow opting out of the general digest too.
+      final generalOn = prefs.getBool('notif_general') ?? true;
+      try {
+        if (!generalOn) {
+          await fm.unsubscribeFromTopic('jobmitra_announcements');
+        }
+      } catch (_) {}
     } catch (_) {}
   } catch (_) {}
 

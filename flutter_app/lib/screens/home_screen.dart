@@ -11,6 +11,7 @@ import 'job_detail_screen.dart';
 import 'search_screen.dart';
 import 'saved_jobs_screen.dart';
 import 'profile_edit_screen.dart';
+import 'notification_prefs_screen.dart';
 import 'personal_info_screen.dart';
 import 'tools_screen.dart';
 import 'alerts_screen.dart';
@@ -888,6 +889,10 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildSectionTitle('Form Fill Details'),
                       const SizedBox(height: 10),
                       _buildFormDetailsTile(),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Notifications'),
+                      const SizedBox(height: 10),
+                      _buildNotifPrefsTile(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -1167,6 +1172,54 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNotifPrefsTile() {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const NotificationPrefsScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE65100).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notifications_active_rounded,
+                  color: Color(0xFFE65100), size: 20),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Notifications',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 3),
+                  Text(
+                    'Choose which exams send you push alerts',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+          ],
+        ),
+      ),
     );
   }
 }
