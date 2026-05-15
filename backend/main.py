@@ -1162,6 +1162,18 @@ def import_current_affairs(secret: str = Query(...), payload: dict = Body(...)):
 
 _ANNOUNCEMENT_TYPES = {"admit_card", "result", "answer_key", "cutoff", "syllabus", "exam_date"}
 
+# Orgs we maintain per-org FCM topics for. Anything outside this list
+# falls through to the general "jobmitra_announcements" topic only.
+ANNOUNCEMENT_ORG_TOPICS = {
+    "SSC", "UPSC", "RRB", "IBPS", "SBI", "RBI", "NABARD",
+    "AIIMS", "DRDO", "ISRO", "NTPC", "BHEL", "ONGC",
+    "UPSSSC", "UPPSC", "BPSC", "MPPSC", "RPSC", "TNPSC", "KPSC",
+    "KVS", "NVS", "CTET", "REET",
+    "NEET", "JEE", "CUET", "GATE",
+    "FCI", "LIC", "SEBI", "BSNL", "NPCIL", "CSIR", "ICMR",
+    "BSF", "CRPF", "CAPF", "CDS", "NDA", "AFCAT",
+}
+
 
 @app.get("/announcements")
 def list_announcements(
@@ -1258,6 +1270,7 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
     conn = get_db()
     new_count = 0
     per_type: dict[str, int] = {}
+    new_items: list[dict] = []  # only the freshly inserted ones (for per-org push)
     for it in items:
         url = it["source_url"]
         existed = conn.execute(
@@ -1282,11 +1295,13 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
             if not existed:
                 new_count += 1
                 per_type[it["type"]] = per_type.get(it["type"], 0) + 1
+                new_items.append(it)
         except Exception:
             pass
 
-    # Digest push notification to topic — only when there are NEW items
+    # Digest push notification to general topic — only when there are NEW items
     pushed = False
+    org_pushes: dict[str, int] = {}
     if new_count > 0:
         ann_labels = {
             "admit_card": "admit cards", "result": "results",
@@ -1304,9 +1319,33 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
             data={"deeplink": "announcements", "count": new_count},
         )
 
+        # Per-org granular push (only whitelisted orgs to prevent topic spam)
+        per_org: dict[str, list[dict]] = {}
+        for it in new_items:
+            org = (it.get("organisation") or "").upper()
+            if org in ANNOUNCEMENT_ORG_TOPICS:
+                per_org.setdefault(org, []).append(it)
+        for org, batch in per_org.items():
+            type_counts: dict[str, int] = {}
+            for b in batch:
+                type_counts[b["type"]] = type_counts.get(b["type"], 0) + 1
+            body_parts = [f"{n} {ann_labels.get(t, t)}" for t, n in
+                          sorted(type_counts.items(), key=lambda x: -x[1])[:2]]
+            org_body = f"{org}: {', '.join(body_parts)}" if body_parts else f"{org}: {len(batch)} updates"
+            topic_name = f"announcements_org_{org.lower()}"
+            ok = send_fcm_to_topic(
+                topic_name,
+                title=f"📌 {org} Update",
+                body=org_body[:240],
+                data={"deeplink": "announcements", "org": org},
+            )
+            if ok:
+                org_pushes[org] = len(batch)
+
     return {
         "inserted": new_count, "total": len(items),
         "by_type": per_type, "pushed": pushed,
+        "org_pushes": org_pushes,
     }
 
 

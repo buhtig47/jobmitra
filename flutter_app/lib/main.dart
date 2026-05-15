@@ -51,10 +51,24 @@ void main() async {
       await prefs2.setString('fcm_token', token);
     });
 
-    // Topic subscription — backend pushes announcement digest to this topic.
-    // Free fan-out, no per-token storage on backend.
+    // Topic subscription — backend pushes announcement digest here.
+    // Plus per-org topics so users get granular alerts (e.g. only SSC).
     try {
-      await FirebaseMessaging.instance.subscribeToTopic('jobmitra_announcements');
+      final fm = FirebaseMessaging.instance;
+      await fm.subscribeToTopic('jobmitra_announcements');
+      // Whitelist mirrors backend ANNOUNCEMENT_ORG_TOPICS — keep in sync.
+      const orgs = [
+        'ssc', 'upsc', 'rrb', 'ibps', 'sbi', 'rbi', 'nabard',
+        'aiims', 'drdo', 'isro', 'ntpc', 'bhel', 'ongc',
+        'upsssc', 'uppsc', 'bpsc', 'mppsc', 'rpsc', 'tnpsc', 'kpsc',
+        'kvs', 'nvs', 'ctet', 'reet',
+        'neet', 'jee', 'cuet', 'gate',
+        'fci', 'lic', 'sebi', 'bsnl', 'npcil', 'csir', 'icmr',
+        'bsf', 'crpf', 'capf', 'cds', 'nda', 'afcat',
+      ];
+      for (final o in orgs) {
+        try { await fm.subscribeToTopic('announcements_org_$o'); } catch (_) {}
+      }
     } catch (_) {}
   } catch (_) {}
 
