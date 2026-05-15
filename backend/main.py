@@ -287,7 +287,7 @@ init_db()
 # ── Schema migration ──────────────────────────────────────
 # Persistent marker so we don't re-run ALTERs on every cold start.
 # Bump SCHEMA_VERSION whenever new ALTERs are added.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN pay_scale TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN pay_level INTEGER DEFAULT 0",
@@ -303,6 +303,21 @@ _MIGRATIONS = [
     # v2: stable client-generated UUID — primary identity, decoupled from FCM token
     "ALTER TABLE users ADD COLUMN install_id TEXT DEFAULT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_install_id ON users(install_id)",
+    # v3: server-side alert rules so push fires on scrape, not on app open
+    """CREATE TABLE IF NOT EXISTS user_alert_rules (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     INTEGER NOT NULL,
+        rule_id     TEXT NOT NULL,
+        keyword     TEXT DEFAULT '',
+        state       TEXT DEFAULT '',
+        category    TEXT DEFAULT '',
+        free_only   INTEGER DEFAULT 0,
+        is_active   INTEGER DEFAULT 1,
+        created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, rule_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_alert_rules_user ON user_alert_rules(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_alert_rules_active ON user_alert_rules(is_active)",
 ]
 
 def _maybe_run_migrations():
@@ -937,6 +952,151 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
     return {"saved_jobs": results}
 
 
+# ─────────────────────────────────────────
+# ALERT RULES (server-side push for matched new jobs)
+# ─────────────────────────────────────────
+
+class AlertRuleIn(BaseModel):
+    id:        str
+    keyword:   str = ""
+    state:     str = ""
+    category:  str = ""
+    free_only: bool = False
+    is_active: bool = True
+
+
+@app.get("/users/{user_id}/alert-rules")
+def list_alert_rules(user_id: int):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT rule_id, keyword, state, category, free_only, is_active "
+        "FROM user_alert_rules WHERE user_id = ? ORDER BY id",
+        (user_id,),
+    ).fetchall()
+    return {"rules": [{
+        "id":        r["rule_id"],
+        "keyword":   r["keyword"],
+        "state":     r["state"],
+        "category":  r["category"],
+        "free_only": bool(r["free_only"]),
+        "is_active": bool(r["is_active"]),
+    } for r in rows]}
+
+
+@app.put("/users/{user_id}/alert-rules")
+def replace_alert_rules(user_id: int, rules: list[AlertRuleIn] = Body(...)):
+    """Bulk replace — clears existing rules then inserts the supplied list.
+    Flutter persists rules locally and pushes the full snapshot here on every
+    save, so the server is always the authoritative copy for scrape-time
+    evaluation."""
+    conn = get_db()
+    # Validate user exists; quietly create-or-skip is heavier than worth here
+    user = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    conn.execute("DELETE FROM user_alert_rules WHERE user_id = ?", (user_id,))
+    inserted = 0
+    for rule in rules:
+        try:
+            conn.execute("""
+                INSERT INTO user_alert_rules
+                    (user_id, rule_id, keyword, state, category, free_only, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id, rule.id, rule.keyword.strip(), rule.state.strip(),
+                rule.category.strip(), 1 if rule.free_only else 0,
+                1 if rule.is_active else 0,
+            ))
+            inserted += 1
+        except Exception:
+            pass
+    return {"success": True, "stored": inserted}
+
+
+def _rule_matches_job(rule: dict, job: dict) -> bool:
+    """Port of Flutter AlertRule.matches — keep semantics aligned."""
+    if not rule["is_active"]:
+        return False
+    if rule["free_only"] and (job.get("fee_general", 0) or 0) > 0:
+        return False
+    kw = (rule["keyword"] or "").strip().lower()
+    if kw:
+        hay = f"{job.get('title', '')} {job.get('department', '')}".lower()
+        if kw not in hay:
+            return False
+    st = (rule["state"] or "").strip().lower()
+    if st:
+        try:
+            job_states = [s.lower() for s in json.loads(job.get("states") or "[]")]
+        except Exception:
+            job_states = []
+        if "all" not in job_states and st not in job_states:
+            return False
+    cat = (rule["category"] or "").strip()
+    if cat and job.get("category") != cat:
+        return False
+    return True
+
+
+def notify_users_alert_rule_matches(conn, new_job_ids: list[int]) -> int:
+    """For every newly inserted job id, find active alert rules that match
+    and send one FCM push per (user, rule) group. Called from /admin/scrape
+    after the insert phase. Returns count of pushes sent."""
+    if not new_job_ids:
+        return 0
+    # Pull all active rules joined with token, plus the new jobs
+    placeholders = ",".join("?" * len(new_job_ids))
+    jobs = conn.execute(
+        f"SELECT id, title, department, category, states, fee_general "
+        f"FROM jobs WHERE id IN ({placeholders})",
+        new_job_ids,
+    ).fetchall()
+    rules = conn.execute("""
+        SELECT r.id, r.user_id, r.rule_id, r.keyword, r.state, r.category,
+               r.free_only, r.is_active, u.fcm_token
+        FROM user_alert_rules r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.is_active = 1
+          AND u.fcm_token IS NOT NULL
+          AND u.fcm_token NOT IN ('', 'test')
+    """).fetchall()
+    if not rules or not jobs:
+        return 0
+
+    sent = 0
+    for rule in rules:
+        rdict = {
+            "is_active": bool(rule["is_active"]),
+            "free_only": bool(rule["free_only"]),
+            "keyword":   rule["keyword"],
+            "state":     rule["state"],
+            "category":  rule["category"],
+        }
+        matches = [j for j in jobs if _rule_matches_job(rdict, dict(j))]
+        if not matches:
+            continue
+        first = matches[0]["title"]
+        label_bits = []
+        if rdict["keyword"]:  label_bits.append(f'"{rdict["keyword"]}"')
+        if rdict["state"]:    label_bits.append(rdict["state"])
+        if rdict["category"]: label_bits.append(rdict["category"])
+        label = " + ".join(label_bits) if label_bits else "Saved alert"
+        if len(matches) == 1:
+            body = f"{first[:90]} — matched {label}"
+        else:
+            body = f"{first[:60]}… +{len(matches) - 1} aur jobs matched {label}"
+        ok = send_fcm_to_tokens(
+            [rule["fcm_token"]],
+            title="🔔 JobMitra Alert",
+            body=body[:240],
+            data={"deeplink": "alerts", "rule_id": rule["rule_id"]},
+        )
+        if ok:
+            sent += 1
+    return sent
+
+
 @app.put("/users/{user_id}/profile")
 def update_profile(user_id: int, profile: UserProfile):
     conn = get_db()
@@ -992,12 +1152,22 @@ def fix_fees(secret: str = Query(...)):
     return {"success": True, "message": "All fee_general=100 rows reset to 0"}
 
 
-def _insert_job(conn, job: dict) -> bool:
-    """Insert a single job dict. Returns True if new row was inserted."""
+def _insert_job(conn, job: dict) -> Optional[int]:
+    """Insert a single job. Returns the new row id when actually inserted,
+    None when the source_url already exists (INSERT OR IGNORE skipped) or
+    when the statement errors. Callers used to receive a bool, but the
+    `True on IGNORE` path lied about insertions and broke any push routing
+    that needed to know which jobs are new."""
     try:
+        url = job["source_url"]
+        existed = conn.execute(
+            "SELECT id FROM jobs WHERE source_url = ?", (url,)
+        ).fetchone()
+        if existed:
+            return None
         docs = job.get("documents_needed")
         conn.execute("""
-            INSERT OR IGNORE INTO jobs
+            INSERT INTO jobs
             (title, department, source, source_url, category,
              qualifications, vacancies, last_date, states,
              age_min, age_max, fee_general, fee_obc, fee_sc_st,
@@ -1007,7 +1177,7 @@ def _insert_job(conn, job: dict) -> bool:
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             job["title"], job["department"], job["source"],
-            job["source_url"], job["category"],
+            url, job["category"],
             json.dumps(job["qualifications"]),
             job["vacancies"], job["last_date"],
             json.dumps(job["states"]),
@@ -1024,9 +1194,9 @@ def _insert_job(conn, job: dict) -> bool:
             json.dumps(docs) if docs else None,
             job["scraped_at"]
         ))
-        return True
+        return conn.lastrowid
     except Exception:
-        return False
+        return None
 
 
 @app.post("/admin/scrape")
@@ -1037,10 +1207,13 @@ def trigger_scrape(secret: str = Query(...)):
         jobs = run_all_scrapers()
         conn = get_db()
         inserted = 0
+        new_job_ids: list[int] = []
         cats_inserted: dict[str, int] = {}
         for job in jobs:
-            if _insert_job(conn, job):
+            row_id = _insert_job(conn, job)
+            if row_id is not None:
                 inserted += 1
+                new_job_ids.append(row_id)
                 cats_inserted[job["category"]] = cats_inserted.get(job["category"], 0) + 1
         # Auto-expire jobs past their last_date
         expired = 0
@@ -1052,14 +1225,27 @@ def trigger_scrape(secret: str = Query(...)):
                     expired += 1
             except Exception:
                 pass
-        # Personalized push notifications
+        # Generic personalized push (category-based)
         notified = 0
         if inserted > 0:
             try:
                 notified = notify_users_personalized(conn, cats_inserted)
             except Exception:
                 pass
-        return {"success": True, "jobs_inserted": inserted, "jobs_expired": expired, "notified": notified}
+        # Server-side AlertRule evaluation: per-user push for matched new jobs
+        alert_pushes = 0
+        if new_job_ids:
+            try:
+                alert_pushes = notify_users_alert_rule_matches(conn, new_job_ids)
+            except Exception:
+                pass
+        return {
+            "success": True,
+            "jobs_inserted": inserted,
+            "jobs_expired":  expired,
+            "notified":      notified,
+            "alert_pushes":  alert_pushes,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

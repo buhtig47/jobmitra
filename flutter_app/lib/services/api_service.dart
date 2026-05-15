@@ -328,6 +328,20 @@ class ApiService {
   Future<void> saveAlertRules(List<AlertRule> rules) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_alertsKey, jsonEncode(rules.map((r) => r.toJson()).toList()));
+    // Fire-and-forget sync to backend so push fires at scrape-time, not just
+    // when the app reopens. We swallow errors — the local copy stays the
+    // source of truth and the next save will retry.
+    final userId = prefs.getInt(_userIdKey);
+    if (userId == null) return;
+    try {
+      await http
+          .put(
+            Uri.parse('$kApiBase/users/$userId/alert-rules'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(rules.map((r) => r.toJson()).toList()),
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {}
   }
 
   Future<Set<int>> getSeenJobIds() async {
