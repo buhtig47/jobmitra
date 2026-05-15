@@ -480,6 +480,10 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
     """
     Send FCM notification to a list of FCM tokens via HTTP v1 API.
     Returns number of successful sends.
+
+    Uses a ThreadPoolExecutor so 600 tokens take ~6 seconds instead of 60.
+    Serial sends would blow past Cloud Run's 60s request timeout on
+    /admin/scrape once we cross ~500 users.
     """
     if not tokens:
         return 0
@@ -493,11 +497,11 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
+    data_payload = {k: str(v) for k, v in (data or {}).items()}
 
-    sent = 0
-    for token in tokens:
+    def _send(token: str) -> bool:
         if not token or token == "test":
-            continue
+            return False
         payload = {
             "message": {
                 "token": token,
@@ -508,16 +512,22 @@ def send_fcm_to_tokens(tokens: list[str], title: str, body: str, data: dict = No
                         "sound": "default",
                     }
                 },
-                "data": {k: str(v) for k, v in (data or {}).items()},
+                "data": data_payload,
             }
         }
         try:
             r = _requests.post(url, headers=headers, json=payload, timeout=10)
-            if r.status_code == 200:
-                sent += 1
+            return r.status_code == 200
         except Exception:
-            pass
-    return sent
+            return False
+
+    # 20 workers keeps us under FCM's recommended QPS while still finishing
+    # 1000 tokens in under 10s. Bump if push volume scales further.
+    from concurrent.futures import ThreadPoolExecutor
+    workers = min(20, max(1, len(tokens)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(_send, tokens))
+    return sum(1 for r in results if r)
 
 
 def notify_users_new_jobs(conn, new_count: int, categories: list[str]):
