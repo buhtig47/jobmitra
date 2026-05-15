@@ -10,6 +10,12 @@ class AdService {
   InterstitialAd? _interstitialAd;
   bool _interstitialReady = false;
 
+  // Minimum gap between two interstitial impressions. Users open 5+ job details
+  // per session; without this floor we'd show 5 fullscreen ads in 90s and lose
+  // the install. Industry standard for content apps is 60-120s.
+  static const _minIntervalMs = 90 * 1000;
+  DateTime? _lastShownAt;
+
   static Future<void> initialize() async {
     await MobileAds.instance.initialize();
   }
@@ -44,12 +50,17 @@ class AdService {
     );
   }
 
-  /// Show interstitial if ready. Returns true if shown.
+  /// Show interstitial if ready AND the frequency-cap window has elapsed.
+  /// Returns true if shown.
   bool showInterstitial() {
-    if (_interstitialReady && _interstitialAd != null) {
-      _interstitialAd!.show();
-      return true;
+    if (!_interstitialReady || _interstitialAd == null) return false;
+    final now = DateTime.now();
+    if (_lastShownAt != null &&
+        now.difference(_lastShownAt!).inMilliseconds < _minIntervalMs) {
+      return false; // capped — skip silently
     }
-    return false;
+    _interstitialAd!.show();
+    _lastShownAt = now;
+    return true;
   }
 }

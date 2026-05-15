@@ -33,6 +33,20 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+
+# Admin auth: fail-closed. If SCRAPER_SECRET env is missing or matches the
+# leaked legacy value, every admin endpoint rejects — instead of silently
+# accepting requests with the well-known fallback.
+_LEGACY_LEAKED_SECRET = "jobmitra_secret_2024"
+
+def require_admin(secret: str) -> None:
+    expected = os.getenv("SCRAPER_SECRET")
+    if not expected:
+        # SCRAPER_SECRET must be supplied via env (Secret Manager on Cloud Run).
+        raise HTTPException(status_code=503, detail="admin auth not configured")
+    if not secret or secret != expected:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
 # ─────────────────────────────────────────
 # TURSO ADAPTER  (drop-in sqlite3 replacement)
 # ─────────────────────────────────────────
@@ -587,17 +601,32 @@ def root():
 def register_user(profile: UserProfile):
     conn = get_db()
 
+    # Normalize fcm_token: '' / 'test' violate the fcm_token UNIQUE column when
+    # more than one user lands without a real token. Store NULL instead — SQLite
+    # treats multiple NULLs as distinct so UNIQUE no longer collides.
+    raw_token = (profile.fcm_token or "").strip()
+    fcm_token: Optional[str] = raw_token if raw_token and raw_token != "test" else None
+
     # Identity resolution: prefer install_id (stable across FCM token rotations
-    # and Firebase reinstalls). Fall back to fcm_token for legacy clients.
+    # and Firebase reinstalls). Fall back to fcm_token only when present.
     existing = None
     if profile.install_id:
         existing = conn.execute(
             "SELECT id FROM users WHERE install_id = ?", (profile.install_id,)
         ).fetchone()
-    if not existing and profile.fcm_token:
+    if not existing and fcm_token:
         existing = conn.execute(
-            "SELECT id FROM users WHERE fcm_token = ?", (profile.fcm_token,)
+            "SELECT id FROM users WHERE fcm_token = ?", (fcm_token,)
         ).fetchone()
+
+    # If another user already owns this fcm_token (Firebase reused token
+    # after a reinstall on a different install_id), null out theirs so the
+    # UNIQUE constraint doesn't blow up the upsert.
+    if fcm_token:
+        conn.execute("""
+            UPDATE users SET fcm_token = NULL
+            WHERE fcm_token = ? AND (install_id IS NULL OR install_id != ?)
+        """, (fcm_token, profile.install_id or ""))
 
     if existing:
         conn.execute("""
@@ -605,7 +634,7 @@ def register_user(profile: UserProfile):
                 state=?, education=?, category=?, age=?, job_types=?, language=?
             WHERE id=?
         """, (
-            profile.fcm_token, profile.install_id,
+            fcm_token, profile.install_id,
             profile.state, profile.education, profile.category,
             profile.age, json.dumps(profile.job_types), profile.language,
             existing["id"],
@@ -616,7 +645,7 @@ def register_user(profile: UserProfile):
             INSERT INTO users (fcm_token, install_id, state, education, category, age, job_types, language)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            profile.fcm_token, profile.install_id, profile.state, profile.education,
+            fcm_token, profile.install_id, profile.state, profile.education,
             profile.category, profile.age,
             json.dumps(profile.job_types), profile.language
         ))
@@ -957,8 +986,7 @@ def get_stats():
 @app.post("/admin/fix_fees")
 def fix_fees(secret: str = Query(...)):
     """Reset all fake ₹100 default fees to 0 (free/unknown) in existing DB records"""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     conn.execute("UPDATE jobs SET fee_general=0, fee_obc=0, fee_sc_st=0 WHERE fee_general=100")
     return {"success": True, "message": "All fee_general=100 rows reset to 0"}
@@ -1003,8 +1031,7 @@ def _insert_job(conn, job: dict) -> bool:
 
 @app.post("/admin/scrape")
 def trigger_scrape(secret: str = Query(...)):
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     try:
         from scraper import run_all as run_all_scrapers
         jobs = run_all_scrapers()
@@ -1040,8 +1067,7 @@ def trigger_scrape(secret: str = Query(...)):
 @app.post("/admin/notify")
 def manual_notify(secret: str = Query(...), title: str = Query("🇮🇳 JobMitra"), body: str = Query(...)):
     """Manually send a push notification to all users. For testing."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     tokens = [
         row["fcm_token"]
@@ -1061,8 +1087,7 @@ def deadline_alerts(secret: str = Query(...)):
     days from the last date. One push per user, batched by horizon.
     Designed to be called once a day by GitHub Actions cron.
     """
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     rows = conn.execute("""
         SELECT u.id AS user_id, u.fcm_token, j.title, j.last_date
@@ -1118,8 +1143,7 @@ def deadline_alerts(secret: str = Query(...)):
 @app.post("/admin/reset_jobs")
 def reset_jobs(secret: str = Query(...)):
     """Delete all jobs and re-scrape fresh — fixes duplicates"""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     try:
         conn = get_db()
         conn.execute("DELETE FROM jobs")
@@ -1171,8 +1195,7 @@ def get_current_affairs(
 
 @app.post("/admin/scrape-ca")
 def scrape_current_affairs_endpoint(secret: str = Query(...)):
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     try:
         from scraper import scrape_current_affairs
         articles = scrape_current_affairs()
@@ -1197,8 +1220,7 @@ def scrape_current_affairs_endpoint(secret: str = Query(...)):
 
 @app.post("/admin/import-ca")
 def import_current_affairs(secret: str = Query(...), payload: dict = Body(...)):
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     articles = payload.get("articles", [])
     conn = get_db()
     inserted = 0
@@ -1272,8 +1294,7 @@ def announcement_counts():
 @app.post("/admin/announcements")
 def bulk_insert_announcements(secret: str = Query(...), payload: dict = Body(...)):
     """Idempotent bulk insert keyed by source_url."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     items = payload.get("announcements", [])
     if not isinstance(items, list):
         raise HTTPException(status_code=400, detail="announcements must be a list")
@@ -1307,12 +1328,21 @@ def bulk_insert_announcements(secret: str = Query(...), payload: dict = Body(...
     return {"inserted": inserted, "total": len(items)}
 
 
+_ALLOWED_TEST_TOPIC_PREFIXES = (
+    "jobmitra_announcements",
+    "announcements_org_",
+)
+
 @app.post("/admin/test-push")
 def test_push(secret: str = Query(...), topic: str = Query("jobmitra_announcements"),
               title: str = Query("Test"), body: str = Query("Smoke test")):
-    """Admin smoke test for FCM topic push."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    """Admin smoke test for FCM topic push. Topic must be in our whitelist
+    so a leaked secret can't be used to spam arbitrary topics in the Firebase
+    project (e.g. topics belonging to the LeadMaps / Resume Maker apps that
+    share this Firebase project)."""
+    require_admin(secret)
+    if not any(topic == p or topic.startswith(p) for p in _ALLOWED_TEST_TOPIC_PREFIXES):
+        raise HTTPException(status_code=400, detail="topic not in allow-list")
     ok = send_fcm_to_topic(topic, title, body, data={"deeplink": "announcements"})
     return {"pushed": ok, "topic": topic}
 
@@ -1320,8 +1350,7 @@ def test_push(secret: str = Query(...), topic: str = Query("jobmitra_announcemen
 @app.post("/admin/scrape-announcements")
 def scrape_announcements_endpoint(secret: str = Query(...)):
     """Run the scraper's announcement pass, insert results, push digest."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     try:
         import scraper as _scr
         items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
@@ -1412,8 +1441,7 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
 
 @app.post("/admin/bulk_import")
 def bulk_import(secret: str = Query(...), payload: dict = Body(...)):
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     jobs = payload.get("jobs", [])
     conn = get_db()
     inserted = 0
@@ -1538,8 +1566,7 @@ def get_mock_questions(pack_id: str):
 @app.get("/admin/quiz-stats")
 def admin_quiz_stats(secret: str = Query(...)):
     """Return quiz question counts and max set_index — used by quiz scraper."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     max_row   = conn.execute("SELECT MAX(set_index) as m FROM questions WHERE type='quiz'").fetchone()
     total_row = conn.execute("SELECT COUNT(*) as c FROM questions WHERE type='quiz'").fetchone()
@@ -1556,8 +1583,7 @@ def admin_add_questions(secret: str = Query(...), payload: dict = Body(...)):
     """Bulk-insert quiz/mock questions with deduplication by question text hash.
     payload = {"questions": [...], "next_set_index": <optional int>}
     """
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     qs = payload.get("questions", [])
     # Caller may pass next_set_index to continue numbering from a known offset
     next_set = payload.get("next_set_index")
@@ -1622,8 +1648,7 @@ def admin_add_questions(secret: str = Query(...), payload: dict = Body(...)):
 @app.post("/admin/mock-pack")
 def admin_upsert_mock_pack(secret: str = Query(...), payload: MockPackIn = Body(...)):
     """Upsert a mock test pack definition."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     conn.execute(
         """INSERT OR REPLACE INTO mock_packs
@@ -1638,8 +1663,7 @@ def admin_upsert_mock_pack(secret: str = Query(...), payload: MockPackIn = Body(
 @app.delete("/admin/questions/{q_type}")
 def admin_clear_questions(q_type: str, secret: str = Query(...), pack_id: Optional[str] = Query(None)):
     """Delete questions by type ('quiz'/'mock') and optionally by pack_id."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     conn = get_db()
     if pack_id:
         conn.execute("DELETE FROM questions WHERE type=? AND pack_id=?", (q_type, pack_id))
@@ -1651,8 +1675,7 @@ def admin_clear_questions(q_type: str, secret: str = Query(...), pack_id: Option
 @app.post("/admin/scrape-quiz")
 def trigger_quiz_scrape(secret: str = Query(...)):
     """Run the quiz scraper — fetches MCQs from GKToday, AffairsCloud, OpenTrivia, and PYQ files."""
-    if secret != os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    require_admin(secret)
     try:
         from quiz_scraper import run_quiz_scraper
         result = run_quiz_scraper()

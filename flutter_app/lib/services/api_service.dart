@@ -81,11 +81,17 @@ class ApiService {
     );
   }
 
-  /// Load cached feed instantly (no network) — for stale-while-revalidate
-  Future<List<Job>> getCachedFeed() async {
+  /// Load cached feed instantly (no network) — for stale-while-revalidate.
+  /// Pass [stateOverride] so the splash cache matches the state the user
+  /// last viewed; otherwise the All-India cache flashes before the override
+  /// reloads, producing a visible flicker.
+  Future<List<Job>> getCachedFeed({String? stateOverride}) async {
     try {
       final box = Hive.box('jobs_cache');
-      final cached = box.get('feed_jobs') as String?;
+      final key = (stateOverride == null || stateOverride.isEmpty)
+          ? 'feed_jobs'
+          : 'feed_jobs_${stateOverride.toLowerCase()}';
+      final cached = box.get(key) as String?;
       if (cached == null) return [];
       final data = jsonDecode(cached);
       return (data['jobs'] as List).map((j) => Job.fromJson(j)).toList();

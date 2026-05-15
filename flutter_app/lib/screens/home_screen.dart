@@ -236,7 +236,7 @@ class _FeedTabState extends State<_FeedTab> {
 
     // Page 1 first-load: show Hive cache immediately, then fetch fresh in background
     if (_page == 1 && _jobs.isEmpty) {
-      final cached = await widget.api.getCachedFeed();
+      final cached = await widget.api.getCachedFeed(stateOverride: _stateOverride);
       if (cached.isNotEmpty && mounted) {
         setState(() { _jobs.addAll(_deduplicateJobs(cached)); _isCached = true; _isLoading = false; });
       } else {

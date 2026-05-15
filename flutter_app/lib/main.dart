@@ -71,10 +71,13 @@ Future<void> _bootstrap() async {
 
     // Topic subscription — backend pushes announcement digest here.
     // Plus per-org topics so users get granular alerts (e.g. only SSC).
+    //
+    // Bump kTopicSyncVersion whenever the org whitelist changes so existing
+    // installs re-sync once. Without this gate, each cold start would issue
+    // 41 FCM HTTP calls (general + 40 orgs) and block startup on slow nets.
     try {
       final fm = FirebaseMessaging.instance;
-      await fm.subscribeToTopic('jobmitra_announcements');
-      // Whitelist mirrors backend ANNOUNCEMENT_ORG_TOPICS — keep in sync.
+      const kTopicSyncVersion = 1;
       const orgs = [
         'ssc', 'upsc', 'rrb', 'ibps', 'sbi', 'rbi', 'nabard',
         'aiims', 'drdo', 'isro', 'ntpc', 'bhel', 'ongc',
@@ -85,26 +88,31 @@ Future<void> _bootstrap() async {
         'bsf', 'crpf', 'capf', 'cds', 'nda', 'afcat',
       ];
       final prefs = await SharedPreferences.getInstance();
-      // Honour per-org opt-outs persisted by NotificationPrefsScreen.
-      for (final o in orgs) {
-        final enabled = prefs.getBool('notif_org_$o') ?? true;
-        try {
-          if (enabled) {
-            await fm.subscribeToTopic('announcements_org_$o');
-          } else {
-            await fm.unsubscribeFromTopic('announcements_org_$o');
-          }
-        } catch (_) {}
-      }
-      // Allow opting out of the general digest too.
-      final generalOn = prefs.getBool('notif_general') ?? true;
-      try {
-        if (!generalOn) {
-          await fm.unsubscribeFromTopic('jobmitra_announcements');
+      final lastSynced = prefs.getInt('topic_sync_version') ?? 0;
+      if (lastSynced < kTopicSyncVersion) {
+        await fm.subscribeToTopic('jobmitra_announcements');
+        for (final o in orgs) {
+          final enabled = prefs.getBool('notif_org_$o') ?? true;
+          try {
+            if (enabled) {
+              await fm.subscribeToTopic('announcements_org_$o');
+            } else {
+              await fm.unsubscribeFromTopic('announcements_org_$o');
+            }
+          } catch (_) {}
         }
-      } catch (_) {}
-    } catch (_) {}
-  } catch (_) {}
+        final generalOn = prefs.getBool('notif_general') ?? true;
+        if (!generalOn) {
+          try { await fm.unsubscribeFromTopic('jobmitra_announcements'); } catch (_) {}
+        }
+        await prefs.setInt('topic_sync_version', kTopicSyncVersion);
+      }
+    } catch (e, st) {
+      if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
+    }
+  } catch (e, st) {
+    if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
+  }
 
   // 3. Local notifications + FCM foreground handler
   await NotificationService.init();

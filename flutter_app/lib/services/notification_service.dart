@@ -64,10 +64,22 @@ class NotificationService {
       );
     });
 
-    // Handle notification tap when app opened from background/terminated
+    // Handle notification tap when app opened from background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
       _routeForPayload(msg.data['deeplink'] ?? msg.data['screen']);
     });
+
+    // Terminated-state launch: if the app was opened by tapping a push while
+    // fully killed, getInitialMessage returns that RemoteMessage exactly once.
+    // Without this path, deeplinks (e.g. "open Admit Cards tab") are silently
+    // lost on the most common entry — the #1 source of push CTR.
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      // Defer until after the first frame so navigatorKey has a state.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _routeForPayload(initial.data['deeplink'] ?? initial.data['screen']);
+      });
+    }
   }
 
   static void _onNotificationTap(NotificationResponse response) {
