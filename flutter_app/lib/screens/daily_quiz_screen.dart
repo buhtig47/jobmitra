@@ -10,7 +10,14 @@ class _Q {
   final String q;
   final List<String> opts;
   final int ans;
-  const _Q(this.q, this.opts, this.ans);
+  // Optional — only populated when the question came from the backend.
+  // Static fallback sets leave these empty, so the UI must tolerate ''.
+  final String explanation;
+  final String topic;
+  // Stable ID for bookmarking. For API rows we use the server ID prefixed,
+  // for static rows we hash the question text.
+  final String id;
+  const _Q(this.q, this.opts, this.ans, {this.explanation = '', this.topic = '', this.id = ''});
 }
 
 // 60 daily sets × 5 questions = 2-month rotation
@@ -518,6 +525,14 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   int _todayScore = 0;
   bool _loading = true;
 
+  // Per-session answer trail so end-of-quiz review can show every wrong answer
+  // with its explanation. Index parallel to _questions.
+  final List<int?> _trail = [];
+  // Bookmarked question IDs across sessions (any quiz, any day). Stored as
+  // a JSON-free SharedPreferences StringList keyed by _Q.id.
+  static const _kBookmarksKey = 'quiz_bookmarks_v1';
+  Set<String> _bookmarks = {};
+
   @override
   void initState() {
     super.initState();
@@ -528,6 +543,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     final prefs = await SharedPreferences.getInstance();
     final today = _todayKey();
     _streak = prefs.getInt('quiz_streak') ?? 0;
+    _bookmarks = (prefs.getStringList(_kBookmarksKey) ?? const <String>[]).toSet();
 
     if (prefs.containsKey('quiz_score_$today')) {
       _todayScore = prefs.getInt('quiz_score_$today') ?? 0;
@@ -547,6 +563,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             q['question'] as String,
             List<String>.from(q['options'] as List),
             q['correct'] as int,
+            explanation: (q['explanation'] as String?) ?? '',
+            topic: (q['topic'] as String?) ?? '',
+            id: 'api:${q['id'] ?? q['question'].hashCode}',
           )).toList();
         }
       } catch (e, st) {
@@ -588,6 +607,16 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     setState(() {
       _selected = idx;
       _answered = true;
+      // Record what user picked at this index so the review screen can replay
+      // it. Use grow-or-set semantics so re-entrancy doesn't double-push.
+      if (_trail.length > _qIndex) {
+        _trail[_qIndex] = idx;
+      } else {
+        while (_trail.length < _qIndex) {
+          _trail.add(null);
+        }
+        _trail.add(idx);
+      }
       if (idx == qs[_qIndex].ans) _score++;
     });
   }
@@ -603,6 +632,20 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       _selected = null;
       _answered = false;
     });
+  }
+
+  Future<void> _toggleBookmark(String id) async {
+    if (id.isEmpty) return;
+    final next = Set<String>.from(_bookmarks);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kBookmarksKey, next.toList());
+    if (!mounted) return;
+    setState(() => _bookmarks = next);
   }
 
   @override
@@ -701,7 +744,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
-                // Question
+                // Question card — adds topic chip + bookmark star
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -710,8 +753,42 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
                   ),
-                  child: Text(q.q,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.5, color: AppColors.textPrimary)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (q.topic.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6A1B9A).withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(q.topic,
+                                  style: const TextStyle(
+                                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6A1B9A))),
+                            ),
+                          const Spacer(),
+                          if (q.id.isNotEmpty)
+                            InkWell(
+                              onTap: () => _toggleBookmark(q.id),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2),
+                                child: Icon(
+                                  _bookmarks.contains(q.id) ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                                  color: _bookmarks.contains(q.id) ? const Color(0xFFE65100) : Colors.grey[400],
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (q.topic.isNotEmpty) const SizedBox(height: 10),
+                      Text(q.q,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.5, color: AppColors.textPrimary)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Options
@@ -773,6 +850,35 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   );
                 }),
                 const SizedBox(height: 8),
+                // Explanation card — appears after the user has answered.
+                // Hidden entirely when explanation is empty (static fallback rows).
+                if (_answered && q.explanation.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.lightbulb_rounded, color: Color(0xFFE65100), size: 18),
+                            SizedBox(width: 6),
+                            Text('Explanation',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFBF360C))),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(q.explanation,
+                            style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF5D4037))),
+                      ],
+                    ),
+                  ),
                 if (_answered)
                   SizedBox(
                     width: double.infinity,
@@ -842,38 +948,96 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Correct answers review
+                // Review: every question with user vs correct + explanation
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Correct Answers', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textSecondary)),
+                  child: Text('Review', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textSecondary)),
                 ),
                 const SizedBox(height: 10),
-                ..._questions!.map((q) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(q.q, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 14),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(q.opts[q.ans],
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
+                ...List.generate(_questions!.length, (i) {
+                  final q = _questions![i];
+                  final picked = i < _trail.length ? _trail[i] : null;
+                  final correct = picked == q.ans;
+                  final pickedText = picked == null ? '— skipped —' : q.opts[picked];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: correct
+                              ? const Color(0xFF2E7D32).withValues(alpha: 0.3)
+                              : const Color(0xFFD32F2F).withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              correct ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                              color: correct ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text('Q${i + 1}',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: correct ? const Color(0xFF1B5E20) : const Color(0xFFB71C1C))),
+                            if (q.topic.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6A1B9A).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(q.topic,
+                                    style: const TextStyle(
+                                        fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF6A1B9A))),
+                              ),
+                            ],
+                            const Spacer(),
+                            if (q.id.isNotEmpty)
+                              InkWell(
+                                onTap: () => _toggleBookmark(q.id),
+                                child: Icon(
+                                  _bookmarks.contains(q.id) ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                                  color: _bookmarks.contains(q.id) ? const Color(0xFFE65100) : Colors.grey[400],
+                                  size: 18,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(q.q,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.4)),
+                        const SizedBox(height: 8),
+                        if (!correct) ...[
+                          Text('Your answer: $pickedText',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFFB71C1C))),
+                          const SizedBox(height: 2),
+                        ],
+                        Text('Correct: ${q.opts[q.ans]}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
+                        if (q.explanation.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8E1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text('💡 ${q.explanation}',
+                                style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF5D4037))),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                )),
+                      ],
+                    ),
+                  );
+                }),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: () => Navigator.pop(context),

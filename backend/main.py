@@ -1824,7 +1824,8 @@ def get_daily_quiz(set_index: int = Query(0)):
             "question": r["question"],
             "options": [r["option_a"], r["option_b"], r["option_c"], r["option_d"]],
             "correct": r["correct"],
-            "topic": r["topic"],
+            "topic": r["topic"] or "",
+            "explanation": r["explanation"] or "",
         }
         for r in rows
     ]
@@ -1875,7 +1876,8 @@ def get_mock_questions(pack_id: str):
             "question": r["question"],
             "options": [r["option_a"], r["option_b"], r["option_c"], r["option_d"]],
             "correct": r["correct"],
-            "topic": r["topic"],
+            "topic": r["topic"] or "",
+            "explanation": r["explanation"] or "",
         }
         for r in rows
     ]

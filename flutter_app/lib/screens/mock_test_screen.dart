@@ -13,7 +13,11 @@ class _Q {
   final String q;
   final List<String> opts;
   final int ans; // 0-indexed
-  const _Q(this.q, this.opts, this.ans);
+  // Optional — backend provides these; static fallback uses empty defaults.
+  final String explanation;
+  final String topic;
+  final String id;
+  const _Q(this.q, this.opts, this.ans, {this.explanation = '', this.topic = '', this.id = ''});
 }
 
 class _Pack {
@@ -606,17 +610,63 @@ class _MockTestScreenState extends State<MockTestScreen> {
   bool _answered  = false;
   int  _score     = 0;
   List<int> _userAnswers = [];
+  // Set of question indices the user explicitly flagged "mark for review" via
+  // the palette — surfaces with an orange dot on the result screen.
+  Set<int> _flagged = <int>{};
+  // Cumulative time spent per question (seconds). Index parallel to questions.
+  List<int> _timePerQ = [];
+  // Wall-clock when the current question's timer started — used to compute
+  // time spent when the user submits or skips.
+  DateTime? _qStartedAt;
 
   // timer
   static const _secsPerQ  = 30;
   int  _secsLeft  = _secsPerQ;
   Timer? _timer;
 
+  // Bookmarked question IDs (shared key with daily-quiz so a single "Review
+  // Bookmarks" view eventually covers both).
+  static const _kBookmarksKey = 'quiz_bookmarks_v1';
+  Set<String> _bookmarks = <String>{};
+
   @override
   void initState() {
     super.initState();
     _loadBestScores();
     _loadApiPacks();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _bookmarks = (prefs.getStringList(_kBookmarksKey) ?? const <String>[]).toSet();
+    });
+  }
+
+  Future<void> _toggleBookmark(String id) async {
+    if (id.isEmpty) return;
+    final next = Set<String>.from(_bookmarks);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kBookmarksKey, next.toList());
+    if (!mounted) return;
+    setState(() => _bookmarks = next);
+  }
+
+  void _toggleFlag(int idx) {
+    setState(() {
+      if (_flagged.contains(idx)) {
+        _flagged.remove(idx);
+      } else {
+        _flagged.add(idx);
+      }
+    });
   }
 
   Future<void> _loadBestScores() async {
@@ -692,9 +742,12 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _score       = 0;
       _secsLeft    = _secsPerQ;
       _userAnswers = [];
+      _flagged     = <int>{};
+      _timePerQ    = List<int>.filled(pack.questions.length, 0);
       _stage       = _Stage.quiz;
       _packLoading = false;
     });
+    _qStartedAt = DateTime.now();
     _startTimer();
   }
 
@@ -721,6 +774,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
           q['question'] as String,
           List<String>.from(q['options'] as List),
           q['correct'] as int,
+          explanation: (q['explanation'] as String?) ?? '',
+          topic: (q['topic'] as String?) ?? '',
+          id: 'api:${q['id'] ?? q['question'].hashCode}',
         )).toList();
         _startPack(_Pack(
           id: pack.id, title: pack.title, subtitle: pack.subtitle,
@@ -772,11 +828,16 @@ class _MockTestScreenState extends State<MockTestScreen> {
     // question — guard against an index overrun on _pack.questions.
     if (_qIndex < 0 || _qIndex >= _pack.questions.length) return;
     final correct = _pack.questions[_qIndex].ans;
+    // Record how long the user spent on this question — feeds the result page.
+    final spent = _qStartedAt == null
+        ? _secsPerQ
+        : DateTime.now().difference(_qStartedAt!).inSeconds.clamp(0, _secsPerQ);
     setState(() {
       _selected  = chosen;
       _answered  = true;
       if (chosen == correct) _score++;
       _userAnswers.add(chosen);
+      if (_qIndex < _timePerQ.length) _timePerQ[_qIndex] = spent;
     });
   }
 
@@ -793,6 +854,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _answered  = false;
       _secsLeft  = _secsPerQ;
     });
+    _qStartedAt = DateTime.now();
     _startTimer();
   }
 
@@ -1111,8 +1173,63 @@ class _MockTestScreenState extends State<MockTestScreen> {
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 8, offset: const Offset(0, 2))],
                       ),
-                      child: Text(q.q, style: const TextStyle(
-                          fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.45)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (q.topic.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _pack.color.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(q.topic,
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: _pack.color)),
+                                ),
+                              const Spacer(),
+                              InkWell(
+                                onTap: () => _toggleFlag(_qIndex),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(
+                                    _flagged.contains(_qIndex)
+                                        ? Icons.flag_rounded
+                                        : Icons.flag_outlined,
+                                    color: _flagged.contains(_qIndex)
+                                        ? const Color(0xFFE65100)
+                                        : Colors.grey[400],
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                              if (q.id.isNotEmpty)
+                                InkWell(
+                                  onTap: () => _toggleBookmark(q.id),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      _bookmarks.contains(q.id)
+                                          ? Icons.bookmark_rounded
+                                          : Icons.bookmark_border_rounded,
+                                      color: _bookmarks.contains(q.id)
+                                          ? const Color(0xFFE65100)
+                                          : Colors.grey[400],
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (q.topic.isNotEmpty) const SizedBox(height: 10),
+                          Text(q.q, style: const TextStyle(
+                              fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.45)),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
                     ...List.generate(4, (i) => _OptionTile(
@@ -1164,6 +1281,39 @@ class _MockTestScreenState extends State<MockTestScreen> {
                           ],
                         ),
                       ),
+                      if (q.explanation.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.lightbulb_rounded,
+                                      color: Color(0xFFE65100), size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Explanation',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFBF360C))),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(q.explanation,
+                                  style: const TextStyle(
+                                      fontSize: 13, height: 1.5, color: Color(0xFF5D4037))),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ],
                 ),
@@ -1213,6 +1363,27 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
     final best = _bestScores[_pack.id] ?? _score;
 
+    // Per-topic accuracy aggregation. Falls back to 'General' when the question
+    // has no topic tag so the breakdown still groups everything sensibly.
+    final topicStats = <String, ({int correct, int total})>{};
+    for (var i = 0; i < _pack.questions.length; i++) {
+      final q = _pack.questions[i];
+      final topic = q.topic.isEmpty ? 'General' : q.topic;
+      final userAns = i < _userAnswers.length ? _userAnswers[i] : -1;
+      final prev = topicStats[topic] ?? (correct: 0, total: 0);
+      topicStats[topic] = (
+        correct: prev.correct + (userAns == q.ans ? 1 : 0),
+        total: prev.total + 1,
+      );
+    }
+    // Sort topics: weakest first so the user sees where to focus.
+    final sortedTopics = topicStats.entries.toList()
+      ..sort((a, b) =>
+          (a.value.correct / a.value.total).compareTo(b.value.correct / b.value.total));
+
+    final totalSecs = _timePerQ.fold<int>(0, (s, t) => s + t);
+    final avgSecs = total == 0 ? 0 : (totalSecs / total).round();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -1240,76 +1411,110 @@ class _MockTestScreenState extends State<MockTestScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _resultStat('$_score/$total', 'Score', Colors.white),
-                      const SizedBox(width: 32),
+                      const SizedBox(width: 26),
                       _resultStat('${(pct * 100).round()}%', 'Accuracy', Colors.white),
-                      const SizedBox(width: 32),
-                      _resultStat('$best/${total}', 'Best', const Color(0xFFFFD700)),
+                      const SizedBox(width: 26),
+                      _resultStat('${avgSecs}s', 'Avg/Q', Colors.white),
+                      const SizedBox(width: 26),
+                      _resultStat('$best/$total', 'Best', const Color(0xFFFFD700)),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // Review list
+            // Body — topic breakdown above review
             Expanded(
-              child: ListView.builder(
+              child: ListView(
                 padding: const EdgeInsets.all(12),
-                itemCount: _pack.questions.length,
-                itemBuilder: (_, i) {
-                  final q = _pack.questions[i];
-                  final userAns = i < _userAnswers.length ? _userAnswers[i] : -1;
-                  final correct = userAns == q.ans;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: correct ? const Color(0xFF81C784) : const Color(0xFFEF9A9A),
+                children: [
+                  // Topic breakdown
+                  if (sortedTopics.length > 1) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.insights_rounded, size: 16, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          const Text('Topic-wise Accuracy',
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.textSecondary)),
+                          const Spacer(),
+                          Text('weakest first',
+                              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontStyle: FontStyle.italic)),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 26, height: 26,
-                          decoration: BoxDecoration(
-                            color: correct ? const Color(0xFF1A6B3C) : const Color(0xFFB71C1C),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              correct ? Icons.check_rounded : Icons.close_rounded,
-                              color: Colors.white, size: 15,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Q${i + 1}. ${q.q}',
-                                  style: const TextStyle(fontSize: 12.5,
-                                      fontWeight: FontWeight.w600, height: 1.4)),
-                              const SizedBox(height: 4),
-                              if (!correct)
-                                Text(
-                                  'Your answer: ${userAns == -1 ? "Skipped (time up)" : q.opts[userAns]}',
-                                  style: const TextStyle(fontSize: 11.5,
-                                      color: Color(0xFFB71C1C)),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        children: [
+                          for (final e in sortedTopics) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(e.key,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                 ),
-                              Text('Correct: ${q.opts[q.ans]}',
-                                  style: const TextStyle(fontSize: 11.5,
-                                      color: Color(0xFF1A6B3C), fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
+                                Expanded(
+                                  flex: 4,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: e.value.correct / e.value.total,
+                                      minHeight: 8,
+                                      backgroundColor: Colors.grey[100],
+                                      valueColor: AlwaysStoppedAnimation(
+                                        e.value.correct / e.value.total >= 0.7
+                                            ? const Color(0xFF1A6B3C)
+                                            : e.value.correct / e.value.total >= 0.4
+                                                ? const Color(0xFFE65100)
+                                                : const Color(0xFFB71C1C),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 48,
+                                  child: Text('${e.value.correct}/${e.value.total}',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Review heading
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                    child: Row(
+                      children: const [
+                        Icon(Icons.fact_check_rounded, size: 16, color: AppColors.textSecondary),
+                        SizedBox(width: 6),
+                        Text('Question Review',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.textSecondary)),
                       ],
                     ),
-                  );
-                },
+                  ),
+                  for (var i = 0; i < _pack.questions.length; i++) ...[
+                    _buildReviewItem(i),
+                    const SizedBox(height: 8),
+                  ],
+                ],
               ),
             ),
 
@@ -1355,9 +1560,115 @@ class _MockTestScreenState extends State<MockTestScreen> {
   Widget _resultStat(String val, String label, Color color) {
     return Column(
       children: [
-        Text(val, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w900)),
-        Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
+        Text(val, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+        Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 10)),
       ],
+    );
+  }
+
+  Widget _buildReviewItem(int i) {
+    final q = _pack.questions[i];
+    final userAns = i < _userAnswers.length ? _userAnswers[i] : -1;
+    final correct = userAns == q.ans;
+    final timeSpent = i < _timePerQ.length ? _timePerQ[i] : 0;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: correct ? const Color(0xFF81C784) : const Color(0xFFEF9A9A),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24, height: 24,
+                decoration: BoxDecoration(
+                  color: correct ? const Color(0xFF1A6B3C) : const Color(0xFFB71C1C),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    correct ? Icons.check_rounded : Icons.close_rounded,
+                    color: Colors.white, size: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('Q${i + 1}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+              if (q.topic.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _pack.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(q.topic,
+                      style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w700, color: _pack.color)),
+                ),
+              ],
+              const SizedBox(width: 8),
+              Icon(Icons.timer_outlined, size: 11, color: Colors.grey[500]),
+              const SizedBox(width: 2),
+              Text('${timeSpent}s',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+              const Spacer(),
+              if (_flagged.contains(i))
+                const Padding(
+                  padding: EdgeInsets.only(right: 6),
+                  child: Icon(Icons.flag_rounded, size: 14, color: Color(0xFFE65100)),
+                ),
+              if (q.id.isNotEmpty)
+                InkWell(
+                  onTap: () => _toggleBookmark(q.id),
+                  child: Icon(
+                    _bookmarks.contains(q.id)
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    color: _bookmarks.contains(q.id)
+                        ? const Color(0xFFE65100)
+                        : Colors.grey[400],
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(q.q,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, height: 1.4)),
+          const SizedBox(height: 6),
+          if (!correct)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                'Your answer: ${userAns == -1 ? "Skipped (time up)" : q.opts[userAns]}',
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFFB71C1C)),
+              ),
+            ),
+          Text('Correct: ${q.opts[q.ans]}',
+              style: const TextStyle(
+                  fontSize: 11.5, color: Color(0xFF1A6B3C), fontWeight: FontWeight.w700)),
+          if (q.explanation.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('💡 ${q.explanation}',
+                  style: const TextStyle(fontSize: 11.5, height: 1.4, color: Color(0xFF5D4037))),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
