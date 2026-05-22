@@ -19,6 +19,7 @@ import 'language_picker_screen.dart';
 import 'personal_info_screen.dart';
 import 'tools_screen.dart';
 import 'alerts_screen.dart';
+import 'disclaimer_screen.dart';
 import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -448,6 +449,7 @@ class _FeedTabState extends State<_FeedTab> {
       ),
       body: Column(
         children: [
+          _buildDisclaimerStrip(),
           // State landing chips (top-traffic Indian states)
           _buildStateBar(),
           // Category filter chips + free toggle
@@ -514,6 +516,45 @@ class _FeedTabState extends State<_FeedTab> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDisclaimerStrip() {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DisclaimerScreen()),
+      ),
+      child: Container(
+        width: double.infinity,
+        color: const Color(0xFFFFF3E0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline,
+                size: 14, color: Color(0xFFE65100)),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text(
+                'Not affiliated with any Govt. entity. Info aggregated from official sources.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFBF360C),
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            const Text('View sources',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFBF360C),
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline)),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right,
+                size: 14, color: Color(0xFFBF360C)),
+          ],
+        ),
       ),
     );
   }
@@ -1236,6 +1277,17 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
           const Divider(height: 1, indent: 56),
           _aboutRow(
+            icon: Icons.gavel_rounded,
+            color: const Color(0xFFE65100),
+            title: 'Disclaimer & Official Sources',
+            subtitle: 'Not affiliated with Govt. View 22+ official sources',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DisclaimerScreen()),
+            ),
+          ),
+          const Divider(height: 1, indent: 56),
+          _aboutRow(
             icon: Icons.privacy_tip_outlined,
             color: const Color(0xFF1565C0),
             title: 'Privacy Policy',
@@ -1257,7 +1309,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             icon: Icons.info_outline_rounded,
             color: const Color(0xFF6A1B9A),
             title: 'App Version',
-            subtitle: '1.1.0 (build 2)',
+            subtitle: '1.1.2 (build 4)',
             onTap: null,
           ),
         ],

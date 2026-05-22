@@ -41,10 +41,7 @@ android {
     defaultConfig {
         applicationId = "com.jobmitra.app"
         minSdk = flutter.minSdkVersion
-        // Play Store requires targetSdk 34+ for new app submissions as of
-        // Aug 2024. Bumped from flutter.targetSdkVersion (33) to clear the
-        // listing reviewer warning and the `printing` package's API 31 deps.
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
