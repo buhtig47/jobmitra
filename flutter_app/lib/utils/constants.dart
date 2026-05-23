@@ -10,6 +10,57 @@ const String kApiBase = "https://jobmitra-api-830207301447.asia-south1.run.app";
 // const String kApiBase = "http://localhost:8000";  // iOS simulator
 
 // ─────────────────────────────────────────
+// SPACING TOKENS — 4-pt scale. Use these instead of bare numbers in new code;
+// existing screens can migrate gradually. Keeps vertical rhythm consistent
+// when we later tweak density (e.g. for tablets).
+// ─────────────────────────────────────────
+class Spacing {
+  static const double xs  = 4;
+  static const double sm  = 8;
+  static const double md  = 12;
+  static const double lg  = 16;
+  static const double xl  = 20;
+  static const double xxl = 28;
+  static const double xxxl = 40;
+}
+
+// ─────────────────────────────────────────
+// RADIUS TOKENS — three sizes cover the whole app: chip / card / sheet.
+// ─────────────────────────────────────────
+class Radii {
+  static const double chip  = 20;
+  static const double card  = 16;
+  static const double cardLg = 20;
+  static const double sheet = 24;
+}
+
+// ─────────────────────────────────────────
+// TYPE SCALE — six steps. Pull these via AppText so a future redesign or
+// dark-mode pass can override in one place. Sizes match Material's intent
+// but use Poppins (set globally by appTheme()).
+// ─────────────────────────────────────────
+class AppText {
+  static TextStyle display  ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 26, fontWeight: FontWeight.w800, height: 1.15,
+        color: c ?? AppColors.textPrimary, letterSpacing: -0.4);
+  static TextStyle h1       ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 20, fontWeight: FontWeight.w700, height: 1.25,
+        color: c ?? AppColors.textPrimary, letterSpacing: -0.2);
+  static TextStyle h2       ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 17, fontWeight: FontWeight.w700, height: 1.3,
+        color: c ?? AppColors.textPrimary, letterSpacing: -0.15);
+  static TextStyle body     ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 14, fontWeight: FontWeight.w500, height: 1.45,
+        color: c ?? AppColors.textPrimary);
+  static TextStyle caption  ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 12, fontWeight: FontWeight.w500, height: 1.4,
+        color: c ?? AppColors.textSecondary);
+  static TextStyle micro    ({Color? c}) => GoogleFonts.poppins(
+        fontSize: 11, fontWeight: FontWeight.w600, height: 1.3,
+        color: c ?? AppColors.textHint, letterSpacing: 0.2);
+}
+
+// ─────────────────────────────────────────
 // COLORS
 // ─────────────────────────────────────────
 class AppColors {
@@ -117,6 +168,37 @@ class JobCategories {
     {"key": "psu",      "label": "PSU",       "icon": "🏭", "color": Color(0xFF00695C)},
     {"key": "others",   "label": "Others",    "icon": "💼", "color": Color(0xFF5D4037)},
   ];
+}
+
+// Single source of truth for category accent colors used by job cards, job
+// detail screen, and anywhere else a job key needs a tint. Includes finer-
+// grained scraper categories (medical, research, postal, etc.) that aren't
+// in the top-level JobCategories list.
+class JobCategoryColors {
+  static const Map<String, Color> _map = {
+    'railway':     Color(0xFF1565C0),
+    'banking':     Color(0xFF2E7D32),
+    'ssc':         Color(0xFF6A1B9A),
+    'teaching':    Color(0xFF00838F),
+    'police':      Color(0xFF283593),
+    'defence':     Color(0xFF558B2F),
+    'upsc':        Color(0xFF4E342E),
+    'anganwadi':   Color(0xFFAD1457),
+    'psu':         Color(0xFF00695C),
+    'medical':     Color(0xFFC62828),
+    'research':    Color(0xFF4527A0),
+    'engineering': Color(0xFF1565C0),
+    'legal':       Color(0xFF37474F),
+    'postal':      Color(0xFF6D4C41),
+    'admin':       Color(0xFF546E7A),
+    'it_tech':     Color(0xFF0277BD),
+    'accounts':    Color(0xFF558B2F),
+    'forest':      Color(0xFF2E7D32),
+  };
+
+  static const Color fallback = Color(0xFF546E7A);
+
+  static Color colorFor(String? key) => _map[key] ?? fallback;
 }
 
 class IndianStates {

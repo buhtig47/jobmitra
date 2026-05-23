@@ -119,23 +119,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     return (_job!.sourceUrl, null); // last resort: news article
   }
 
-  static const Map<String, Color> _catColors = {
-    'railway':   Color(0xFF1565C0),
-    'banking':   Color(0xFF2E7D32),
-    'ssc':       Color(0xFF6A1B9A),
-    'teaching':  Color(0xFF00838F),
-    'police':    Color(0xFF283593),
-    'defence':   Color(0xFF558B2F),
-    'upsc':      Color(0xFF4E342E),
-    'anganwadi': Color(0xFFAD1457),
-    'psu':       Color(0xFF00695C),
-    'medical':   Color(0xFFC62828),
-    'research':  Color(0xFF4527A0),
-    'engineering': Color(0xFF1565C0),
-    'legal':     Color(0xFF37474F),
-  };
-
-  Color get _catColor => _catColors[_job?.category] ?? AppColors.primary;
+  Color get _catColor => _job == null
+      ? AppColors.primary
+      : JobCategoryColors.colorFor(_job!.category);
 
   @override
   void initState() {
@@ -168,9 +154,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     // addRecentlyViewed removed — recently viewed feature removed
   }
 
+  // Fire an interstitial on the way out (the frequency cap in AdService keeps
+  // this from showing on every single back-nav). Called from both the system
+  // back-gesture (via PopScope) and the AppBar back button.
+  void _maybeShowExitInterstitial() {
+    AdService().showInterstitial();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _maybeShowExitInterstitial();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
@@ -191,7 +189,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      _maybeShowExitInterstitial();
+                      Navigator.pop(context);
+                    },
                   ),
                   Expanded(
                     child: Column(
@@ -237,6 +238,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               ? const Center(child: Text('Job not found'))
               : _buildContent(),
       bottomNavigationBar: _job == null ? null : _buildApplyButton(),
+      ),
     );
   }
 
@@ -1008,10 +1010,42 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _launchUrl(String rawUrl) async {
-    final url = Uri.parse(rawUrl);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    // Three failure modes the original code silently ate:
+    //  1. rawUrl is empty or malformed → Uri.parse may throw.
+    //  2. canLaunchUrl returns false (no browser, intent blocked).
+    //  3. launchUrl itself throws (rare, but happens with whatsapp:// etc).
+    // Surface each via snackbar so the user knows their tap did *something*.
+    final url = Uri.tryParse(rawUrl);
+    if (url == null || rawUrl.isEmpty) {
+      _showError("Couldn't open this link — URL is invalid");
+      return;
     }
+    try {
+      if (!await canLaunchUrl(url)) {
+        _showError('No app on this device can open the link');
+        return;
+      }
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      _showError("Couldn't open the link, please try again");
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(children: [
+          const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600))),
+        ]),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _launchSourceUrl() async => _launchUrl(_job!.sourceUrl);

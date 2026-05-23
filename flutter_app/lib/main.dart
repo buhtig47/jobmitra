@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -37,9 +36,6 @@ void main() async {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 0. Warm Cloud Run backend — fire-and-forget so cold start begins immediately
-  http.get(Uri.parse('$kApiBase/stats')).then((_) {}, onError: (_) {});
 
   // 1. Offline cache. Hive init can fail on a corrupted file (rare, but a
   // single bad write during an OOM kill can leave the box unreadable). Swallow

@@ -131,7 +131,9 @@ def extract_salary(text: str) -> dict:
                 result["pay_scale"] = f"₹{level_salary[level]}"
 
     # ── 2. Grade Pay (6th CPC legacy) ───────────────────
-    m = re.search(r"grade\s*pay[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)", t)
+    # `\d[\d,]*` (not `[\d,]+`) so a stray "grade pay: ," in malformed feeds
+    # can't match an empty-numeric and crash on int(""). Same pattern below.
+    m = re.search(r"grade\s*pay[\s\-:]+(?:rs\.?\s*|₹\s*)?(\d[\d,]*)", t)
     if m:
         gp = int(m.group(1).replace(",", ""))
         if 1000 <= gp <= 12000:
@@ -143,7 +145,7 @@ def extract_salary(text: str) -> dict:
     # ── 3. Per month / p.m. patterns ────────────────────
     # "Rs. 25,000/- per month" / "₹25000 pm" / "25000/- p.m."
     m = re.search(
-        r"(?:rs\.?\s*|₹\s*)?([\d,]+)\s*(?:/-|/-)?\s*(?:per\s*month|p\.?m\.?|per\s*mon|monthly)",
+        r"(?:rs\.?\s*|₹\s*)?(\d[\d,]*)\s*(?:/-|/-)?\s*(?:per\s*month|p\.?m\.?|per\s*mon|monthly)",
         t,
     )
     if m:
@@ -181,7 +183,7 @@ def extract_salary(text: str) -> dict:
     # ── 5. Pay Band / Scale / Salary range ──────────────
     m = re.search(
         r"(?:pay\s*(?:scale|band)|salary|emoluments?|remuneration|ctc|package)"
-        r"[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)(?:\s*[-–/]\s*([\d,]+))?",
+        r"[\s\-:]+(?:rs\.?\s*|₹\s*)?(\d[\d,]*)(?:\s*[-–/]\s*(\d[\d,]*))?",
         t,
     )
     if m:
@@ -200,7 +202,7 @@ def extract_salary(text: str) -> dict:
     # ── 6. Consolidated / Fixed pay ─────────────────────
     # "consolidated pay of Rs. 35000" / "fixed pay Rs.18000/-"
     m = re.search(
-        r"(?:consolidated|fixed)\s*(?:pay|salary|amount|remuneration)[\s\-:of]+(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        r"(?:consolidated|fixed)\s*(?:pay|salary|amount|remuneration)[\s\-:of]+(?:rs\.?\s*|₹\s*)?(\d[\d,]*)",
         t,
     )
     if m:
@@ -213,7 +215,7 @@ def extract_salary(text: str) -> dict:
 
     # ── 7. Honorarium / Fellowship / Stipend ────────────
     for label in ["honorarium", "fellowship", "stipend"]:
-        m = re.search(rf"{label}[\s\-:]+(?:rs\.?\s*|₹\s*)?([\d,]+)", t)
+        m = re.search(rf"{label}[\s\-:]+(?:rs\.?\s*|₹\s*)?(\d[\d,]*)", t)
         if m:
             amt = int(m.group(1).replace(",", ""))
             lo, hi = (3000, 150000) if label != "honorarium" else (500, 50000)
@@ -282,7 +284,7 @@ SOURCE_TRUST = {
     # Good tier
     "applyfornaukri":7, "sarkarijobs_com":7, "haryanajobs":7,
     "sarkarijobfind":7, "freshersworld":7, "freshersworld_dir":7,
-    "govtjobsguide":7, "sarkariprep":7, "jobsarkari":7,
+    "govtjobsguide":7, "jobsarkari":7,
     "recruitmentindia":7, "ndtv_jobs":7, "jagran_jobs":7,
     # Medium tier
     "naukrinama":6, "thesarkarinaukri":6, "sarkarinaukriblog":6,
@@ -293,17 +295,20 @@ SOURCE_TRUST = {
     # Default tier
     "JobAlertsHub":5, "privatejobshub":5, "jobsalertguru":5,
     "sarkarijobsearcher":5, "sarkariresultnet":5,
-    # v10: official government RSS
-    "ibps_offical":10, "upsc_official":10, "ssc_official":10, "nhm_india":9,
+    # v10: official government RSS (ssc_official + nhm_india removed 2026-05)
+    "ibps_offical":10, "upsc_official":10,
     # v10: new aggregators
     "jobrecruitment":6, "govtjobsalert":6, "rojgardhund":5, "sarkarinaukrihub":5,
-    # v12: new sources
-    "sarkarialert":7, "naukrigyan":6, "bankersadda":8, "sscadda":8,
+    # v12: new sources (sarkarialert removed 2026-05)
+    "naukrigyan":6, "bankersadda":8, "sscadda":8,
     "naukriday":6, "jobsindian":5, "10th12thpass":6, "govtjobshunter":6,
     "sarkarijoblive":6, "studycafe":7, "examstocks":6, "jobriya":6,
     "latestgovtjobs":6, "govtjobsnews":6,
     "tnpsc_news":10, "wbpsc_news":10, "ntpc_jobs":9, "bhel_recr":9,
-    "becil_recr":8, "hpcl_recr":9,
+    # becil_recr + hpcl_recr removed 2026-05.
+    # CLAUDE.md backlog additions — explicit trust scores so they don't fall
+    # back to _DEFAULT_TRUST (5) when ranking duplicates.
+    "bharatnaukri":7, "govtjobsdiary":7, "sharmajobs":6, "sarkarinaukri2025":6,
 }
 _DEFAULT_TRUST = 5
 
@@ -344,7 +349,7 @@ RSS_SOURCES = {
     "freejobalert":      "https://www.freejobalert.com/feed/",
     "govtjobsblog":      "https://www.govtjobsblog.in/feed/",
     "sarkariexam":       "https://www.sarkariexam.com/feed/",
-    "applyfornaukri":    "https://applyfornaukri.com/feed/",
+    # applyfornaukri removed 2026-05: verified dead (DNS/404/HTML/refused).
     "thesarkarinaukri":  "https://thesarkarinaukri.com/feed/",
     "sarkarijobs_com":   "https://www.sarkarijobs.com/feed/",
     "sarkarijobfind":    "https://sarkarijobfind.com/feed/",
@@ -360,29 +365,29 @@ RSS_SOURCES = {
     "governmentjobsindia":"https://governmentjobsindia.net/feed/",
 
     # ══ TIER 2: New high-quality RSS sources ══
-    "sarkariresultcom":  "https://www.sarkariresult.com/feed/",
+    # sarkariresultcom removed 2026-05: verified dead (DNS/404/HTML/refused).
     "freshersworld":     "https://www.freshersworld.com/feed/",
-    "govtjobsguide":     "https://govtjobsguide.com/feed/",
+    # govtjobsguide removed 2026-05: verified dead (DNS/404/HTML/refused).
     "rojgarsamachar":    "https://rojgarsamachar.gov.in/feed/",
-    "employment_news":   "https://www.employmentnews.gov.in/feed/",
-    "careerpower":       "https://www.careerpower.in/blog/feed/",
-    "adda247":           "https://currentaffairs.adda247.com/feed/",
-    "sarkariprep":       "https://sarkariprep.in/feed/",
-    "jobsarkari":        "https://jobsarkari.com/feed/",
+    # employment_news removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # careerpower removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # adda247 removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkariprep removed 2026-05: /feed/ returns HTML, no RSS available.
+    # jobsarkari removed 2026-05: verified dead (DNS/404/HTML/refused).
     "govtjobpedia":      "https://govtjobpedia.com/feed/",
-    "sarkarinaukrified": "https://sarkarinaukrified.com/feed/",
-    "sarkariwalah":      "https://www.sarkariwalah.com/feed/",
+    # sarkarinaukrified removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkariwalah removed 2026-05: verified dead (DNS/404/HTML/refused).
     "govtjob247":        "https://govtjob247.com/feed/",
-    "naukrimission":     "https://naukrimission.com/feed/",
-    "privatejobshub":    "https://www.privatejobshub.in/feeds/posts/default?alt=rss",
+    # naukrimission removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # privatejobshub removed 2026-05: verified dead (DNS/404/HTML/refused).
     "jobsalertguru":     "https://www.jobsalertguru.com/feed/",
-    "currentgk":         "https://www.currentgk.com/feed/",
-    "governmentjobsinfo":"https://www.governmentjobsinfo.com/feed/",
-    "jobsarkariresult":  "https://jobsarkariresult.com/feed/",
+    # currentgk removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # governmentjobsinfo removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # jobsarkariresult removed 2026-05: verified dead (DNS/404/HTML/refused).
     "recruitmentindia":  "https://www.recruitmentindia.in/feed/",
-    "freejobalert2":     "https://freejobalert2.com/feed/",
-    "sarkarijobsearcher":"https://sarkarijobsearcher.com/feed/",
-    "sarkariresultnet":  "https://sarkariresult.net/feed/",
+    # freejobalert2 removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkarijobsearcher removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkariresultnet removed 2026-05: verified dead (DNS/404/HTML/refused).
 
     # ══ TIER 3: FreeJobAlert category feeds ══
     # v8: Correct URL pattern is /category/X-jobs/feed/ (not /X-jobs/feed/)
@@ -409,32 +414,32 @@ RSS_SOURCES = {
 
     # ══ TIER 4: State-specific feeds (new active URLs) ══
     "up_rojgar":         "https://www.uprojgar.com/feed/",
-    "up_bhartimela":     "https://upbhartimela.com/feed/",
-    "mp_rojgar":         "https://mprojgar.com/feed/",
-    "mp_vyapam":         "https://mpvyapam.com/feed/",
-    "bihar_sarkar":      "https://biharjobs.net/feed/",
-    "rajasthan_jobs":    "https://rajasthanrpsc.com/feed/",
-    "gujarat_jobs":      "https://gujaratjobs.net/feed/",
-    "maharashtra_jobs":  "https://maharashtrajobs.net/feed/",
+    # up_bhartimela removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # mp_rojgar removed 2026-05: feed URL times out, site appears unreachable.
+    # mp_vyapam removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # bihar_sarkar removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # rajasthan_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # gujarat_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # maharashtra_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
     "karnataka_jobs":    "https://karnatakajobs.in/feed/",
-    "tamilnadu_jobs":    "https://tamilnadujobs.in/feed/",
-    "haryana_sarkari":   "https://haryanagovtjobs.in/feed/",
-    "punjab_sarkar":     "https://punjabsarkarijobs.com/feed/",
-    "delhi_jobs":        "https://delhigovtjobs.in/feed/",
-    "odisha_jobs":       "https://odishagovtjobs.com/feed/",
-    "assam_jobs":        "https://assamjobs.net/feed/",
-    "jharkhand_jobs":    "https://jharkhandjobs.net/feed/",
+    # tamilnadu_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # haryana_sarkari removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # punjab_sarkar removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # delhi_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # odisha_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # assam_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # jharkhand_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
 
     # ══ TIER 5: Previously dead — keep trying ══
-    "sarkariresult_news":"https://sarkariresultsnews.com/feed/",
+    # sarkariresult_news removed 2026-05: /feed/ returns HTML.
     "naukridaily":       "https://naukridaily.in/feed/",
-    "sarkarinokri":      "https://sarkarinokri.com/feed/",
-    "sarkariresultup":   "https://sarkariresultup.com/feed/",
-    "jobnotification":   "https://www.jobnotification.in/feed/",
-    "govtjobguru":       "https://www.govtjobguru.in/feed/",
-    "recruitmentcare":   "https://www.recruitmentcare.com/feed/",
-    "govtjobstop":       "https://govtjobstop.com/feed/",
-    "sarkarinaukri_in":  "https://sarkarinaukri.in/feed/",
+    # sarkarinokri removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkariresultup removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # jobnotification removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # govtjobguru removed 2026-05: /feed/ returns HTML.
+    # recruitmentcare removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # govtjobstop removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkarinaukri_in removed 2026-05: verified dead (DNS/404/HTML/refused).
     "freejobsalert":     "https://freejobsalert.in/feed/",
 
     # ══ TIER 6: New sources added ══
@@ -445,65 +450,66 @@ RSS_SOURCES = {
 
     # ══ TIER 7: v10 new sources ══
     "jobrecruitment":    "https://jobrecruitment.in/feed/",
-    "govtjobsalert":     "https://www.govtjobsalert.in/feeds/posts/default?alt=rss",
-    "rojgardhund":       "https://rojgardhund.com/feed/",
+    # govtjobsalert removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # rojgardhund removed 2026-05: verified dead (DNS/404/HTML/refused).
     "sarkarinaukrihub":  "https://sarkarinaukrihub.com/feed/",
-    "ibps_offical":      "https://www.ibps.in/rss.xml",
+    # ibps_offical removed 2026-05: verified dead (DNS/404/HTML/refused).
     "upsc_official":     "https://upsc.gov.in/rss.xml",
-    "ssc_official":      "https://ssc.gov.in/rss.xml",
-    "nhm_india":         "https://nhm.gov.in/New_Updates_2018/Recruitment/rss.xml",
+    # ssc_official removed 2026-05: ssc.gov.in/rss.xml now returns homepage HTML;
+    # SSC coverage via FreeJobAlert's fja_ssc category feed is more reliable anyway.
+    # nhm_india removed 2026-05: rss.xml URL returns static HTML.
 
     # ══ TIER 8: v12 new sources ══
     # More aggregators
-    "sarkarialert":      "https://www.sarkarialert.com/feed/",
+    # sarkarialert removed 2026-05: feed URL times out, likely IP-blocked.
     "naukrigyan":        "https://naukrigyan.com/feed/",
-    "bankersadda":       "https://www.bankersadda.com/feeds/posts/default?alt=rss",
-    "sscadda":           "https://www.sscadda.com/feeds/posts/default?alt=rss",
+    # bankersadda removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sscadda removed 2026-05: verified dead (DNS/404/HTML/refused).
     "naukriday":         "https://www.naukriday.com/feed/",
-    "jobsindian":        "https://jobsindian.in/feed/",
-    "10th12thpass":      "https://www.10th12thpass.com/feed/",
-    "govtjobshunter":    "https://govtjobshunter.com/feed/",
-    "sarkarijoblive":    "https://sarkarijoblive.com/feed/",
-    "studycafe":         "https://www.studycafe.in/feeds/posts/default?alt=rss",
+    # jobsindian removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # 10th12thpass removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # govtjobshunter removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkarijoblive removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # studycafe removed 2026-05: verified dead (DNS/404/HTML/refused).
     "examstocks":        "https://www.examstocks.com/feed/",
     "jobriya":           "https://jobriya.in/feed/",
-    "latestgovtjobs":    "https://latestgovtjobs.in/feed/",
-    "govtjobsnews":      "https://govtjobsnews.in/feed/",
+    # latestgovtjobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # govtjobsnews removed 2026-05: verified dead (DNS/404/HTML/refused).
     # More state-level
-    "up_police_recr":    "https://uppbpb.gov.in/feed/",
-    "mp_policerecr":     "https://mppolice.gov.in/feed/",
-    "tnpsc_news":        "https://www.tnpsc.gov.in/rss.xml",
-    "wbpsc_news":        "https://www.pscwb.org.in/rss.xml",
+    # up_police_recr removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # mp_policerecr removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # tnpsc_news removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # wbpsc_news removed 2026-05: verified dead (DNS/404/HTML/refused).
     # More PSU / central
-    "ntpc_jobs":         "https://www.ntpccareers.net/feed/",
-    "bhel_recr":         "https://careers.bhel.in/feed/",
-    "becil_recr":        "https://www.becil.com/feed/",
-    "hpcl_recr":         "https://hindustanpetroleum.com/feed/",
+    # ntpc_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # bhel_recr removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # becil_recr removed 2026-05: becil.com/feed/ returns HTML.
+    # hpcl_recr removed 2026-05: hindustanpetroleum.com/feed/ returns HTML.
 
     # ══ TIER 9: v13 new sources ══
     # High-traffic job boards
     "sarkariresultlive": "https://www.sarkariresultlive.com/feed/",
-    "govtjobszone":      "https://govtjobszone.com/feed/",
-    "naukrijagat":       "https://naukrijagat.com/feed/",
-    "sarkariexamnoti":   "https://sarkarinotiresult.com/feed/",
-    "quickrecruitment":  "https://www.quickrecruitment.in/feed/",
-    "jobsrankings":      "https://jobsrankings.com/feed/",
+    # govtjobszone removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # naukrijagat removed 2026-05: /feed/ returns HTML.
+    # sarkariexamnoti removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # quickrecruitment removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # jobsrankings removed 2026-05: verified dead (DNS/404/HTML/refused).
     "rojgarbazar":       "https://rojgarbazar.com/feed/",
-    "govtjobswala":      "https://www.govtjobswala.com/feed/",
-    "sarkarigruh":       "https://www.sarkarigruh.com/feed/",
+    # govtjobswala removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # sarkarigruh removed 2026-05: verified dead (DNS/404/HTML/refused).
     "freejobsalert_net": "https://freejobsalert.net/feed/",
     # Official PSU/Govt RSS (highly reliable)
-    "sail_careers":      "https://www.sail.co.in/en/careers/rss",
-    "ongc_careers":      "https://ongcindia.com/wps/wcm/connect/ongc/rss",
+    # sail_careers removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # ongc_careers removed 2026-05: /rss endpoint returns Liferay portal HTML.
     "bel_recr":          "https://bel-india.in/careers/feed/",
-    "iocl_jobs":         "https://iocl.com/careers/feed",
-    "gail_jobs":         "https://gailonline.com/rss.xml",
+    # iocl_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # gail_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
     # More state boards
-    "uttarakhand_jobs":  "https://ukpsc.gov.in/rss.xml",
+    # uttarakhand_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
     "hp_jobs":           "https://hppsc.hp.gov.in/rss.xml",
-    "chhattisgarh_jobs": "https://cgvyapam.choice.gov.in/feed/",
-    "telangana_jobs":    "https://tspsc.gov.in/rss.xml",
-    "kerala_jobs":       "https://keralapsc.gov.in/feeds/posts/default?alt=rss",
+    # chhattisgarh_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # telangana_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
+    # kerala_jobs removed 2026-05: verified dead (DNS/404/HTML/refused).
     # FJA extra categories
     "fja_accounts":      "https://www.freejobalert.com/category/accounts-jobs/feed/",
     "fja_admin":         "https://www.freejobalert.com/category/administrative-jobs/feed/",
@@ -978,7 +984,9 @@ _GARBAGE_RES = [re.compile(p, re.IGNORECASE) for p in GARBAGE_TITLE_PATTERNS]
 
 PRIVATE_SOURCE_DOMAINS = {
     "freshersnow.com",
-    "govtjobsdiary.com",
+    # govtjobsdiary.com removed: it's an RSS source we actively pull (see
+    # RSS_SOURCES), so blocklisting its domain caused every legitimate job
+    # from it to be silently filtered out by _is_private_job().
 }
 
 def _is_private_job(title: str, url: str) -> bool:
@@ -1335,16 +1343,20 @@ def _extract_fee(text: str) -> tuple:
 
     # v10: Try explicit Gen/OBC/SC split first
     # "General: 500, OBC: 300, SC/ST: 0"  or  "UR-500 | OBC-300 | SC/ST-0"
+    # `\d[\d,]*` (not `[\d,]+`) to avoid matching empty/comma-only strings
+    # that would then crash on `int("")` — surfaced in production logs
+    # for govtjobsblog / naukrinama / thesarkarinaukri / sarkarijobs_com /
+    # examstocks.
     gen_m = re.search(
-        r"(?:gen(?:eral)?|ur)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        r"(?:gen(?:eral)?|ur)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?(\d[\d,]*)",
         t, re.IGNORECASE,
     )
     obc_m = re.search(
-        r"(?:obc|bc)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        r"(?:obc|bc)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?(\d[\d,]*)",
         t, re.IGNORECASE,
     )
     sc_m = re.search(
-        r"(?:sc[/\s]?st|st[/\s]?sc|sc|st)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?([\d,]+)",
+        r"(?:sc[/\s]?st|st[/\s]?sc|sc|st)\s*[:\-–/]\s*(?:rs\.?\s*|₹\s*)?(\d[\d,]*)",
         t, re.IGNORECASE,
     )
     if gen_m:
@@ -1356,7 +1368,7 @@ def _extract_fee(text: str) -> tuple:
 
     # Fallback: collect all Rs./₹ amounts in range
     amounts = []
-    for m in re.finditer(r"(?:rs\.?\s*|₹\s*)([\d,]+)\s*/?-?", text, re.IGNORECASE):
+    for m in re.finditer(r"(?:rs\.?\s*|₹\s*)(\d[\d,]*)\s*/?-?", text, re.IGNORECASE):
         v = int(m.group(1).replace(",", ""))
         if 50 <= v <= 2500:
             amounts.append(v)
@@ -1405,7 +1417,10 @@ SESSION.mount("https://", _adapter)
 SESSION.mount("http://", _adapter)
 
 def _fetch(url: str, timeout: int = 15, retries: int = 3) -> str | None:
-    """v6: Retry with exponential backoff (1s, 2s, 4s)."""
+    """Retry with exponential backoff (1s, 2s, 4s). Honors HTTP 429 with a
+    longer cool-off because hammering a rate-limited host with the standard
+    1s/2s/4s schedule just keeps hitting the limit. On 429 we bail after the
+    first hit instead of burning the retry budget."""
     cached = _cache_get(url)
     if cached:
         log.debug(f"cache hit: {url[:60]}")
@@ -1414,13 +1429,24 @@ def _fetch(url: str, timeout: int = 15, retries: int = 3) -> str | None:
     for attempt in range(retries):
         try:
             r = SESSION.get(url, timeout=timeout, verify=False, allow_redirects=True)
+            # 429 means *we* are being asked to slow down. Honor Retry-After
+            # if present, but cap so a hostile server can't stall the pool.
+            if r.status_code == 429:
+                ra = r.headers.get("Retry-After", "")
+                try:
+                    wait = min(int(ra), 30) if ra else 10
+                except (TypeError, ValueError):
+                    wait = 10
+                log.warning(f"429 rate-limited (waiting {wait}s, then giving up): {url[:60]}")
+                time.sleep(wait)
+                return None
             r.raise_for_status()
             r.encoding = r.apparent_encoding or "utf-8"
             text = r.text
             _cache_set(url, text)
             return text
         except requests.exceptions.HTTPError as e:
-            # 404/403 → don't retry
+            # 404/403/410 → don't retry. 429 already handled above.
             if e.response is not None and e.response.status_code in (404, 403, 410):
                 log.debug(f"HTTP {e.response.status_code}: {url[:60]}")
                 return None
@@ -1593,6 +1619,15 @@ def _parse_pub_date_iso(pub_date: str) -> str:
     return m.group(1) + "T00:00:00" if m else ""
 
 
+_MOJIBAKE_PATTERNS = re.compile(
+    # Classic Latin-1-interpreted-as-UTF-8 artefacts (`â€™` for ’, `Ã©` for é,
+    # `Ã¤` for ä, `â€“` for –, `â€œ` for “, `Ã±` for ñ, etc.). Real Hindi/
+    # Devanagari text never produces these. Anything matching is broken
+    # encoding from the source — better to drop than to ship to users.
+    r"â€™|â€œ|â€|â€“|â€”|â€¢|â„¢|Ã[©¨ª«¬®¯°±´¹»¼]|Ã\s|â€\s|â€\?"
+)
+
+
 def build_job(title: str, url: str, source: str, extra: str = "",
               pub_date: str = "") -> dict | None:
     if "<" in title:
@@ -1607,6 +1642,12 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         return None
 
     if _is_private_job(title, url):
+        return None
+
+    # Mojibake check on both title and description — corrupt UTF-8 sequences
+    # in the title would render as gibberish in the app's feed.
+    if _MOJIBAKE_PATTERNS.search(title) or _MOJIBAKE_PATTERNS.search(extra[:500]):
+        log.debug(f"mojibake reject: {title[:60]}")
         return None
 
     combined = title + " " + extra
@@ -1680,10 +1721,20 @@ def build_job(title: str, url: str, source: str, extra: str = "",
 #  RSS SCRAPER
 # ════════════════════════════════════════════════════════
 
-def scrape_rss(name: str, url: str) -> list:
+def scrape_rss(name: str, url: str) -> tuple[list, bool]:
+    """Returns (jobs, fetch_ok).
+
+    fetch_ok is True iff we successfully fetched the URL AND parsed the XML.
+    Empty `jobs` with fetch_ok=True means the feed is alive but had no fresh
+    items today (very common for niche aggregators) — caller should NOT count
+    these toward infrastructure failure alerts.
+
+    fetch_ok=False means a real problem: HTTP error, timeout, network down,
+    or malformed XML. These are the cases the R6 threshold alert cares about.
+    """
     raw = _fetch(url, timeout=12)
     if not raw:
-        return []
+        return [], False
 
     root = None
     for attempt in range(2):
@@ -1696,7 +1747,7 @@ def scrape_rss(name: str, url: str) -> list:
         except ET.ParseError:
             if attempt == 1:
                 log.warning(f"  ⚠ {name}: XML parse failed")
-                return []
+                return [], False
 
     NS_ATOM = {"a": "http://www.w3.org/2005/Atom"}
     items = root.findall(".//item") or root.findall(".//a:entry", NS_ATOM)
@@ -1732,7 +1783,7 @@ def scrape_rss(name: str, url: str) -> list:
         if job:
             jobs.append(job)
 
-    return jobs
+    return jobs, True
 
 # ════════════════════════════════════════════════════════
 #  DIRECT HTML SCRAPERS
@@ -2160,32 +2211,65 @@ def run_all() -> list:
     # ── Phase 1: RSS in parallel (16 workers) ───────────
     log.info("\n📡 Phase 1 — RSS Feeds (parallel, 16 workers)")
 
+    # Two distinct buckets, both populated below:
+    #   fetch_failed_sources — HTTP error, timeout, XML parse fail. Real infra
+    #     issues. R6 threshold alert is keyed on these.
+    #   empty_sources — feed fetched fine, but yielded zero jobs today (very
+    #     common for niche aggregators on slow days). Reported but not alerted.
     rss_results: dict = {}
-    dead_sources: list = []
+    fetch_failed_sources: list = []
+    empty_sources: list = []
 
     def _rss_task(item):
         name, url = item
         try:
-            jobs = scrape_rss(name, url)
-            return name, jobs
+            jobs, fetch_ok = scrape_rss(name, url)
+            return name, jobs, fetch_ok
         except Exception as e:
             log.warning(f"  ❌ {name:<22} failed: {e}")
-            return name, []
+            return name, [], False
+
+    # Phase-level timeout: 32 workers × 15s/request × ~3 retries was a
+    # theoretical 24-min worst case if a source hangs. Cap the whole phase at
+    # 180s so one stalled feed can't block the entire scrape (Cloud Run's own
+    # 60s request timeout would kill us anyway; this surfaces the failure with
+    # a clearer log instead).
+    _RSS_PHASE_TIMEOUT_S = 180
 
     with ThreadPoolExecutor(max_workers=32) as pool:  # v9: 24 → 32
         futures = {pool.submit(_rss_task, item): item[0]
                    for item in RSS_SOURCES.items()}
-        for f in as_completed(futures):
-            name, jobs = f.result()
-            rss_results[name] = jobs
+        try:
+            for f in as_completed(futures, timeout=_RSS_PHASE_TIMEOUT_S):
+                name, jobs, fetch_ok = f.result()
+                # Sentinel: empty list + fetch_ok=False means "infrastructure
+                # broken" so we can distinguish it from "empty list + fetch_ok
+                # True" (feed alive but empty today).
+                rss_results[name] = (jobs, fetch_ok)
+        except Exception as e:
+            # Hit phase timeout — collect what completed, mark the rest dead.
+            log.warning(f"  ⏱ RSS phase exceeded {_RSS_PHASE_TIMEOUT_S}s ({e}); "
+                        f"finishing with {len(rss_results)}/{len(RSS_SOURCES)} sources")
+            for fut, src in futures.items():
+                if not fut.done():
+                    fut.cancel()
+                    rss_results.setdefault(src, ([], False))
 
     for name in RSS_SOURCES:
-        jobs = rss_results.get(name, [])
-        status = "✅" if jobs else "⚪"
+        jobs, fetch_ok = rss_results.get(name, ([], False))
+        # Three-state status: ✅ jobs, ⚪ alive-but-empty, ❌ broken.
+        if jobs:
+            status = "✅"
+        elif fetch_ok:
+            status = "⚪"  # feed alive, just no fresh items today
+        else:
+            status = "❌"
         log.info(f"  {status} {name:<24} {len(jobs):>3} jobs")
         all_jobs.extend(jobs)
-        if not jobs:
-            dead_sources.append(name)
+        if not fetch_ok:
+            fetch_failed_sources.append(name)
+        elif not jobs:
+            empty_sources.append(name)
 
     # ── Phase 2: Direct scrapers in parallel ────────────
     log.info("\n🌐 Phase 2 — Direct Scrapers (parallel)")
@@ -2273,11 +2357,21 @@ def run_all() -> list:
     log.info(f"  Salary info: 💰 {salary_count} jobs have pay scale extracted")
     log.info("═" * 58)
 
-    # ── v6: Dead source report ────────────────────────────
-    if dead_sources:
-        log.info(f"\n⚠  Dead/empty RSS sources ({len(dead_sources)}):")
-        for ds in dead_sources:
+    # ── v6: Source health report ─────────────────────────
+    # Threshold alert: only counts genuine FETCH failures (HTTP error, parse
+    # error). "Feed alive but empty today" is logged separately as INFO so it
+    # doesn't drown out actual infrastructure problems. The audit's original
+    # signal was "are sources reachable?" — not "did anyone post today?".
+    if fetch_failed_sources:
+        fail_pct = round(len(fetch_failed_sources) * 100 / max(len(RSS_SOURCES), 1))
+        level = log.warning if fail_pct > 20 else log.info
+        level(f"\n❌  Fetch-failed RSS sources: {len(fetch_failed_sources)}/"
+              f"{len(RSS_SOURCES)} ({fail_pct}%)")
+        for ds in fetch_failed_sources:
             log.info(f"    — {ds}  [{RSS_SOURCES[ds]}]")
+    if empty_sources:
+        log.info(f"\n⚪  Empty (alive but no items today): "
+                 f"{len(empty_sources)}/{len(RSS_SOURCES)}")
 
     others_pct = round(cats.get("others", 0) * 100 / len(unique)) if unique else 0
     if others_pct > 15:

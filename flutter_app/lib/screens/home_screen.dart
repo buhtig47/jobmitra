@@ -843,6 +843,10 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   Widget _shimmerCard() {
+    // Placeholder boxes are explicit gray so the shimmer gradient has visible
+    // shapes to animate across. White-on-white would just produce a uniform
+    // wash and look broken.
+    const ph = Color(0xFFE0E0E0);
     return Container(
       height: 160,
       margin: const EdgeInsets.only(bottom: 14),
@@ -853,11 +857,10 @@ class _FeedTabState extends State<_FeedTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Colored top bar (shimmer target)
           Container(
             height: 6,
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: ph,
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
           ),
@@ -868,27 +871,27 @@ class _FeedTabState extends State<_FeedTab> {
               children: [
                 Row(
                   children: [
-                    Container(width: 88, height: 24, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
+                    Container(width: 88, height: 24, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(12))),
                     const SizedBox(width: 8),
-                    Container(width: 70, height: 24, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
+                    Container(width: 70, height: 24, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(12))),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Container(height: 15, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                Container(height: 15, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(6))),
                 const SizedBox(height: 8),
-                Container(width: 220, height: 15, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                Container(width: 220, height: 15, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(6))),
                 const SizedBox(height: 6),
-                Container(width: 160, height: 12, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+                Container(width: 160, height: 12, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(6))),
                 const SizedBox(height: 14),
                 const Divider(height: 1, color: Color(0xFFF0F0F0)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Container(width: 72, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+                    Container(width: 72, height: 28, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(8))),
                     const SizedBox(width: 8),
-                    Container(width: 60, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+                    Container(width: 60, height: 28, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(8))),
                     const Spacer(),
-                    Container(width: 72, height: 32, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+                    Container(width: 72, height: 32, decoration: BoxDecoration(color: ph, borderRadius: BorderRadius.circular(20))),
                   ],
                 ),
               ],

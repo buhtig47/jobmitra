@@ -19,4 +19,7 @@ COPY . .
 ENV PORT=8080
 EXPOSE 8080
 
-CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 1
+# 2 workers strikes a balance: one worker can't saturate Cloud Run's 1 vCPU
+# instance on its own (handlers are sync + I/O-bound on Turso HTTPS calls),
+# but more than 2 starves the per-instance memory budget and hurts cold start.
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 2

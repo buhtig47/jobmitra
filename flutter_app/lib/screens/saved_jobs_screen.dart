@@ -350,21 +350,28 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                     ],
                   ),
                 ),
-                // Stage stepper
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Wrap(
-                    spacing: 8, runSpacing: 8,
-                    children: _stages.map((s) {
-                      final stageIdx  = _stages.indexWhere((st) => st.key == s.key);
+                // Stage timeline — horizontal scroll keeps all 6 stages on one
+                // row regardless of device width. Wrap stacked stages into 2-3
+                // lines on narrow phones, which obscured the time-ordered flow.
+                SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    itemCount: _stages.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final s = _stages[i];
                       final curIdx    = _stages.indexWhere((st) => st.key == localStage);
-                      final isDone    = stageIdx <= curIdx;
+                      final isDone    = i <= curIdx;
                       final isCurrent = s.key == localStage;
                       return GestureDetector(
                         onTap: () async {
-                          setS(() => localStage = s.key); // update chip immediately
+                          setS(() => localStage = s.key);
                           await widget.api.updateTracker(job.id, {'stage': s.key});
-                          if (mounted) setState(() { _trackers[job.id] = {...(_trackers[job.id] ?? {}), 'stage': s.key}; });
+                          if (mounted) setState(() {
+                            _trackers[job.id] = {...(_trackers[job.id] ?? {}), 'stage': s.key};
+                          });
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -372,19 +379,28 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                           decoration: BoxDecoration(
                             color: isDone ? s.color : Colors.grey[100],
                             borderRadius: BorderRadius.circular(20),
-                            border: isCurrent ? Border.all(color: s.color, width: 2) : null,
+                            border: isCurrent
+                                ? Border.all(color: s.color, width: 2)
+                                : null,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(s.emoji, style: const TextStyle(fontSize: 13)),
                               const SizedBox(width: 5),
-                              Text(s.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDone ? Colors.white : Colors.grey[600])),
+                              Text(
+                                s.label,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDone ? Colors.white : Colors.grey[600],
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       );
-                    }).toList(),
+                    },
                   ),
                 ),
                 // Extra fields

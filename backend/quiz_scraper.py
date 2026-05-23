@@ -26,7 +26,19 @@ import hashlib
 
 # ── Config ──────────────────────────────────────────────────────────────────
 API_BASE = os.getenv("API_BASE", "https://jobmitra-api-830207301447.asia-south1.run.app")
-SECRET   = os.getenv("SCRAPER_SECRET", "jobmitra_secret_2024")
+
+
+def _secret() -> str:
+    """No silent fallback — the legacy 'jobmitra_secret_2024' default was a
+    documented leak. Missing SCRAPER_SECRET fails loudly at call time. Cloud
+    Run injects via Secret Manager; local runs need to export it."""
+    s = os.environ.get("SCRAPER_SECRET")
+    if not s:
+        raise RuntimeError(
+            "SCRAPER_SECRET env var is required for quiz_scraper "
+            "(no insecure default available)"
+        )
+    return s
 HEADERS  = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/120 Mobile Safari/537.36"
@@ -56,7 +68,7 @@ def _push(questions: list, next_set_index: int = 0) -> int:
     try:
         r = requests.post(
             f"{API_BASE}/admin/questions",
-            params={"secret": SECRET},
+            params={"secret": _secret()},
             json={"questions": questions, "next_set_index": next_set_index},
             timeout=90,
         )
@@ -76,7 +88,7 @@ def _get_next_set_index() -> int:
     try:
         r = requests.get(
             f"{API_BASE}/admin/quiz-stats",
-            params={"secret": SECRET},
+            params={"secret": _secret()},
             timeout=20,
         )
         if r.status_code == 200:
@@ -274,7 +286,7 @@ def _upsert_pack(pack: dict):
     try:
         requests.post(
             f"{API_BASE}/admin/mock-pack",
-            params={"secret": SECRET},
+            params={"secret": _secret()},
             json=pack,
             timeout=30,
         )

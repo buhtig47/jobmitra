@@ -238,11 +238,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          Slider(
-            value: _selectedAge.toDouble(),
-            min: 18, max: 45, divisions: 27,
-            activeColor: AppColors.primary,
-            onChanged: (v) => setState(() => _selectedAge = v.round()),
+          // Explicit semantic label so screen readers say "Your age in years,
+          // current 25" instead of just "slider 25". min/max round-trip via
+          // semantics so TalkBack announces the range.
+          Semantics(
+            label: 'Your age in years',
+            value: '$_selectedAge years',
+            slider: true,
+            child: Slider(
+              value: _selectedAge.toDouble(),
+              min: 18, max: 45, divisions: 27,
+              activeColor: AppColors.primary,
+              label: '$_selectedAge years',
+              onChanged: (v) => setState(() => _selectedAge = v.round()),
+            ),
           ),
           const SizedBox(height: 24),
 

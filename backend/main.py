@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+import hmac
 import json
 import os
 import base64
@@ -16,10 +17,43 @@ import logging
 import requests as _requests
 from datetime import datetime, timedelta
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+# Cloud Run auto-detects single-line JSON written to stdout/stderr and parses
+# severity/labels/trace fields. Plain text logs all show up as severity=DEFAULT
+# in Cloud Logging, which makes filtering and error alerts impossible. The
+# formatter below outputs the minimal Cloud-Logging-compatible envelope.
+class _CloudJsonFormatter(logging.Formatter):
+    _LEVEL_TO_SEVERITY = {
+        "DEBUG": "DEBUG", "INFO": "INFO", "WARNING": "WARNING",
+        "ERROR": "ERROR", "CRITICAL": "CRITICAL",
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "severity": self._LEVEL_TO_SEVERITY.get(record.levelname, "DEFAULT"),
+            "message": record.getMessage(),
+            "logger": record.name,
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        # Allow callers to attach structured fields via `extra={"key": ...}`.
+        for k, v in record.__dict__.items():
+            if k in ("args", "msg", "exc_info", "exc_text", "name", "levelname",
+                    "levelno", "pathname", "filename", "module", "lineno",
+                    "funcName", "created", "msecs", "relativeCreated", "thread",
+                    "threadName", "processName", "process", "stack_info",
+                    "asctime", "message"):
+                continue
+            try:
+                json.dumps(v)
+                payload[k] = v
+            except (TypeError, ValueError):
+                payload[k] = str(v)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(_CloudJsonFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler], force=True)
 log = logging.getLogger("jobmitra")
 
 
@@ -62,7 +96,9 @@ def require_admin(secret: str) -> None:
     if not expected:
         # SCRAPER_SECRET must be supplied via env (Secret Manager on Cloud Run).
         raise HTTPException(status_code=503, detail="admin auth not configured")
-    if not secret or secret != expected:
+    # compare_digest avoids leaking the secret length / shared-prefix via the
+    # response timing of a naive `==`. Equal-length compare is safe on bytes.
+    if not secret or not hmac.compare_digest(secret.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(status_code=403, detail="Unauthorized")
 
 # ─────────────────────────────────────────
@@ -102,6 +138,22 @@ def _arg(v):
     return {"type": "text", "value": str(v)}
 
 
+# Module-level requests.Session backed by an HTTPAdapter that keeps a pool of
+# TCP+TLS connections to Turso. Before this, every TursoAdapter() instance
+# called the bare `requests.post()` which builds a fresh socket + TLS handshake
+# per query — ~30-80ms wasted per RT on top of Turso's own latency. The Session
+# is thread-safe for send/recv; uvicorn's sync handlers can share it freely.
+_TURSO_SESSION = _requests.Session()
+_TURSO_SESSION.mount(
+    "https://",
+    _requests.adapters.HTTPAdapter(
+        pool_connections=20,  # distinct hostnames cached — we only hit one
+        pool_maxsize=50,      # concurrent sockets per host — Cloud Run cap is well below this
+        max_retries=0,        # retries are app's job, not transport's
+    ),
+)
+
+
 class TursoAdapter:
     """
     Thin HTTP wrapper around Turso's /v2/pipeline API.
@@ -117,7 +169,7 @@ class TursoAdapter:
     def _run(self, statements: list) -> list:
         pipeline = [{"type": "execute", "stmt": s} for s in statements]
         pipeline.append({"type": "close"})
-        r = _requests.post(
+        r = _TURSO_SESSION.post(
             f"{self._base}/v2/pipeline",
             headers={
                 "Authorization": f"Bearer {self._token}",
@@ -305,7 +357,7 @@ init_db()
 # ── Schema migration ──────────────────────────────────────
 # Persistent marker so we don't re-run ALTERs on every cold start.
 # Bump SCHEMA_VERSION whenever new ALTERs are added.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 _MIGRATIONS = [
     "ALTER TABLE jobs ADD COLUMN pay_scale TEXT DEFAULT ''",
     "ALTER TABLE jobs ADD COLUMN pay_level INTEGER DEFAULT 0",
@@ -343,6 +395,9 @@ _MIGRATIONS = [
         SELECT MAX(id) FROM saved_jobs GROUP BY user_id, job_id
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_uniq ON saved_jobs(user_id, job_id)",
+    # v5: feed and admin endpoints all do `ORDER BY scraped_at DESC LIMIT N`,
+    # which was a full-table scan + filesort because no index covered it.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_scraped_at ON jobs(scraped_at DESC)",
 ]
 
 def _maybe_run_migrations():
@@ -690,6 +745,14 @@ def root():
     return {"message": "JobMitra API v1.0 🇮🇳", "status": "running"}
 
 
+@app.get("/health")
+def health():
+    """Cheap liveness probe for Cloud Run / uptime checks. No DB touch — must
+    return 200 even if Turso is briefly unreachable, so we don't get
+    auto-rolled-back on a transient hiccup."""
+    return {"status": "ok"}
+
+
 @app.post("/users/register")
 def register_user(profile: UserProfile):
     conn = get_db()
@@ -778,8 +841,8 @@ def register_user(profile: UserProfile):
 @app.get("/jobs/feed")
 def get_job_feed(
     user_id: int,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     state: Optional[str] = None,
 ):
     """
@@ -1001,16 +1064,16 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
     user = conn.execute("SELECT category FROM users WHERE id=?", (user_id,)).fetchone()
     cat = (user["category"] if user else None) or user_category
 
+    # v4 migration enforces UNIQUE(user_id, job_id) on saved_jobs, so the old
+    # `s.id = (SELECT MAX(id) ...)` correlated subquery is now dead weight —
+    # there's only one row per (user, job) by construction. Dropping it
+    # eliminates N+1 (was: 1 subquery per saved-job row, now: 1 single JOIN).
     rows = conn.execute("""
         SELECT j.*, s.status, s.saved_at
         FROM saved_jobs s
         JOIN jobs j ON s.job_id = j.id
         WHERE s.user_id = ?
           AND s.status != 'unsaved'
-          AND s.id = (
-              SELECT MAX(id) FROM saved_jobs
-              WHERE user_id = s.user_id AND job_id = s.job_id
-          )
         ORDER BY s.saved_at DESC
     """, (user_id,)).fetchall()
 
@@ -1253,21 +1316,19 @@ def fix_fees(secret: str = Query(...)):
 
 
 def _insert_job(conn, job: dict) -> Optional[int]:
-    """Insert a single job. Returns the new row id when actually inserted,
-    None when the source_url already exists (INSERT OR IGNORE skipped) or
-    when the statement errors. Callers used to receive a bool, but the
+    """Insert a single job atomically. Returns the new row id when actually
+    inserted, None when the source_url already exists (INSERT OR IGNORE skipped)
+    or when the statement errors. Callers used to receive a bool, but the
     `True on IGNORE` path lied about insertions and broke any push routing
-    that needed to know which jobs are new."""
+    that needed to know which jobs are new.
+
+    Note: relies on the UNIQUE constraint on source_url. INSERT OR IGNORE is
+    atomic — two concurrent scrapes can no longer both pass a SELECT and
+    double-insert the same job."""
     try:
-        url = job["source_url"]
-        existed = conn.execute(
-            "SELECT id FROM jobs WHERE source_url = ?", (url,)
-        ).fetchone()
-        if existed:
-            return None
         docs = job.get("documents_needed")
         conn.execute("""
-            INSERT INTO jobs
+            INSERT OR IGNORE INTO jobs
             (title, department, source, source_url, category,
              qualifications, vacancies, last_date, states,
              age_min, age_max, fee_general, fee_obc, fee_sc_st,
@@ -1277,7 +1338,7 @@ def _insert_job(conn, job: dict) -> Optional[int]:
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             job["title"], job["department"], job["source"],
-            url, job["category"],
+            job["source_url"], job["category"],
             json.dumps(job["qualifications"]),
             job["vacancies"], job["last_date"],
             json.dumps(job["states"]),
@@ -1294,8 +1355,11 @@ def _insert_job(conn, job: dict) -> Optional[int]:
             json.dumps(docs) if docs else None,
             job["scraped_at"]
         ))
-        return conn.lastrowid
+        # TursoAdapter.lastrowid is None when INSERT OR IGNORE skipped a dup
+        # (same behavior as the /admin/questions handler relies on).
+        return conn.lastrowid or None
     except Exception:
+        log.exception("_insert_job failed for url=%s", job.get("source_url"))
         return None
 
 
@@ -1346,8 +1410,9 @@ def trigger_scrape(secret: str = Query(...)):
             "notified":      notified,
             "alert_pushes":  alert_pushes,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        log.exception("admin/scrape failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @app.post("/admin/notify")
@@ -1450,8 +1515,9 @@ def reset_jobs(secret: str = Query(...)):
         jobs = run_all_scrapers()
         inserted = sum(1 for job in jobs if _insert_job(conn, job))
         return {"success": True, "jobs_inserted": inserted}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        log.exception("admin/reset_jobs failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @app.get("/current-affairs")
@@ -1513,8 +1579,9 @@ def scrape_current_affairs_endpoint(secret: str = Query(...)):
             except Exception:
                 pass
         return {"success": True, "inserted": inserted, "total": len(articles)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        log.exception("admin/scrape-ca failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @app.post("/admin/import-ca")
@@ -1673,8 +1740,9 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
     try:
         import scraper as _scr
         items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"scrape error: {e}")
+    except Exception:
+        log.exception("admin/scrape-announcements failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
     conn = get_db()
     new_count = 0
@@ -2001,5 +2069,6 @@ def trigger_quiz_scrape(secret: str = Query(...)):
         from quiz_scraper import run_quiz_scraper
         result = run_quiz_scraper()
         return {"success": True, **result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        log.exception("admin/scrape-quiz failed")
+        raise HTTPException(status_code=500, detail="internal error")

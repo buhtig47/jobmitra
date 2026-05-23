@@ -43,7 +43,6 @@ dependencies:
   intl: ^0.19.0
   url_launcher: ^6.2.5
   share_plus: ^8.0.2
-  connectivity_plus: ^6.0.3
 
   # PDF generation (form-fill cheat-sheet)
   pdf: ^3.10.7

@@ -1,4 +1,5 @@
 // lib/services/ad_service.dart
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../utils/ad_ids.dart';
 
@@ -17,6 +18,22 @@ class AdService {
   DateTime? _lastShownAt;
 
   static Future<void> initialize() async {
+    // Safety net: if a release build somehow ships with Google's test ad IDs
+    // we'd be serving non-monetizing test creatives forever. Assert in debug,
+    // and log loudly in release so it shows up in Crashlytics breadcrumbs.
+    if (AdIds.isUsingTestIds) {
+      assert(() {
+        debugPrint('AdService: using Google test ad IDs (debug build).');
+        return true;
+      }());
+      if (kReleaseMode) {
+        debugPrint(
+          'AdService WARNING: release build is using TEST ad IDs. '
+          'Re-build with --dart-define=ADMOB_INTERSTITIAL_ID=... and '
+          '--dart-define=ADMOB_BANNER_ID=...',
+        );
+      }
+    }
     await MobileAds.instance.initialize();
   }
 

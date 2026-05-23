@@ -30,10 +30,51 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   int _selectedAge = 25;
   final Set<String> _selectedJobTypes = {};
 
+  // Snapshot of the loaded profile so we can detect "dirty" state on back nav.
+  // Stored as a single comparable string per field to keep the diff cheap.
+  String _initialFingerprint = '';
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  String _currentFingerprint() => [
+        _selectedState ?? '',
+        _selectedEducation ?? '',
+        _selectedCategory ?? '',
+        _selectedAge.toString(),
+        (_selectedJobTypes.toList()..sort()).join(','),
+      ].join('|');
+
+  bool get _isDirty =>
+      !_isLoading && _currentFingerprint() != _initialFingerprint;
+
+  Future<bool> _confirmDiscard() async {
+    if (!_isDirty) return true;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved edits to your profile. Leaving now will lose them.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red[700]),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   Future<void> _loadProfile() async {
@@ -48,6 +89,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ..clear()
           ..addAll(profile.jobTypes);
         _isLoading = false;
+        _initialFingerprint = _currentFingerprint();
       });
     } else {
       setState(() => _isLoading = false);
@@ -91,6 +133,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     setState(() => _isSaving = false);
 
     if (success) {
+      // Clear dirty state so the post-save Navigator.pop doesn't trip the
+      // unsaved-changes guard.
+      _initialFingerprint = _currentFingerprint();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated! ✅'),
@@ -111,19 +156,34 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildAppBar(),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
-                : _buildForm(),
-          ),
-        ],
+    // PopScope (with canPop:false) intercepts both the system back gesture
+    // and the AppBar arrow; we then manually pop after confirmation. Without
+    // the guard a quick swipe-back loses minutes of profile editing.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final ok = await _confirmDiscard();
+        if (!ok || !mounted) return;
+        // ignore: use_build_context_synchronously
+        // (analyzer can't statically prove `mounted` and `context` belong to
+        // the same State when captured by a closure — they do.)
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Column(
+          children: [
+            _buildAppBar(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    )
+                  : _buildForm(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -145,7 +205,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () async {
+                  if (await _confirmDiscard() && mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
               ),
               Text(
                 'Edit Profile',
