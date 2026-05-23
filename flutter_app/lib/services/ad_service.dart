@@ -34,6 +34,19 @@ class AdService {
         );
       }
     }
+    // Targeting + safety hints for AdMob mediation:
+    //  • maxAdContentRating=T (Teen) — matches the audience for govt job
+    //    listings and unlocks higher-CPM advertisers than PG while staying
+    //    family-safe (no MA-rated dating/gambling).
+    //  • testDeviceIds — empty in release, but in debug we tell AdMob this
+    //    device is a developer so accidental clicks during dev don't risk
+    //    "invalid traffic" flags on the account.
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(
+        maxAdContentRating: MaxAdContentRating.t,
+        testDeviceIds: kReleaseMode ? const [] : const ['TEST_EMULATOR'],
+      ),
+    );
     await MobileAds.instance.initialize();
   }
 

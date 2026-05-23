@@ -13,7 +13,11 @@ android {
     // (transitively pulled in by the `printing` package) requires compileSdk
     // 36. Stays compatible with minSdk 21 via runtime checks.
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    // Pinned to 27.0.12077973 because firebase_*, google_mobile_ads, and 11
+    // other plugins now ship native libs built against NDK 27. The Flutter
+    // default (flutter.ndkVersion = 26.x) made the release strip step fail
+    // with "failed to strip debug symbols from native libraries".
+    ndkVersion = "27.0.12077973"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
