@@ -32,6 +32,21 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   String? _selectedGender;
   String? _selectedCategory;
 
+  // Snapshot of all field values at last successful load/save. Used to detect
+  // unsaved edits when the user tries to leave the screen so 11 fields of
+  // tedious typing aren't lost to a stray back-tap.
+  String _initialFingerprint = '';
+
+  String _currentFingerprint() => [
+        _nameCtrl.text, _fatherCtrl.text, _motherCtrl.text, _dobCtrl.text,
+        _phoneCtrl.text, _emailCtrl.text, _addressCtrl.text, _districtCtrl.text,
+        _stateCtrl.text, _pincodeCtrl.text, _aadharCtrl.text,
+        _selectedGender ?? '', _selectedCategory ?? '',
+      ].join('|');
+
+  bool get _isDirty =>
+      !_isLoading && _currentFingerprint() != _initialFingerprint;
+
   static const _genders    = ['Male', 'Female', 'Other'];
   static const _categories = ['General', 'OBC', 'OBC-NCL', 'SC', 'ST', 'EWS'];
 
@@ -59,6 +74,30 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       _selectedCategory = info.category.isNotEmpty ? info.category : null;
       _isLoading        = false;
     });
+    _initialFingerprint = _currentFingerprint();
+  }
+
+  Future<bool> _confirmDiscard() async {
+    if (!_isDirty) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text('Your edits to the form will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Future<void> _save() async {
@@ -79,7 +118,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       aadharLast4: _aadharCtrl.text.trim(),
     );
     await widget.api.savePersonalInfo(info);
+    if (!mounted) return;
     setState(() => _isSaving = false);
+    _initialFingerprint = _currentFingerprint(); // accept current state as saved
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -111,7 +152,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscard();
+        if (shouldPop && mounted) {
+          // ignore: use_build_context_synchronously
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(64),
@@ -130,7 +181,12 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () async {
+                      if (await _confirmDiscard() && mounted) {
+                        // ignore: use_build_context_synchronously — guarded by `mounted` above.
+                        Navigator.pop(context);
+                      }
+                    },
                   ),
                   const Expanded(
                     child: Column(
@@ -203,6 +259,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 

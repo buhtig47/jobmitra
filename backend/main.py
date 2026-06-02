@@ -6,7 +6,7 @@ DB: Turso (libsql cloud) — persistent across deploys
 
 from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import hmac
 import json
@@ -69,14 +69,12 @@ def _safe_json_loads(raw, fallback):
 
 app = FastAPI(title="JobMitra API", version="1.0.0")
 
-# CORS: the Android app uses native http client (no preflight), so we only
-# need to allow the legacy Render host (transition) plus dev/admin local use.
+# CORS: the Android app uses native http client (no preflight needed), so the
+# only browser-origin that needs allowance is the legacy Render host during
+# transition. Local dev origins removed for prod — a malicious local web app
+# on localhost:3000 could otherwise piggy-back on user creds.
 _ALLOWED_ORIGINS = [
     "https://jobmitra-api.onrender.com",
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://localhost:8000",
-    "http://localhost:3000",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -95,7 +93,11 @@ def require_admin(secret: str) -> None:
     expected = os.getenv("SCRAPER_SECRET")
     if not expected:
         # SCRAPER_SECRET must be supplied via env (Secret Manager on Cloud Run).
-        raise HTTPException(status_code=503, detail="admin auth not configured")
+        # Return the same 403 as a wrong-secret reject so an attacker can't
+        # distinguish "secret missing in this environment" from "wrong secret",
+        # which would otherwise leak deployment state.
+        log.error("SCRAPER_SECRET env not configured on this instance")
+        raise HTTPException(status_code=403, detail="Unauthorized")
     # compare_digest avoids leaking the secret length / shared-prefix via the
     # response timing of a naive `==`. Equal-length compare is safe on bytes.
     if not secret or not hmac.compare_digest(secret.encode("utf-8"), expected.encode("utf-8")):
@@ -428,14 +430,17 @@ _maybe_run_migrations()
 # MODELS
 # ─────────────────────────────────────────
 class UserProfile(BaseModel):
-    fcm_token:  str
-    state:      str
-    education:  str
-    category:   str
-    age:        int
-    job_types:  list[str]
-    language:   str = "hinglish"
-    install_id: Optional[str] = None  # stable client UUID; preferred over fcm_token
+    # Length caps are defensive: a malicious client (or a buggy build) could
+    # otherwise POST megabyte-sized strings, bloating Turso rows and slowing
+    # every subsequent feed query that joins this table.
+    fcm_token:  str = Field("",  max_length=512)
+    state:      str = Field(...,  max_length=64)
+    education:  str = Field(...,  max_length=32)
+    category:   str = Field(...,  max_length=16)
+    age:        int = Field(...,  ge=13, le=80)
+    job_types:  list[str] = Field(default_factory=list, max_length=40)
+    language:   str = Field("hinglish", max_length=16)
+    install_id: Optional[str] = Field(None, max_length=64)
 
 class SaveJobRequest(BaseModel):
     user_id: int
@@ -946,10 +951,10 @@ def get_job_feed(
 
 @app.get("/jobs/search")
 def search_jobs(
-    q:         str = Query(..., min_length=2),
-    page:      int = 1,
-    page_size: int = 20,
-    user_category: str = "general",
+    q:         str = Query(..., min_length=2, max_length=128),
+    page:      int = Query(1,   ge=1,   le=500),
+    page_size: int = Query(20,  ge=1,   le=100),
+    user_category: str = Query("general", max_length=16),
 ):
     conn = get_db()
     jobs_raw = conn.execute("""
@@ -1416,7 +1421,13 @@ def trigger_scrape(secret: str = Query(...)):
 
 
 @app.post("/admin/notify")
-def manual_notify(secret: str = Query(...), title: str = Query("🇮🇳 JobMitra"), body: str = Query(...)):
+def manual_notify(
+    secret: str = Query(...),
+    # FCM caps the visible body at ~240 chars; reject anything that would
+    # silently truncate or get rejected by Google's HTTP gateway.
+    title:  str = Query("🇮🇳 JobMitra", max_length=120),
+    body:   str = Query(...,            max_length=240),
+):
     """Manually send a push notification to all users. For testing."""
     require_admin(secret)
     conn = get_db()
@@ -1523,7 +1534,7 @@ def reset_jobs(secret: str = Query(...)):
 @app.get("/current-affairs")
 def get_current_affairs(
     days: int = Query(7, ge=1, le=30),
-    category: Optional[str] = Query(None),
+    category: Optional[str] = Query(None, max_length=32),
     limit: int = Query(50, ge=1, le=200),
 ):
     conn = get_db()
@@ -1637,9 +1648,9 @@ def _announcement_cutoff_iso() -> str:
 
 @app.get("/announcements")
 def list_announcements(
-    type: Optional[str] = Query(None),
+    type: Optional[str] = Query(None, max_length=32),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=10000),
 ):
     """Public read. Returns only announcements scraped within the last
     _ANNOUNCEMENT_TTL_DAYS (90 days). Optional ?type filter."""

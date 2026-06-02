@@ -84,16 +84,20 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(_profileKey);
     if (str == null) return null;
-    final json = jsonDecode(str);
-    return UserProfile(
-      fcmToken:  json['fcm_token']  ?? '',
-      installId: json['install_id'] ?? prefs.getString('install_id'),
-      state:     json['state']      ?? '',
-      education: json['education']  ?? 'graduate',
-      category:  json['category']   ?? 'general',
-      age:       json['age']        ?? 25,
-      jobTypes:  List<String>.from(json['job_types'] ?? []),
-    );
+    try {
+      final json = _asMap(jsonDecode(str));
+      return UserProfile(
+        fcmToken:  json['fcm_token']  ?? '',
+        installId: json['install_id'] ?? prefs.getString('install_id'),
+        state:     json['state']      ?? '',
+        education: json['education']  ?? 'graduate',
+        category:  json['category']   ?? 'general',
+        age:       (json['age'] is int) ? json['age'] : 25,
+        // whereType filters out nulls / non-strings — corrupt SharedPrefs
+        // (mixed-type list) would otherwise crash the home screen on launch.
+        jobTypes:  _asList(json['job_types']).whereType<String>().toList(),
+      );
+    } catch (_) { return null; }
   }
 
   /// Load cached feed instantly (no network) — for stale-while-revalidate.

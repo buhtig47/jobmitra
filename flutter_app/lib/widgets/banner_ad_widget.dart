@@ -30,14 +30,18 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _loadAd() {
+    if (!mounted) return; // widget was disposed during retry backoff
     final ad = BannerAd(
       adUnitId: AdIds.banner,
       size: _adSize,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) {
+        onAdLoaded: (loadedAd) {
+          // Network call survived dispose: dropping the ad cleanly avoids both
+          // a setState-on-disposed crash and a native-side BannerAd leak.
+          if (!mounted) { loadedAd.dispose(); return; }
           _retryAttempt = 0;
-          if (mounted) setState(() => _loaded = true);
+          setState(() => _loaded = true);
         },
         onAdFailedToLoad: (ad, err) {
           ad.dispose();

@@ -295,13 +295,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          Slider(
-            value: _selectedAge.toDouble(),
-            min: 18,
-            max: 45,
-            divisions: 27,
-            activeColor: AppColors.primary,
-            onChanged: (v) => setState(() => _selectedAge = v.round()),
+          Semantics(
+            label: 'Your age in years',
+            value: '$_selectedAge years',
+            slider: true,
+            child: Slider(
+              value: _selectedAge.toDouble(),
+              min: 18,
+              max: 45,
+              divisions: 27,
+              label: '$_selectedAge years',
+              activeColor: AppColors.primary,
+              onChanged: (v) => setState(() => _selectedAge = v.round()),
+            ),
           ),
 
           const SizedBox(height: 24),

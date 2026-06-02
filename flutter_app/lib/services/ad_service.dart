@@ -1,5 +1,7 @@
 // lib/services/ad_service.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../utils/ad_ids.dart';
 
@@ -10,6 +12,8 @@ class AdService {
 
   InterstitialAd? _interstitialAd;
   bool _interstitialReady = false;
+  int _interstitialRetry = 0;
+  Timer? _interstitialRetryTimer;
 
   // Minimum gap between two interstitial impressions. Users open 5+ job details
   // per session; without this floor we'd show 5 fullscreen ads in 90s and lose
@@ -18,9 +22,10 @@ class AdService {
   DateTime? _lastShownAt;
 
   static Future<void> initialize() async {
-    // Safety net: if a release build somehow ships with Google's test ad IDs
-    // we'd be serving non-monetizing test creatives forever. Assert in debug,
-    // and log loudly in release so it shows up in Crashlytics breadcrumbs.
+    // Safety net: if a release build ships with Google's test ad IDs we'd be
+    // serving non-monetizing test creatives forever ($0 revenue). Record a
+    // non-fatal in Crashlytics so we see it in the dashboard within hours of
+    // a bad build reaching real devices — without crashing the user's app.
     if (AdIds.isUsingTestIds) {
       assert(() {
         debugPrint('AdService: using Google test ad IDs (debug build).');
@@ -32,6 +37,14 @@ class AdService {
           'Re-build with --dart-define=ADMOB_INTERSTITIAL_ID=... and '
           '--dart-define=ADMOB_BANNER_ID=...',
         );
+        try {
+          FirebaseCrashlytics.instance.recordError(
+            StateError('Release build shipped with AdMob test IDs'),
+            StackTrace.current,
+            reason: 'ad-revenue-misconfig',
+            fatal: false,
+          );
+        } catch (_) {}
       }
     }
     // Targeting + safety hints for AdMob mediation:
@@ -52,11 +65,13 @@ class AdService {
 
   // ── Interstitial Ad ──────────────────────────────────────
   void loadInterstitial() {
+    _interstitialRetryTimer?.cancel();
     InterstitialAd.load(
       adUnitId: AdIds.interstitial,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          _interstitialRetry = 0;
           _interstitialAd = ad;
           _interstitialReady = true;
           ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -70,11 +85,19 @@ class AdService {
               ad.dispose();
               _interstitialAd = null;
               _interstitialReady = false;
+              loadInterstitial(); // try to recover so next exit still earns
             },
           );
         },
         onAdFailedToLoad: (error) {
           _interstitialReady = false;
+          // Without retry, a single transient network blip at startup would
+          // leave us with zero interstitial inventory for the entire session.
+          // Cap at 5 attempts so we don't hammer AdMob if the unit is broken.
+          _interstitialRetry++;
+          if (_interstitialRetry > 5) return;
+          final delay = Duration(seconds: (1 << _interstitialRetry).clamp(2, 300));
+          _interstitialRetryTimer = Timer(delay, loadInterstitial);
         },
       ),
     );

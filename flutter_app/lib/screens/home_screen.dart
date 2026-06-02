@@ -1299,6 +1299,18 @@ class _ProfileTabState extends State<_ProfileTab> {
                 'https://buhtig47.github.io/jobmitra/privacy.html'),
           ),
           const Divider(height: 1, indent: 56),
+          // Play Console Data Safety form requires either an in-app delete
+          // affordance or a publicly reachable URL. We expose the latter so
+          // users can submit a deletion request without contacting support.
+          _aboutRow(
+            icon: Icons.delete_forever_outlined,
+            color: const Color(0xFFC62828),
+            title: 'Delete My Data',
+            subtitle: 'Request account & profile deletion',
+            onTap: () => _openExternal(
+                'https://buhtig47.github.io/jobmitra/delete-data.html'),
+          ),
+          const Divider(height: 1, indent: 56),
           _aboutRow(
             icon: Icons.email_outlined,
             color: const Color(0xFF2E7D32),
@@ -1312,7 +1324,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             icon: Icons.info_outline_rounded,
             color: const Color(0xFF6A1B9A),
             title: 'App Version',
-            subtitle: '1.1.2 (build 4)',
+            subtitle: '1.2.0 (build 5)',
             onTap: null,
           ),
         ],

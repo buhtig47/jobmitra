@@ -92,7 +92,22 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _search(String query) async {
     final q = query.trim();
-    if (q.length < 2) return;
+    if (q.length < 2) {
+      // Without visible feedback the user thinks search is broken when they
+      // hit submit on a 1-char query (e.g. "U"). Surface the constraint.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Type at least 2 characters to search'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+      return;
+    }
     _controller.text = q;
     _focusNode.unfocus();
     await _saveRecentSearch(q);
