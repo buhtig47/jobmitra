@@ -4,8 +4,9 @@ Deploy on Render.com (free tier)
 DB: Turso (libsql cloud) — persistent across deploys
 """
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
 import hmac
@@ -76,6 +77,7 @@ app = FastAPI(title="JobMitra API", version="1.0.0")
 _ALLOWED_ORIGINS = [
     "https://jobmitra-api.onrender.com",
 ]
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
@@ -849,6 +851,7 @@ def get_job_feed(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     state: Optional[str] = None,
+    response: Response = None,
 ):
     """
     state=<code>     → override profile state filter for this call
@@ -941,6 +944,9 @@ def get_job_feed(
     total = len(eligible_jobs)
     start = (page - 1) * page_size
     end   = start + page_size
+
+    if response is not None:
+        response.headers["Cache-Control"] = "private, max-age=60"
 
     return {
         "total":    total,
@@ -1292,7 +1298,7 @@ def get_job_status(user_id: int, job_id: int):
 
 
 @app.get("/stats")
-def get_stats():
+def get_stats(response: Response):
     conn = get_db()
     total_jobs  = conn.execute("SELECT COUNT(*) as c FROM jobs WHERE is_active=1").fetchone()["c"]
     total_users = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
@@ -1301,6 +1307,7 @@ def get_stats():
         FROM jobs WHERE is_active=1
         GROUP BY category ORDER BY count DESC
     """).fetchall()
+    response.headers["Cache-Control"] = "public, max-age=300"
     return {
         "total_jobs":   total_jobs,
         "total_users":  total_users,
