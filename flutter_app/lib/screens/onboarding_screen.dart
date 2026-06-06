@@ -302,6 +302,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
             child: const Text('Next →'),
           ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              _selectedAge = 25;
+              _selectedCategory ??= 'general';
+              _nextPage();
+            },
+            child: const Text('Skip (use defaults)', style: TextStyle(color: AppColors.textHint)),
+          ),
         ],
       ),
     );
@@ -405,6 +414,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text('Start JobMitra! 🚀'),
           ),
+          const SizedBox(height: 8),
+          if (!_isLoading)
+            TextButton(
+              onPressed: () {
+                if (_selectedJobTypes.isEmpty) {
+                  _selectedJobTypes.addAll(JobCategories.all.map((c) => c['key'] as String));
+                }
+                _submitProfile();
+              },
+              child: const Text('Skip (select all)', style: TextStyle(color: AppColors.textHint)),
+            ),
           const SizedBox(height: 16),
         ],
       ),

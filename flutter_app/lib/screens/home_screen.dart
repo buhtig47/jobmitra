@@ -186,6 +186,7 @@ class _FeedTabState extends State<_FeedTab> {
   bool _freeOnly = false;  // free jobs toggle
   String _sortBy = 'deadline'; // deadline | vacancies | newest
   UserProfile? _profile;
+  String _userName = '';
   int _activeAlertCount = 0;
   String? _stateOverride; // null = use profile state; "all_india" = drop filter
 
@@ -216,6 +217,9 @@ class _FeedTabState extends State<_FeedTab> {
     _restoreStateOverride().then((_) => _loadJobs());
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
+    });
+    widget.api.getPersonalInfo().then((info) {
+      if (mounted && info.name.isNotEmpty) setState(() => _userName = info.name.split(' ').first);
     });
     widget.api.syncFcmToken(widget.userId);
     // Fire-and-forget: check saved job deadlines on app startup
@@ -389,20 +393,20 @@ class _FeedTabState extends State<_FeedTab> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
-                          '🇮🇳 JobMitra',
-                          style: TextStyle(
+                          _userName.isNotEmpty ? 'Namaste, $_userName! 🇮🇳' : '🇮🇳 JobMitra',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.3,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Today\'s Government Jobs',
-                          style: TextStyle(
+                          _userName.isNotEmpty ? 'Your Sarkari Jobs Today' : 'Today\'s Government Jobs',
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
                             fontWeight: FontWeight.w400,

@@ -40,9 +40,17 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
   Map<int, Map<String, String>> _trackers = {};
   bool _isLoading = true;
   late TabController _tabController;
+  String? _stageFilter; // null = show all applied jobs
 
   List<Job> get _savedJobs   => _allJobs.where((j) => j.jobStatus == 'saved').toList();
   List<Job> get _appliedJobs => _allJobs.where((j) => j.jobStatus == 'applied').toList();
+  List<Job> get _filteredApplied {
+    if (_stageFilter == null) return _appliedJobs;
+    return _appliedJobs.where((j) {
+      final stage = _trackers[j.id]?['stage'] ?? 'applied';
+      return stage == _stageFilter;
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -155,9 +163,68 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
               controller: _tabController,
               children: [
                 _buildJobList(_savedJobs, isApplied: false),
-                _buildJobList(_appliedJobs, isApplied: true),
+                _buildAppliedTab(),
               ],
             ),
+    );
+  }
+
+  Widget _buildAppliedTab() {
+    return Column(
+      children: [
+        // Stage filter chips
+        SizedBox(
+          height: 48,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            children: [
+              _stageChip(null, 'All', '📋'),
+              ...(_stages.map((s) {
+                final count = _appliedJobs.where((j) => (_trackers[j.id]?['stage'] ?? 'applied') == s.key).length;
+                if (count == 0) return const SizedBox.shrink();
+                return _stageChip(s.key, s.label, s.emoji, count: count, color: s.color);
+              })),
+            ],
+          ),
+        ),
+        Expanded(child: _buildJobList(_filteredApplied, isApplied: true)),
+      ],
+    );
+  }
+
+  Widget _stageChip(String? key, String label, String emoji, {int? count, Color? color}) {
+    final isSelected = _stageFilter == key;
+    final chipColor = color ?? AppColors.primary;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => setState(() => _stageFilter = isSelected ? null : key),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: isSelected ? chipColor.withValues(alpha: 0.15) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? chipColor : Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: 5),
+              Text(
+                count != null ? '$label ($count)' : label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? chipColor : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
