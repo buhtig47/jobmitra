@@ -27,12 +27,14 @@ class JobDetailScreen extends StatefulWidget {
   State<JobDetailScreen> createState() => _JobDetailScreenState();
 }
 
-class _JobDetailScreenState extends State<JobDetailScreen> {
+class _JobDetailScreenState extends State<JobDetailScreen>
+    with SingleTickerProviderStateMixin {
   Job?  _job;
   bool  _isLoading  = true;
   bool  _isSaved    = false;
   bool  _isApplied  = false;
   UserProfile? _profile;
+  late final TabController _tabController;
 
   // ── Official govt portal lookup ──────────────────────────────
   // Keys are lowercase substrings checked against "title dept"
@@ -126,7 +128,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -163,184 +172,161 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final catColor = _job != null ? _catColor : AppColors.primary;
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) _maybeShowExitInterstitial();
       },
       child: Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _job != null
-                  ? [_catColor, _catColor.withValues(alpha: 0.75)]
-                  : [AppColors.primary, const Color(0xFF0D4A28)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        backgroundColor: AppColors.background,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(116), // 68 toolbar + 48 tabs
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [catColor, catColor.withValues(alpha: 0.82)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-              child: Row(
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    onPressed: () {
-                      _maybeShowExitInterstitial();
-                      Navigator.pop(context);
-                    },
-                  ),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Job Details',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                  // Toolbar row
+                  SizedBox(
+                    height: 56,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                            onPressed: () {
+                              _maybeShowExitInterstitial();
+                              Navigator.pop(context);
+                            },
                           ),
-                        ),
-                        if (_job != null)
-                          Text(
-                            _job!.categoryLabel,
-                            style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Job Details',
+                                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+                                ),
+                                if (_job != null)
+                                  Text(
+                                    '${_job!.categoryEmoji} ${_job!.categoryLabel}',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                              ],
+                            ),
                           ),
-                      ],
+                          IconButton(
+                            icon: const Icon(Icons.share_rounded, color: Colors.white),
+                            onPressed: _shareJob,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                              color: _isSaved ? Colors.amber[300] : Colors.white,
+                            ),
+                            onPressed: _toggleSave,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.share_rounded, color: Colors.white),
-                    onPressed: _shareJob,
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      _isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                      color: _isSaved ? Colors.amber[300] : Colors.white,
-                    ),
-                    onPressed: _toggleSave,
+                  // Tab bar
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white60,
+                    indicatorColor: Colors.white,
+                    indicatorWeight: 2.5,
+                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    unselectedLabelStyle: const TextStyle(fontSize: 13),
+                    tabs: const [
+                      Tab(text: 'Overview'),
+                      Tab(text: 'Eligibility'),
+                      Tab(text: 'Documents'),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
         ),
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _job == null
-              ? const Center(child: Text('Job not found'))
-              : _buildContent(),
-      bottomNavigationBar: _job == null ? null : _buildApplyButton(),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _job == null
+                ? const Center(child: Text('Job not found'))
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverviewTab(_job!),
+                      _buildEligibilityTab(_job!),
+                      _buildDocumentsTab(_job!),
+                    ],
+                  ),
+        bottomNavigationBar: _job == null ? null : _buildApplyButton(),
       ),
     );
   }
 
-  Widget _buildContent() {
-    final job = _job!;
+  // ── Tab: Overview ────────────────────────────────────────────
+  Widget _buildOverviewTab(Job job) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       children: [
-        // Header Card with colored top bar
+        // Header summary card
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: _catColor.withValues(alpha: 0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [BoxShadow(color: _catColor.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 4))],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 5,
+                  height: 4,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [_catColor, _catColor.withValues(alpha: 0.5)],
-                    ),
+                    gradient: LinearGradient(colors: [_catColor, _catColor.withValues(alpha: 0.5)]),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: _catColor.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: _catColor.withValues(alpha: 0.25)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(job.categoryEmoji, style: const TextStyle(fontSize: 13)),
-                                const SizedBox(width: 5),
-                                Text(
-                                  job.categoryLabel,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: _catColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Spacer(),
                           _buildUrgencyTag(),
+                          const Spacer(),
+                          Row(children: [
+                            Icon(Icons.link_rounded, size: 12, color: Colors.grey[400]),
+                            const SizedBox(width: 3),
+                            Text(job.source, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                          ]),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        job.cleanTitle,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                          height: 1.4,
-                        ),
-                      ),
+                      const SizedBox(height: 10),
+                      Text(job.cleanTitle,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.35)),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.account_balance_outlined, size: 13, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              job.cleanDepartment,
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.link_rounded, size: 13, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            job.source,
-                            style: const TextStyle(color: AppColors.textHint, fontSize: 12),
-                          ),
-                        ],
-                      ),
+                      Row(children: [
+                        Icon(Icons.account_balance_outlined, size: 13, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text(job.cleanDepartment,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+                      ]),
                     ],
                   ),
                 ),
@@ -350,23 +336,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Quick Stats Grid
-        Row(
-          children: [
-            _buildStatCard('📋', 'Vacancies', job.vacanciesText),
-            const SizedBox(width: 10),
-            _buildStatCard('💰', 'Fee', job.feeText, highlight: job.isFree),
-          ],
-        ),
+        // Quick stats 2×2
+        Row(children: [
+          _buildStatCard('📋', 'Vacancies', job.vacanciesText),
+          const SizedBox(width: 10),
+          _buildStatCard('💰', 'Fee', job.feeText, highlight: job.isFree),
+        ]),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            _buildStatCard('📅', 'Last Date', job.lastDate),
-            const SizedBox(width: 10),
-            _buildStatCard('🎂', 'Age Limit', '${job.ageMin}–${job.ageMax} yrs'),
-          ],
-        ),
-        if (_job!.payScale != null && _job!.payScale!.isNotEmpty)
+        Row(children: [
+          _buildStatCard('📅', 'Last Date', job.lastDate),
+          const SizedBox(width: 10),
+          _buildStatCard('🎂', 'Age Limit', '${job.ageMin}–${job.ageMax} yrs'),
+        ]),
+
+        // Pay scale
+        if (job.payScale != null && job.payScale!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Container(
@@ -374,38 +358,53 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('💵 Pay Scale / Salary', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
-                  const SizedBox(height: 5),
-                  Text(_job!.payScale!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                ],
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('💵 Pay Scale / Salary', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
+                const SizedBox(height: 5),
+                Text(job.payScale!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              ]),
             ),
           ),
         const SizedBox(height: 14),
 
-        // Eligibility
-        if (_profile != null) _buildEligibilityCard(),
-        const SizedBox(height: 12),
-
-        // Documents Checklist
-        if (job.documentsNeeded != null) _buildDocumentsCard(),
-        const SizedBox(height: 12),
-
-        // Pre-fill cheat-sheet PDF (uses local PersonalInfo)
         _buildCheatsheetCard(),
         const SizedBox(height: 12),
-
-        // Compare with another exam
         _buildCompareTile(),
-        const SizedBox(height: 12),
+      ],
+    );
+  }
 
-        // Qualifications
+  // ── Tab: Eligibility ─────────────────────────────────────────
+  Widget _buildEligibilityTab(Job job) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      children: [
+        if (_profile != null) ...[
+          _buildEligibilityCard(),
+          const SizedBox(height: 14),
+        ] else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 20),
+                SizedBox(width: 10),
+                Expanded(child: Text(
+                  'Profile mein details bharo to eligibility check hogi',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                )),
+              ]),
+            ),
+          ),
         _buildSection(
           '🎓 Qualifications',
           job.qualifications.isEmpty
@@ -415,7 +414,32 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   return '• ${s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s}';
                 }).join('\n'),
         ),
-        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  // ── Tab: Documents ───────────────────────────────────────────
+  Widget _buildDocumentsTab(Job job) {
+    if (job.documentsNeeded == null || job.documentsNeeded!.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('📄', style: TextStyle(fontSize: 48)),
+            SizedBox(height: 16),
+            Text('Documents list available nahi hai',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            SizedBox(height: 6),
+            Text('Official notification padho — wahan sab kuch hoga',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary), textAlign: TextAlign.center),
+          ]),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      children: [
+        _buildDocumentsCard(),
       ],
     );
   }
