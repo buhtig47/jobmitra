@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:in_app_review/in_app_review.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../services/ad_service.dart';
@@ -1008,7 +1010,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     AdService().showInterstitial();
     await _launchUrl(applyUrl);
     final success = await widget.api.saveJob(widget.userId, widget.jobId, 'applied');
-    if (success && mounted) setState(() { _isApplied = true; _isSaved = false; });
+    if (success && mounted) {
+      setState(() { _isApplied = true; _isSaved = false; });
+      _maybeRequestReview();
+    }
   }
 
   String _buildClipboardText(PersonalInfo info) {
@@ -1031,6 +1036,26 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (info.state.isNotEmpty)      lines.add('State: ${info.state}');
     if (info.pincode.isNotEmpty)    lines.add('Pincode: ${info.pincode}');
     return lines.join('\n');
+  }
+
+  // Show native in-app review after the 3rd job application.
+  // Only prompts once per install (gated by SharedPrefs key).
+  static const _kApplyCountKey   = 'apply_count_v1';
+  static const _kRatingAskedKey  = 'rating_asked_v1';
+
+  Future<void> _maybeRequestReview() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_kRatingAskedKey) ?? false) return;
+      final count = (prefs.getInt(_kApplyCountKey) ?? 0) + 1;
+      await prefs.setInt(_kApplyCountKey, count);
+      if (count < 3) return;
+      final review = InAppReview.instance;
+      if (await review.isAvailable()) {
+        await review.requestReview();
+        await prefs.setBool(_kRatingAskedKey, true);
+      }
+    } catch (_) {}
   }
 
   Future<void> _launchUrl(String rawUrl) async {

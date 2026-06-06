@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -998,6 +999,7 @@ class _ProfileTabState extends State<_ProfileTab> {
   UserProfile? _profile;
   int? _userId;
   String _userName = '';
+  String _appVersion = '';
 
   @override
   void initState() {
@@ -1006,6 +1008,9 @@ class _ProfileTabState extends State<_ProfileTab> {
     _api.getSavedUserId().then((id) => setState(() => _userId = id));
     _api.getPersonalInfo().then((info) {
       if (mounted && info.name.isNotEmpty) setState(() => _userName = info.name);
+    });
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = '${info.version} (build ${info.buildNumber})');
     });
   }
 
@@ -1406,7 +1411,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             icon: Icons.info_outline_rounded,
             color: const Color(0xFF6A1B9A),
             title: 'App Version',
-            subtitle: '1.2.0 (build 5)',
+            subtitle: _appVersion.isNotEmpty ? _appVersion : '—',
             onTap: null,
           ),
         ],
