@@ -27,12 +27,6 @@ class ApiService {
     catch (_) { return null; }
   }
 
-  Future<void> wakeUpServer() async {
-    try {
-      await http.get(Uri.parse('$kApiBase/stats')).timeout(_longTimeout);
-    } catch (_) {}
-  }
-
   Future<http.Response?> _get(String url, {int retries = 2}) async {
     for (int i = 0; i <= retries; i++) {
       try {

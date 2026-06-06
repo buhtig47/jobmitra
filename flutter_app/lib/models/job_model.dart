@@ -20,6 +20,7 @@ class Job {
   final List<String>? documentsNeeded;
   final String? jobStatus; // 'saved' | 'applied' | null
   final String? payScale;
+  final String scrapedAt;
 
   const Job({
     required this.id,
@@ -41,7 +42,16 @@ class Job {
     this.documentsNeeded,
     this.jobStatus,
     this.payScale,
+    this.scrapedAt = '',
   });
+
+  bool get isNew {
+    if (scrapedAt.isEmpty) return false;
+    try {
+      final t = DateTime.parse(scrapedAt);
+      return DateTime.now().difference(t).inHours < 24;
+    } catch (_) { return false; }
+  }
 
   factory Job.fromJson(Map<String, dynamic> json) {
     return Job(
@@ -66,6 +76,7 @@ class Job {
           : null,
       jobStatus: json['job_status'] as String?,
       payScale: json['pay_scale'] as String?,
+      scrapedAt: json['scraped_at'] as String? ?? '',
     );
   }
 
@@ -78,6 +89,7 @@ class Job {
     documentsNeeded: documentsNeeded,
     jobStatus: jobStatus ?? this.jobStatus,
     payScale: payScale,
+    scrapedAt: scrapedAt,
   );
 
   Map<String, dynamic> toJson() => {
@@ -88,6 +100,7 @@ class Job {
     'qualifications': qualifications, 'states': states,
     'age_min': ageMin, 'age_max': ageMax,
     'pay_scale': payScale,
+    'scraped_at': scrapedAt,
   };
 
   // ── Eligibility match score (0-4) against user profile ──

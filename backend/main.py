@@ -933,6 +933,7 @@ def get_job_feed(
             "age_max":          job["age_max"],
             "pay_scale":        job["pay_scale"] or "",
             "documents_needed": json.loads(docs_raw) if docs_raw else None,
+            "scraped_at":       job["scraped_at"] or "",
         })
 
     eligible_jobs.sort(key=lambda x: (x["days_left"], -x["vacancies"]))
@@ -1003,6 +1004,7 @@ def search_jobs(
             "age_max":          job["age_max"],
             "pay_scale":        job["pay_scale"] or "",
             "documents_needed": _safe_json_loads(docs_raw, None),
+            "scraped_at":       job["scraped_at"] or "",
         })
 
     return {"jobs": results, "query": q, "total": len(results)}

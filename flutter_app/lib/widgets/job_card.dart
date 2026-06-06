@@ -107,11 +107,13 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Top row: category pill + deadline + match badge
+                          // Top row: category pill + NEW badge + match badge + deadline
                           Row(
                             children: [
                               _CategoryPill(job: job, color: catColor),
                               const SizedBox(width: 6),
+                              if (job.isNew) _NewBadge(),
+                              if (job.isNew && score >= 3) const SizedBox(width: 6),
                               if (score >= 3)
                                 _MatchBadge(score: score),
                               const Spacer(),
@@ -227,6 +229,29 @@ class _IconAction extends StatelessWidget {
             width: 36, height: 36,
             child: Icon(icon, size: 18, color: fg),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.4)),
+      ),
+      child: const Text(
+        'NEW',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF1565C0),
+          letterSpacing: 0.5,
         ),
       ),
     );

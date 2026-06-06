@@ -329,6 +329,41 @@ class _FeedTabState extends State<_FeedTab> {
     return list.length;
   }
 
+  // Builds a flat list of display items: section headers, job cards, and ad slots.
+  List<Object> get _feedItems {
+    final all = _filteredJobs;
+    if (all.isEmpty) return [];
+
+    final closing  = all.where((j) => j.urgency == 'red').toList();
+    final newToday = all.where((j) => j.isNew && j.urgency != 'red').toList();
+    final rest     = all.where((j) => j.urgency != 'red' && !j.isNew).toList();
+
+    final items = <Object>[];
+    int jobCount = 0;
+
+    void addJob(Job j) {
+      items.add(j);
+      jobCount++;
+      if (jobCount % 5 == 0) items.add('__ad__');
+    }
+
+    if (closing.isNotEmpty) {
+      items.add(('🚨 Closing Soon', '${closing.length} jobs expiring within 7 days'));
+      for (final j in closing) addJob(j);
+    }
+    if (newToday.isNotEmpty) {
+      items.add(('🆕 New Today', '${newToday.length} freshly added'));
+      for (final j in newToday) addJob(j);
+    }
+    if (rest.isNotEmpty) {
+      if (closing.isNotEmpty || newToday.isNotEmpty) {
+        items.add(('📋 All Jobs', '${rest.length} jobs'));
+      }
+      for (final j in rest) addJob(j);
+    }
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -467,22 +502,29 @@ class _FeedTabState extends State<_FeedTab> {
                     : RefreshIndicator(
                         onRefresh: () => _loadJobs(refresh: true),
                         color: AppColors.primary,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          itemCount: _filteredJobs.length +
-                              (_filteredJobs.length ~/ 5) + // ad slots
-                              (_hasMore ? 1 : 0),
-                          itemBuilder: (ctx, rawIdx) {
-                            // Every 6th slot (pos 5 in a group of 6) is a banner ad
-                            final group  = rawIdx ~/ 6;
-                            final pos    = rawIdx % 6;
-                            final jobIdx = group * 5 + pos;
-
-                            if (pos == 5) return const BannerAdWidget();
-
-                            if (jobIdx < _filteredJobs.length) {
-                              final job = _filteredJobs[jobIdx];
+                        child: Builder(builder: (ctx) {
+                          final items = _feedItems;
+                          return ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                            itemCount: items.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (ctx, i) {
+                              if (i == items.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(child: SizedBox(
+                                    width: 22, height: 22,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5, color: AppColors.primary),
+                                  )),
+                                );
+                              }
+                              final item = items[i];
+                              if (item == '__ad__') return const BannerAdWidget();
+                              if (item is (String, String)) {
+                                return _SectionHeader(title: item.$1, subtitle: item.$2);
+                              }
+                              final job = item as Job;
                               return JobCard(
                                 job: job,
                                 profile: _profile,
@@ -497,22 +539,9 @@ class _FeedTabState extends State<_FeedTab> {
                                   ),
                                 ),
                               );
-                            }
-                            // Load-more spinner
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 22, height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                            },
+                          );
+                        }),
                       ),
           ),
         ],
@@ -903,6 +932,51 @@ class _FeedTabState extends State<_FeedTab> {
   }
 }
 
+
+// ─────────────────────────────────────────
+// SECTION HEADER WIDGET
+// ─────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(height: 1, width: 60, color: AppColors.divider),
+        ],
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────
 // PROFILE TAB
