@@ -870,44 +870,56 @@ def get_job_feed(
     user_age       = user["age"]
     user_job_types = json.loads(user["job_types"] or "[]")
 
-    # Push age filter and optional category filter to SQL — reduces rows Python processes
+    # Build SQL filters — push as much work as possible to the DB layer.
+    # Education qualification uses a hierarchy (8th<10th<12th<diploma<grad<pg)
+    # that can't be expressed as a simple SQL predicate, so it stays in Python.
+    sql_params: list = [user_age, user_age]
+
+    # Expired-job filter: last_date stored as DD/MM/YYYY; convert inline with
+    # SQLite substr so we never fetch rows the user can't apply to.
+    date_filter = (
+        "AND last_date IS NOT NULL AND last_date != ''"
+        " AND DATE(SUBSTR(last_date,7,4)||'-'||SUBSTR(last_date,4,2)||'-'||SUBSTR(last_date,1,2))"
+        "     >= DATE('now')"
+    )
+
+    # State filter: states column is a JSON array e.g. '["all"]' or '["up","hr"]'.
+    # LIKE-based containment is fast enough at current DB sizes; json_each()
+    # would be cleaner but adds per-row function overhead in libsql.
+    state_clause = ""
+    if not skip_state and user_state and user_state.lower() not in ("", "all_india"):
+        state_clause = "AND (LOWER(states) LIKE '%\"all\"%' OR LOWER(states) LIKE ?)"
+        sql_params.append(f'%"{user_state.lower()}"%')
+
     cat_filter = ""
-    cat_params: list = [user_age, user_age]
     if user_job_types:
         placeholders = ",".join("?" * len(user_job_types))
         cat_filter = f"AND category IN ({placeholders})"
-        cat_params += user_job_types
+        sql_params += user_job_types
 
+    # Sort pushed to SQL: closing-soonest first, then most vacancies.
+    # DATE() conversion makes the sort correct for DD/MM/YYYY strings.
     jobs_raw = conn.execute(f"""
         SELECT * FROM jobs
         WHERE is_active = 1
           AND age_min <= ? AND age_max >= ?
+          {date_filter}
+          {state_clause}
           {cat_filter}
-        ORDER BY scraped_at DESC
-        LIMIT 300
-    """, cat_params).fetchall()
+        ORDER BY DATE(SUBSTR(last_date,7,4)||'-'||SUBSTR(last_date,4,2)||'-'||SUBSTR(last_date,1,2)) ASC,
+                 vacancies DESC
+        LIMIT 500
+    """, sql_params).fetchall()
 
     today = datetime.now()
     eligible_jobs = []
     for job in jobs_raw:
-        job_states = json.loads(job["states"] or '["all"]')
-        if not skip_state:
-            if "all" not in job_states and user_state.lower() not in [s.lower() for s in job_states]:
-                continue
-
         job_quals = json.loads(job["qualifications"] or '["graduate"]')
         if not user_qualifies(user_education, job_quals):
             continue
 
-        try:
-            last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
-            days_left = (last_date - today).days
-        except (ValueError, TypeError):
-            # Missing/malformed date — skip the job rather than fake a 30-day window
-            continue
-
-        if days_left < 0:
-            continue
+        last_date_dt = datetime.strptime(job["last_date"], "%d/%m/%Y")
+        days_left = (last_date_dt - today).days
 
         if user_category == "obc":
             fee = job["fee_obc"]
@@ -938,8 +950,6 @@ def get_job_feed(
             "documents_needed": json.loads(docs_raw) if docs_raw else None,
             "scraped_at":       job["scraped_at"] or "",
         })
-
-    eligible_jobs.sort(key=lambda x: (x["days_left"], -x["vacancies"]))
 
     total = len(eligible_jobs)
     start = (page - 1) * page_size
