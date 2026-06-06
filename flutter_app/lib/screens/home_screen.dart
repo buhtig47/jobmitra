@@ -993,12 +993,16 @@ class _ProfileTabState extends State<_ProfileTab> {
   final _api = ApiService();
   UserProfile? _profile;
   int? _userId;
+  String _userName = '';
 
   @override
   void initState() {
     super.initState();
     _api.getSavedProfile().then((p) => setState(() => _profile = p));
     _api.getSavedUserId().then((id) => setState(() => _userId = id));
+    _api.getPersonalInfo().then((info) {
+      if (mounted && info.name.isNotEmpty) setState(() => _userName = info.name);
+    });
   }
 
   @override
@@ -1081,9 +1085,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'My Profile',
-                style: TextStyle(
+              Text(
+                _userName.isNotEmpty ? 'Namaste, $_userName!' : 'My Profile',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
