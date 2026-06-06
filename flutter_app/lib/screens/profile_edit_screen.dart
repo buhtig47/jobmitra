@@ -166,8 +166,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         final ok = await _confirmDiscard();
         if (!ok || !mounted) return;
         // ignore: use_build_context_synchronously
-        // (analyzer can't statically prove `mounted` and `context` belong to
-        // the same State when captured by a closure — they do.)
         Navigator.of(context).pop();
       },
       child: Scaffold(

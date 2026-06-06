@@ -468,17 +468,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (userId != null && mounted) {
       // Mark onboarding done
       await prefs.setBool('onboarding_done', true);
-
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => HomeScreen(userId: userId)),
       );
     } else {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Something went wrong, please try again')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong, please try again')),
+      );
     }
   }
 }

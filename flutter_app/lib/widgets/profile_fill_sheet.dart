@@ -245,10 +245,11 @@ class ProfileFillSheet extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () async {
-                await Navigator.push(context, MaterialPageRoute(
+                final nav = Navigator.of(context);
+                await nav.push(MaterialPageRoute(
                   builder: (_) => PersonalInfoScreen(api: api),
                 ));
-                Navigator.pop(context, false);
+                nav.pop(false);
               },
               icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
               label: const Text('Fill Details', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
