@@ -109,8 +109,12 @@ background = Color(0xFFF5F7F5)
 ## Deploy Commands
 ```bash
 # Cloud Run redeploy (from backend/)
+# --max-instances 2: caps billing; backend is I/O-bound (Turso HTTP), 2 instances handle peak load
+# --memory 512Mi: default is 1Gi; FastAPI+uvicorn+scraper fits in 512Mi, halves idle cost
+# --cpu 1: default; leave as-is (scale-to-zero zeroes cost between scrape runs)
 cd ~/jobmitra/backend && gcloud run deploy jobmitra-api \
   --source=. --region=asia-south1 --project=jobmitra-17db0 \
+  --max-instances=2 --memory=512Mi --cpu=1 \
   --set-secrets=TURSO_URL=TURSO_URL:latest,TURSO_TOKEN=TURSO_TOKEN:latest,SCRAPER_SECRET=SCRAPER_SECRET:latest
 
 # Fetch SCRAPER_SECRET (for curl admin endpoints)
@@ -126,14 +130,17 @@ curl https://jobmitra-api-830207301447.asia-south1.run.app/stats
 adb shell pm clear com.jobmitra.app
 
 # Release APK build (real AdMob unit IDs injected at build time)
+# ADMOB_APP_OPEN_ID: create in AdMob console → New ad unit → App open format, then paste here
 cd ~/jobmitra/flutter_app && flutter build apk --release \
   --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
-  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182
+  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182 \
+  --dart-define=ADMOB_APP_OPEN_ID=ca-app-pub-1651515480969781/XXXXXXXXXX
 
 # Release AAB (for Play Store)
 cd ~/jobmitra/flutter_app && flutter build appbundle --release \
   --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
-  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182
+  --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182 \
+  --dart-define=ADMOB_APP_OPEN_ID=ca-app-pub-1651515480969781/XXXXXXXXXX
 
 # Flutter run
 cd ~/jobmitra/flutter_app && flutter run

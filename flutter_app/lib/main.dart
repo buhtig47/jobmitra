@@ -124,6 +124,7 @@ Future<void> _bootstrap() async {
   // 4. AdMob
   await AdService.initialize();
   AdService().loadInterstitial();
+  AdService().loadAppOpen();
 
   final prefs = await SharedPreferences.getInstance();
   await _ensureInstallId(prefs);  // stable identity across reinstalls/token rotations

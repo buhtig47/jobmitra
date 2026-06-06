@@ -21,6 +21,17 @@ class AdService {
   static const _minIntervalMs = 90 * 1000;
   DateTime? _lastShownAt;
 
+  // ── App Open Ad ─────────────────────────────────────────────
+  // Highest-eCPM format (~3-5x banner). Shown once per 4h on app resume.
+  // AdMob auto-suppresses if another fullscreen ad is already displayed.
+  AppOpenAd? _appOpenAd;
+  bool _appOpenReady = false;
+  int _appOpenRetry = 0;
+  DateTime? _appOpenLoadedAt;    // ads expire after 4h
+  DateTime? _appOpenShownAt;
+  static const _appOpenMaxAge = Duration(hours: 4);
+  static const _appOpenMinGap = Duration(hours: 4);
+
   static Future<void> initialize() async {
     // Safety net: if a release build ships with Google's test ad IDs we'd be
     // serving non-monetizing test creatives forever ($0 revenue). Record a
@@ -114,6 +125,73 @@ class AdService {
     }
     _interstitialAd!.show();
     _lastShownAt = now;
+    return true;
+  }
+
+  // ── App Open Ad ──────────────────────────────────────────────
+  void loadAppOpen() {
+    _appOpenRetry = 0;
+    _loadAppOpenInternal();
+  }
+
+  void _loadAppOpenInternal() {
+    AppOpenAd.load(
+      adUnitId: AdIds.appOpen,
+      request: const AdRequest(),
+      adLoadCallback: AppOpenAdLoadCallback(
+        onAdLoaded: (ad) {
+          _appOpenRetry = 0;
+          _appOpenAd = ad;
+          _appOpenReady = true;
+          _appOpenLoadedAt = DateTime.now();
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _appOpenAd = null;
+              _appOpenReady = false;
+              _loadAppOpenInternal(); // preload next
+            },
+            onAdFailedToShowFullScreenContent: (ad, _) {
+              ad.dispose();
+              _appOpenAd = null;
+              _appOpenReady = false;
+              _loadAppOpenInternal();
+            },
+          );
+        },
+        onAdFailedToLoad: (error) {
+          _appOpenReady = false;
+          _appOpenRetry++;
+          if (_appOpenRetry > 4) return;
+          final delay = Duration(seconds: (1 << _appOpenRetry).clamp(4, 300));
+          Future.delayed(delay, _loadAppOpenInternal);
+        },
+      ),
+    );
+  }
+
+  /// Show App Open Ad on resume. Returns true if shown.
+  /// AdMob SDK blocks the show if another fullscreen ad is already visible,
+  /// so no extra guard needed against interstitial collision.
+  bool showAppOpen() {
+    if (!_appOpenReady || _appOpenAd == null) return false;
+    final now = DateTime.now();
+    // Reject if the loaded creative is older than 4h (AdMob requirement).
+    if (_appOpenLoadedAt != null &&
+        now.difference(_appOpenLoadedAt!) > _appOpenMaxAge) {
+      _appOpenAd!.dispose();
+      _appOpenAd = null;
+      _appOpenReady = false;
+      _loadAppOpenInternal();
+      return false;
+    }
+    // Frequency cap: don't show more than once per 4h.
+    if (_appOpenShownAt != null &&
+        now.difference(_appOpenShownAt!) < _appOpenMinGap) {
+      return false;
+    }
+    _appOpenAd!.show();
+    _appOpenShownAt = now;
     return true;
   }
 }

@@ -20,6 +20,14 @@ class AdIds {
     defaultValue: 'ca-app-pub-3940256099942544/6300978111',
   );
 
+  // App Open Ad — highest eCPM format (~3-5x banner). Shows on cold launch and
+  // app resume from background. Create a new ad unit in AdMob console
+  // (format: App open) then inject via --dart-define=ADMOB_APP_OPEN_ID=...
+  static const String appOpen = String.fromEnvironment(
+    'ADMOB_APP_OPEN_ID',
+    defaultValue: 'ca-app-pub-3940256099942544/9257395921',
+  );
+
   static bool get isUsingTestIds =>
       interstitial.startsWith('ca-app-pub-3940256099942544');
 }

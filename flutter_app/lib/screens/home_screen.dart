@@ -22,6 +22,7 @@ import 'tools_screen.dart';
 import 'alerts_screen.dart';
 import 'disclaimer_screen.dart';
 import '../services/notification_service.dart';
+import '../services/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -31,10 +32,29 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedTab = 0;
   int _savedRefreshKey = 0; // Increments every time Saved tab is visited
   final _api = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AdService().showAppOpen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

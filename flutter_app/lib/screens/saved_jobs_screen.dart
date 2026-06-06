@@ -4,6 +4,7 @@ import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/job_card.dart';
+import '../widgets/banner_ad_widget.dart';
 import '../services/notification_service.dart';
 import 'job_detail_screen.dart';
 
@@ -241,11 +242,21 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                 ),
               ],
             )
-          : ListView.builder(
+          : Builder(builder: (ctx) {
+              // Interleave a BannerAdWidget sentinel after every 5 jobs.
+              // Using Object avoids nullable union — banners are const
+              // BannerAdWidget(), jobs are Job instances.
+              final items = <Object>[];
+              for (int k = 0; k < jobs.length; k++) {
+                items.add(jobs[k]);
+                if ((k + 1) % 5 == 0) items.add(const BannerAdWidget());
+              }
+              return ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: jobs.length,
+              itemCount: items.length,
               itemBuilder: (ctx, i) {
-                final job = jobs[i];
+                if (items[i] is BannerAdWidget) return items[i] as BannerAdWidget;
+                final job = items[i] as Job;
                 if (isApplied) {
                   return Dismissible(
                     key: ValueKey('applied_${job.id}'),
@@ -377,7 +388,8 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                   ),
                 );
               },
-            ),
+            );
+            }),
     );
   }
 

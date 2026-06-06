@@ -5,6 +5,7 @@ import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/job_card.dart';
+import '../widgets/banner_ad_widget.dart';
 import 'job_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -36,6 +37,49 @@ class _SearchScreenState extends State<SearchScreen> {
         : _results.where((j) => j.category == _categoryFilter).toList();
     if (_filterFreeOnly) list = list.where((j) => j.isFree).toList();
     return list;
+  }
+
+  // Build a virtual items list: one BannerAdWidget slot after every 5 jobs.
+  // Using Object avoids a nullable union — banners are const BannerAdWidget(),
+  // jobs are Job instances.
+  List<Object> get _displayItems {
+    final jobs = _filteredResults;
+    final out = <Object>[];
+    for (int i = 0; i < jobs.length; i++) {
+      out.add(jobs[i]);
+      if ((i + 1) % 5 == 0) out.add(const BannerAdWidget());
+    }
+    return out;
+  }
+
+  Widget _buildResultsList() {
+    final items = _displayItems;
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      itemCount: items.length,
+      itemBuilder: (ctx, i) {
+        final item = items[i];
+        if (item is BannerAdWidget) return item;
+        final job = item as Job;
+        return JobCard(
+          job: job,
+          profile: _profile,
+          onTap: () {
+            if (_userId == null) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => JobDetailScreen(
+                  jobId: job.id,
+                  api: widget.api,
+                  userId: _userId!,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   static const _kRecentKey = 'recent_searches';
@@ -378,27 +422,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            itemCount: _filteredResults.length,
-            itemBuilder: (ctx, i) => JobCard(
-              job: _filteredResults[i],
-              profile: _profile,
-              onTap: () {
-                if (_userId == null) return; // not loaded yet
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => JobDetailScreen(
-                      jobId: _filteredResults[i].id,
-                      api: widget.api,
-                      userId: _userId!,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          child: _buildResultsList(),
         ),
       ],
     );
