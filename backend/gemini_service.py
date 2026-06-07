@@ -21,9 +21,10 @@ _MODEL_FLASH = "gemini-1.5-flash"
 
 
 def _api_key() -> str | None:
-    key = os.getenv("GEMINI_API_KEY")
+    key = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not key:
         log.error("GEMINI_API_KEY not set — AI features disabled")
+        return None
     return key
 
 
