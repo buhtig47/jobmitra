@@ -111,6 +111,7 @@ def generate_quiz_questions(exam: str = "General GK", count: int = 10,
                 "temperature": 0.7,
                 "max_output_tokens": 4096,
             },
+            request_options={"timeout": 60},
         )
         raw = response.text.strip()
         # Strip markdown code fences if the model wrapped the JSON
@@ -196,11 +197,13 @@ Be specific to India's 2025-26 exam cycle. Use real exam names and real salary f
 
 def generate_career_roadmap(profile: dict) -> dict | None:
     """
-    Generate a personalized career roadmap using Gemini Pro.
+    Generate a personalized career roadmap using Gemini Flash.
     profile keys: age, education, state, category, exam_type, prep_level
     Returns the roadmap dict, or None on failure.
     """
-    model = _client("gemini-1.5-pro")
+    # Use flash instead of pro — response time drops from ~60s to ~8s with
+    # comparable quality for structured JSON output. Pro was causing 504s.
+    model = _client("gemini-1.5-flash")
     if model is None:
         return None
 
@@ -220,6 +223,7 @@ def generate_career_roadmap(profile: dict) -> dict | None:
                 "temperature": 0.6,
                 "max_output_tokens": 2048,
             },
+            request_options={"timeout": 90},
         )
         raw = response.text.strip()
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
