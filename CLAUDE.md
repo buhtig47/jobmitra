@@ -136,14 +136,14 @@ cd ~/jobmitra/flutter_app && flutter build apk --release \
   --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
   --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182 \
   --dart-define=ADMOB_APP_OPEN_ID=ca-app-pub-1651515480969781/4564824326 \
-  --dart-define=ADMOB_REWARDED_ID=ca-app-pub-1651515480969781/REPLACE_WITH_REAL_ID
+  --dart-define=ADMOB_REWARDED_ID=ca-app-pub-1651515480969781/4594108866
 
 # Release AAB (for Play Store)
 cd ~/jobmitra/flutter_app && flutter build appbundle --release \
   --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
   --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182 \
   --dart-define=ADMOB_APP_OPEN_ID=ca-app-pub-1651515480969781/4564824326 \
-  --dart-define=ADMOB_REWARDED_ID=ca-app-pub-1651515480969781/REPLACE_WITH_REAL_ID
+  --dart-define=ADMOB_REWARDED_ID=ca-app-pub-1651515480969781/4594108866
 
 # Flutter run
 cd ~/jobmitra/flutter_app && flutter run
