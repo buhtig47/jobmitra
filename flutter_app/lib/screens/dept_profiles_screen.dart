@@ -1,6 +1,7 @@
 // lib/screens/dept_profiles_screen.dart
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 
 // ── Data model ─────────────────────────────────────────────
 class _Dept {
@@ -255,9 +256,36 @@ const _depts = <_Dept>[
   ),
 ];
 
+_Dept? _deptFromApi(Map<String, dynamic> d) {
+  try {
+    final rawColor = d['color_hex'] as String? ?? '#1565C0';
+    final colorVal = int.tryParse(rawColor.replaceFirst('#', '0xFF')) ?? 0xFF1565C0;
+    return _Dept(
+      name:          d['name'] as String,
+      fullName:      d['full_name'] as String? ?? '',
+      emoji:         d['emoji'] as String? ?? '🏛️',
+      category:      d['category'] as String? ?? 'central',
+      color:         Color(colorVal),
+      ministry:      d['ministry'] as String? ?? '',
+      hq:            d['hq'] as String? ?? '',
+      about:         d['about'] as String? ?? '',
+      roles:         List<String>.from((d['roles'] as List?) ?? []),
+      salary:        d['salary'] as String? ?? '',
+      workLife:      d['work_life'] as String? ?? '',
+      perks:         List<String>.from((d['perks'] as List?) ?? []),
+      promotionPath: d['promotion_path'] as String? ?? '',
+      bestFor:       d['best_for'] as String? ?? '',
+      rating:        (d['rating'] as num?)?.toInt() ?? 3,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 // ── Main Screen ─────────────────────────────────────────────
 class DeptProfilesScreen extends StatefulWidget {
-  const DeptProfilesScreen({super.key});
+  final ApiService? api;
+  const DeptProfilesScreen({super.key, this.api});
 
   @override
   State<DeptProfilesScreen> createState() => _DeptProfilesScreenState();
@@ -265,6 +293,32 @@ class DeptProfilesScreen extends StatefulWidget {
 
 class _DeptProfilesScreenState extends State<DeptProfilesScreen> {
   String _filter = 'all';
+  List<_Dept> _deptList = _depts;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromBackend();
+  }
+
+  Future<void> _loadFromBackend() async {
+    if (widget.api == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final raw = await widget.api!.getDeptProfiles();
+      if (raw.isNotEmpty) {
+        final parsed = raw.map(_deptFromApi).whereType<_Dept>().toList();
+        if (parsed.isNotEmpty && mounted) {
+          setState(() { _deptList = parsed; _loading = false; });
+          return;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   static const _cats = [
     ('all',     'All'),
@@ -277,7 +331,7 @@ class _DeptProfilesScreenState extends State<DeptProfilesScreen> {
   ];
 
   List<_Dept> get _filtered =>
-      _filter == 'all' ? _depts : _depts.where((d) => d.category == _filter).toList();
+      _filter == 'all' ? _deptList : _deptList.where((d) => d.category == _filter).toList();
 
   @override
   Widget build(BuildContext context) {

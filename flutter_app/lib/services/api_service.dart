@@ -478,4 +478,61 @@ class ApiService {
       return {};
     }
   }
+
+  // ── Exam Calendar ──────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getExamCalendar({String? category}) async {
+    try {
+      final params = category != null ? '?category=$category' : '';
+      final res = await _get('$kApiBase/exam-calendar$params');
+      if (res == null) return [];
+      final data = _asMap(jsonDecode(res.body));
+      return _asList(data['exams'])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ── Department Profiles ────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getDeptProfiles({String? category}) async {
+    try {
+      final params = category != null ? '?category=$category' : '';
+      final res = await _get('$kApiBase/dept-profiles$params');
+      if (res == null) return [];
+      final data = _asMap(jsonDecode(res.body));
+      return _asList(data['depts'])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ── AI Career Roadmap ──────────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> getCareerRoadmap({
+    required int age,
+    required String education,
+    required String state,
+    required String category,
+    String examType = 'Any',
+    String prepLevel = 'Beginner',
+  }) async {
+    try {
+      final res = await _post('$kApiBase/ai/career-roadmap', {
+        'age':        age,
+        'education':  education,
+        'state':      state,
+        'category':   category,
+        'exam_type':  examType,
+        'prep_level': prepLevel,
+      });
+      if (res == null || res.statusCode != 200) return null;
+      return _asMap(jsonDecode(res.body));
+    } catch (_) {
+      return null;
+    }
+  }
 }

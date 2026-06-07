@@ -1,6 +1,7 @@
 // lib/screens/exam_calendar_screen.dart
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 
 // ── Exam data model ────────────────────────────────────────
 class ExamEntry {
@@ -252,13 +253,59 @@ final _allExams = <ExamEntry>[
 
 // ── Screen ──────────────────────────────────────────────────
 class ExamCalendarScreen extends StatefulWidget {
-  const ExamCalendarScreen({super.key});
+  final ApiService? api;
+  const ExamCalendarScreen({super.key, this.api});
   @override
   State<ExamCalendarScreen> createState() => _ExamCalendarScreenState();
 }
 
+ExamEntry? _parseApiEntry(Map<String, dynamic> e) {
+  try {
+    DateTime? _dt(String? s) => (s != null && s.isNotEmpty) ? DateTime.tryParse(s) : null;
+    return ExamEntry(
+      id:           e['id'] as String,
+      name:         e['name'] as String,
+      category:     e['category'] as String? ?? 'other',
+      emoji:        e['emoji'] as String? ?? '📅',
+      notifDate:    _dt(e['notif_date'] as String?),
+      lastDate:     _dt(e['last_date'] as String?),
+      examDate:     _dt(e['exam_date'] as String?),
+      isTentative:  (e['is_tentative'] as bool?) ?? false,
+      officialSite: e['official_site'] as String?,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
   String _filter = 'all';
+  List<ExamEntry> _exams = _allExams;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromBackend();
+  }
+
+  Future<void> _loadFromBackend() async {
+    if (widget.api == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final raw = await widget.api!.getExamCalendar();
+      if (raw.isNotEmpty) {
+        final parsed = raw.map(_parseApiEntry).whereType<ExamEntry>().toList();
+        if (parsed.isNotEmpty && mounted) {
+          setState(() { _exams = parsed; _loading = false; });
+          return;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   static const _filters = [
     ('all',     'All',     '🗓️'),
@@ -271,7 +318,7 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
   ];
 
   List<ExamEntry> get _filtered =>
-      _filter == 'all' ? _allExams : _allExams.where((e) => e.category == _filter).toList();
+      _filter == 'all' ? _exams : _exams.where((e) => e.category == _filter).toList();
 
   static const _statusColors = {
     'active':          Color(0xFF2E7D32),
@@ -295,6 +342,7 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final exams = _filtered;
+    final isLive = _exams != _allExams;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
@@ -315,16 +363,25 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Exam Calendar', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-                        Text('2025-26 upcoming exams', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                        const Text('Exam Calendar', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                        Text(
+                          isLive ? 'Live data from server' : '2025-26 upcoming exams',
+                          style: TextStyle(color: isLive ? const Color(0xFF81C784) : Colors.white70, fontSize: 11),
+                        ),
                       ],
                     ),
                   ),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 16),
+                      child: SizedBox(width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
+                    ),
                 ],
               ),
             ),

@@ -1,6 +1,6 @@
 """
 JobMitra - FastAPI Backend
-Deploy on Render.com (free tier)
+Deploy on Cloud Run (asia-south1)
 DB: Turso (libsql cloud) — persistent across deploys
 """
 
@@ -17,6 +17,14 @@ import hashlib
 import logging
 import requests as _requests
 from datetime import datetime, timedelta
+
+# Lazy import — AI features disabled gracefully if gemini_service isn't available
+try:
+    import gemini_service as _gemini
+    _gemini_available = True
+except ImportError:
+    _gemini = None  # type: ignore
+    _gemini_available = False
 
 # Cloud Run auto-detects single-line JSON written to stdout/stderr and parses
 # severity/labels/trace fields. Plain text logs all show up as severity=DEFAULT
@@ -340,6 +348,41 @@ def init_db():
             source_url    TEXT UNIQUE,
             description   TEXT DEFAULT '',
             scraped_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS exam_calendar (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            exam_id       TEXT UNIQUE NOT NULL,
+            name          TEXT NOT NULL,
+            category      TEXT DEFAULT 'other',   -- upsc/ssc/banking/railway/state/defence/other
+            emoji         TEXT DEFAULT '📅',
+            notif_date    TEXT DEFAULT '',
+            last_date     TEXT DEFAULT '',
+            exam_date     TEXT DEFAULT '',
+            is_tentative  INTEGER DEFAULT 0,
+            official_site TEXT DEFAULT '',
+            updated_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS dept_profiles (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            dept_id       TEXT UNIQUE NOT NULL,
+            name          TEXT NOT NULL,
+            full_name     TEXT DEFAULT '',
+            emoji         TEXT DEFAULT '🏛️',
+            category      TEXT DEFAULT 'central',  -- central/defence/banking/railway/research/state
+            color_hex     TEXT DEFAULT '#1565C0',
+            ministry      TEXT DEFAULT '',
+            hq            TEXT DEFAULT '',
+            about         TEXT DEFAULT '',
+            roles         TEXT DEFAULT '[]',        -- JSON array
+            salary        TEXT DEFAULT '',
+            work_life     TEXT DEFAULT '',
+            perks         TEXT DEFAULT '[]',        -- JSON array
+            promotion_path TEXT DEFAULT '',
+            best_for      TEXT DEFAULT '',
+            rating        INTEGER DEFAULT 3,
+            updated_at    TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE INDEX IF NOT EXISTS idx_jobs_category  ON jobs(category);
@@ -2102,3 +2145,221 @@ def trigger_quiz_scrape(secret: str = Query(...)):
     except Exception:
         log.exception("admin/scrape-quiz failed")
         raise HTTPException(status_code=500, detail="internal error")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXAM CALENDAR
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/exam-calendar")
+def get_exam_calendar(category: Optional[str] = Query(None)):
+    """Return exam calendar entries, optionally filtered by category."""
+    conn = get_db()
+    if category:
+        conn.execute(
+            "SELECT * FROM exam_calendar WHERE category=? ORDER BY exam_date, notif_date",
+            (category,)
+        )
+    else:
+        conn.execute("SELECT * FROM exam_calendar ORDER BY exam_date, notif_date")
+    rows = conn.fetchall()
+    return {
+        "exams": [
+            {
+                "id":           r["exam_id"],
+                "name":         r["name"],
+                "category":     r["category"],
+                "emoji":        r["emoji"],
+                "notif_date":   r["notif_date"] or None,
+                "last_date":    r["last_date"] or None,
+                "exam_date":    r["exam_date"] or None,
+                "is_tentative": bool(r["is_tentative"]),
+                "official_site": r["official_site"] or None,
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.post("/admin/seed-exam-calendar")
+def seed_exam_calendar(secret: str = Query(...), payload: dict = Body(...)):
+    """Bulk-upsert exam calendar entries. payload = {"exams": [...]}"""
+    require_admin(secret)
+    exams = payload.get("exams", [])
+    inserted = 0
+    for e in exams:
+        try:
+            get_db().execute(
+                """INSERT OR REPLACE INTO exam_calendar
+                   (exam_id, name, category, emoji, notif_date, last_date,
+                    exam_date, is_tentative, official_site, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",
+                (e["id"], e["name"], e.get("category","other"),
+                 e.get("emoji","📅"), e.get("notif_date",""), e.get("last_date",""),
+                 e.get("exam_date",""), int(e.get("is_tentative", False)),
+                 e.get("official_site",""))
+            )
+            inserted += 1
+        except Exception:
+            log.exception("seed_exam_calendar row failed: %s", e.get("id"))
+    return {"inserted": inserted, "total": len(exams)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT PROFILES
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/dept-profiles")
+def get_dept_profiles(category: Optional[str] = Query(None)):
+    """Return department profile cards, optionally filtered by category."""
+    conn = get_db()
+    if category:
+        conn.execute(
+            "SELECT * FROM dept_profiles WHERE category=? ORDER BY rating DESC, name",
+            (category,)
+        )
+    else:
+        conn.execute("SELECT * FROM dept_profiles ORDER BY rating DESC, name")
+    rows = conn.fetchall()
+    return {
+        "depts": [
+            {
+                "id":             r["dept_id"],
+                "name":           r["name"],
+                "full_name":      r["full_name"],
+                "emoji":          r["emoji"],
+                "category":       r["category"],
+                "color_hex":      r["color_hex"],
+                "ministry":       r["ministry"],
+                "hq":             r["hq"],
+                "about":          r["about"],
+                "roles":          _safe_json_loads(r["roles"], []),
+                "salary":         r["salary"],
+                "work_life":      r["work_life"],
+                "perks":          _safe_json_loads(r["perks"], []),
+                "promotion_path": r["promotion_path"],
+                "best_for":       r["best_for"],
+                "rating":         r["rating"],
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.post("/admin/seed-dept-profiles")
+def seed_dept_profiles(secret: str = Query(...), payload: dict = Body(...)):
+    """Bulk-upsert department profiles. payload = {"depts": [...]}"""
+    require_admin(secret)
+    depts = payload.get("depts", [])
+    inserted = 0
+    for d in depts:
+        try:
+            get_db().execute(
+                """INSERT OR REPLACE INTO dept_profiles
+                   (dept_id, name, full_name, emoji, category, color_hex,
+                    ministry, hq, about, roles, salary, work_life, perks,
+                    promotion_path, best_for, rating, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",
+                (d["id"], d["name"], d.get("full_name",""), d.get("emoji","🏛️"),
+                 d.get("category","central"), d.get("color_hex","#1565C0"),
+                 d.get("ministry",""), d.get("hq",""), d.get("about",""),
+                 json.dumps(d.get("roles",[])), d.get("salary",""),
+                 d.get("work_life",""), json.dumps(d.get("perks",[])),
+                 d.get("promotion_path",""), d.get("best_for",""),
+                 int(d.get("rating", 3)))
+            )
+            inserted += 1
+        except Exception:
+            log.exception("seed_dept_profiles row failed: %s", d.get("id"))
+    return {"inserted": inserted, "total": len(depts)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI CAREER ROADMAP  (Gemini-powered, rewarded-ad gated in Flutter)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _RoadmapRequest(BaseModel):
+    age:        int    = Field(22, ge=15, le=65)
+    education:  str    = "Graduate"
+    state:      str    = "Any"
+    category:   str    = "General"
+    exam_type:  str    = "Any"
+    prep_level: str    = "Beginner"   # Beginner | Intermediate | Advanced
+
+@app.post("/ai/career-roadmap")
+def ai_career_roadmap(req: _RoadmapRequest):
+    """Generate a personalized career roadmap using Gemini. Rate-limit: callers
+    must show a rewarded ad before calling (enforced client-side)."""
+    if not _gemini_available:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    roadmap = _gemini.generate_career_roadmap({
+        "age":        str(req.age),
+        "education":  req.education,
+        "state":      req.state,
+        "category":   req.category,
+        "exam_type":  req.exam_type,
+        "prep_level": req.prep_level,
+    })
+    if roadmap is None:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    return roadmap
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN: Generate quiz questions via Gemini and store them
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/admin/generate-quiz")
+def admin_generate_quiz(
+    secret:     str = Query(...),
+    exam:       str = Query("General GK"),
+    count:      int = Query(10, ge=5, le=50),
+    difficulty: str = Query("medium"),
+):
+    """Call Gemini to generate fresh MCQ questions and store them in the DB.
+    Run nightly via Cloud Scheduler to keep the question pool fresh."""
+    require_admin(secret)
+    if not _gemini_available:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    questions = _gemini.generate_quiz_questions(exam=exam, count=count, difficulty=difficulty)
+    if not questions:
+        raise HTTPException(status_code=503, detail="Gemini returned no questions")
+
+    # Determine next set_index to avoid collisions
+    conn = get_db()
+    max_row = conn.execute(
+        "SELECT MAX(set_index) as m FROM questions WHERE type='quiz'"
+    ).fetchone()
+    next_idx = (max_row["m"] or -1) + 1 if max_row else 0
+
+    # Split into sets of 5 questions each
+    inserted_total = 0
+    idx = next_idx
+    for batch_start in range(0, len(questions), 5):
+        batch = questions[batch_start:batch_start+5]
+        for sort_order, q in enumerate(batch):
+            q["set_index"]  = idx
+            q["sort_order"] = sort_order
+            import hashlib as _hlib
+            q["question_hash"] = _hlib.md5(
+                q["question"].lower().strip().encode()
+            ).hexdigest()
+        try:
+            conn2 = get_db()
+            for q in batch:
+                conn2.execute(
+                    """INSERT OR IGNORE INTO questions
+                       (type, set_index, question, option_a, option_b, option_c,
+                        option_d, correct, topic, explanation, sort_order, question_hash)
+                       VALUES ('quiz',?,?,?,?,?,?,?,?,?,?,?)""",
+                    (q["set_index"], q["question"], q["option_a"], q["option_b"],
+                     q["option_c"], q["option_d"], q["correct"], q["topic"],
+                     q["explanation"], q["sort_order"], q["question_hash"])
+                )
+                inserted_total += 1
+        except Exception:
+            log.exception("generate-quiz insert failed at set_index=%d", idx)
+        idx += 1
+
+    log.info("generate-quiz: inserted %d questions for exam=%s", inserted_total, exam)
+    return {"inserted": inserted_total, "sets_added": idx - next_idx, "exam": exam}

@@ -4,10 +4,11 @@
 // Production: inject real IDs at build time via --dart-define:
 //   flutter build apk --release \
 //     --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_BANNER_ID=ca-app-pub-XXXX/ZZZZ
+//     --dart-define=ADMOB_BANNER_ID=ca-app-pub-XXXX/ZZZZ \
+//     --dart-define=ADMOB_APP_OPEN_ID=ca-app-pub-XXXX/WWWW \
+//     --dart-define=ADMOB_REWARDED_ID=ca-app-pub-XXXX/VVVV
 //
-// Also update AndroidManifest.xml `com.google.android.gms.ads.APPLICATION_ID`
-// with the real AdMob app ID before release.
+// Create rewarded ad unit in AdMob console → New ad unit → Rewarded format.
 
 class AdIds {
   static const String interstitial = String.fromEnvironment(
@@ -26,6 +27,14 @@ class AdIds {
   static const String appOpen = String.fromEnvironment(
     'ADMOB_APP_OPEN_ID',
     defaultValue: 'ca-app-pub-3940256099942544/9257395921',
+  );
+
+  // Rewarded Ad — shown before AI-powered features (career roadmap).
+  // User watches 30s ad → AI feature unlocked for that session.
+  // Create in AdMob console → New ad unit → Rewarded format.
+  static const String rewarded = String.fromEnvironment(
+    'ADMOB_REWARDED_ID',
+    defaultValue: 'ca-app-pub-3940256099942544/5224354917',
   );
 
   static bool get isUsingTestIds =>

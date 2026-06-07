@@ -167,7 +167,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
           subtitle: 'UPSC, SSC, Banking, Railway — 2025-26 important dates',
           section: 'Planning',
           color: const Color(0xFF1565C0),
-          builder: (_) => const ExamCalendarScreen(),
+          builder: (api) => ExamCalendarScreen(api: api),
         ),
         _ToolDef(
           id: 'compete',
@@ -194,7 +194,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
           subtitle: 'DRDO, ISRO, Railways, Banks — salary & perks',
           section: 'Analysis',
           color: const Color(0xFF1A237E),
-          builder: (_) => const DeptProfilesScreen(),
+          builder: (api) => DeptProfilesScreen(api: api),
         ),
       ];
 

@@ -15,6 +15,13 @@ class AdService {
   int _interstitialRetry = 0;
   Timer? _interstitialRetryTimer;
 
+  // ── Rewarded Ad ──────────────────────────────────────────────
+  // Used to gate AI features (career roadmap). User watches the ad to
+  // unlock the AI analysis for that session.
+  RewardedAd? _rewardedAd;
+  bool _rewardedReady = false;
+  int _rewardedRetry = 0;
+
   // Minimum gap between two interstitial impressions. Users open 5+ job details
   // per session; without this floor we'd show 5 fullscreen ads in 90s and lose
   // the install. Industry standard for content apps is 60-120s.
@@ -194,4 +201,65 @@ class AdService {
     _appOpenShownAt = now;
     return true;
   }
+
+  // ── Rewarded Ad ────────────────────────────────────────────────────────────
+
+  void loadRewarded() {
+    _rewardedRetry = 0;
+    _loadRewardedInternal();
+  }
+
+  void _loadRewardedInternal() {
+    RewardedAd.load(
+      adUnitId: AdIds.rewarded,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedRetry = 0;
+          _rewardedAd = ad;
+          _rewardedReady = true;
+        },
+        onAdFailedToLoad: (error) {
+          _rewardedReady = false;
+          _rewardedRetry++;
+          if (_rewardedRetry > 4) return;
+          final delay = Duration(seconds: (1 << _rewardedRetry).clamp(4, 120));
+          Future.delayed(delay, _loadRewardedInternal);
+        },
+      ),
+    );
+  }
+
+  /// Show rewarded ad. Calls [onRewarded] when the user earns the reward
+  /// (watched enough of the ad). Calls [onFailed] if ad not ready or fails.
+  /// Preloads next ad after dismiss so it's ready for the next session.
+  void showRewarded({
+    required void Function() onRewarded,
+    required void Function() onFailed,
+  }) {
+    if (!_rewardedReady || _rewardedAd == null) {
+      onFailed();
+      _loadRewardedInternal(); // preload for next time
+      return;
+    }
+    final ad = _rewardedAd!;
+    _rewardedAd = null;
+    _rewardedReady = false;
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        loadRewarded(); // preload next
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        loadRewarded();
+        onFailed();
+      },
+    );
+
+    ad.show(onUserEarnedReward: (_, __) => onRewarded());
+  }
+
+  bool get rewardedReady => _rewardedReady;
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
+import '../services/ad_service.dart';
 
 // ── Data model ─────────────────────────────────────────────
 class _ExamRec {
@@ -235,6 +236,11 @@ class _CareerRoadmapScreenState extends State<CareerRoadmapScreen> {
   UserProfile? _profile;
   List<_ExamRec> _recs = [];
 
+  // AI roadmap state
+  Map<String, dynamic>? _aiRoadmap;
+  bool _aiLoading = false;
+  bool _aiUnlocked = false; // true once user has watched rewarded ad this session
+
   @override
   void initState() {
     super.initState();
@@ -243,10 +249,53 @@ class _CareerRoadmapScreenState extends State<CareerRoadmapScreen> {
 
   Future<void> _load() async {
     final p = await widget.api.getSavedProfile();
-    setState(() {
+    if (mounted) setState(() {
       _profile = p;
       _recs = _filterRecs(p);
     });
+  }
+
+  void _onGetAiRoadmap() {
+    if (_aiLoading) return;
+    if (_aiUnlocked) {
+      _fetchAiRoadmap();
+      return;
+    }
+    // Show rewarded ad gate
+    AdService().showRewarded(
+      onRewarded: () {
+        if (mounted) setState(() => _aiUnlocked = true);
+        _fetchAiRoadmap();
+      },
+      onFailed: () {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ad not ready, please try again in a moment'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _fetchAiRoadmap() async {
+    if (_profile == null || _aiLoading) return;
+    setState(() => _aiLoading = true);
+    final roadmap = await widget.api.getCareerRoadmap(
+      age:       _profile!.age,
+      education: _profile!.education,
+      state:     _profile!.state,
+      category:  _profile!.category,
+      examType:  _profile!.jobTypes.isNotEmpty ? _profile!.jobTypes.first : 'Any',
+      prepLevel: 'Beginner',
+    );
+    if (mounted) {
+      setState(() {
+        _aiRoadmap = roadmap;
+        _aiLoading = false;
+      });
+    }
   }
 
   List<_ExamRec> _filterRecs(UserProfile? p) {
@@ -363,6 +412,16 @@ class _CareerRoadmapScreenState extends State<CareerRoadmapScreen> {
                 if (medium.isNotEmpty) ...[_PhaseHeader(phase:'medium', color:_phaseColor('medium'), label:_phaseLabel('medium'), emoji:_phaseEmoji('medium')), const SizedBox(height:10), ..._buildCards(medium, context), const SizedBox(height:20)],
                 if (long.isNotEmpty)   ...[_PhaseHeader(phase:'long',   color:_phaseColor('long'),   label:_phaseLabel('long'),   emoji:_phaseEmoji('long')),   const SizedBox(height:10), ..._buildCards(long,   context), const SizedBox(height:20)],
                 if (_recs.isEmpty) _EmptyState(),
+
+                // ── AI Career Advisor section ──────────────────────────
+                const Divider(height: 32),
+                _AiRoadmapSection(
+                  roadmap: _aiRoadmap,
+                  loading: _aiLoading,
+                  unlocked: _aiUnlocked,
+                  profileMissing: _profile == null,
+                  onTap: _onGetAiRoadmap,
+                ),
                 const SizedBox(height: 32),
               ]),
             ),
@@ -385,6 +444,223 @@ class _CareerRoadmapScreenState extends State<CareerRoadmapScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _DetailSheet(exam: e),
     );
+  }
+}
+
+// ── AI Roadmap Section ───────────────────────────────────────
+class _AiRoadmapSection extends StatelessWidget {
+  final Map<String, dynamic>? roadmap;
+  final bool loading;
+  final bool unlocked;
+  final bool profileMissing;
+  final VoidCallback onTap;
+
+  const _AiRoadmapSection({
+    required this.roadmap,
+    required this.loading,
+    required this.unlocked,
+    required this.profileMissing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4A148C), Color(0xFF6A1B9A)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Text('🤖', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI Career Advisor',
+                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                    Text('Personalized roadmap by Gemini AI',
+                      style: TextStyle(color: Colors.white70, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            if (roadmap != null) ...[
+              _AiRoadmapResult(roadmap: roadmap!),
+            ] else if (loading) ...[
+              const Center(
+                child: Column(children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 12),
+                  Text('Gemini AI analyzing your profile…',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ]),
+              ),
+            ] else ...[
+              Text(
+                profileMissing
+                  ? 'Complete your profile first to get a personalized AI roadmap.'
+                  : 'Watch a short ad to unlock your personalized AI career analysis.',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: profileMissing ? null : onTap,
+                  icon: const Icon(Icons.play_circle_outline_rounded, size: 20),
+                  label: const Text('Watch Ad → Get AI Roadmap'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF4A148C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AiRoadmapResult extends StatelessWidget {
+  final Map<String, dynamic> roadmap;
+  const _AiRoadmapResult({required this.roadmap});
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = roadmap['summary'] as String? ?? '';
+    final topExams = (roadmap['top_exams'] as List?) ?? [];
+    final studyPlan = (roadmap['study_plan'] as Map?) ?? {};
+    final tip = roadmap['motivational_tip'] as String? ?? '';
+    final mistakes = (roadmap['common_mistakes'] as List?) ?? [];
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Summary
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(summary, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.5)),
+      ),
+      const SizedBox(height: 16),
+
+      // Top Exams
+      if (topExams.isNotEmpty) ...[
+        const Text('🎯 Your Best Exams', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 10),
+        ...topExams.map<Widget>((e) {
+          final exam = e as Map<String, dynamic>;
+          final competition = exam['competition_level'] as String? ?? '';
+          final compColor = competition == 'Low' ? Colors.green[300]
+              : competition == 'Medium' ? Colors.orange[300]
+              : Colors.red[300];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(exam['name'] as String? ?? '',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
+                if (competition.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: compColor?.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(competition, style: TextStyle(color: compColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+              ]),
+              const SizedBox(height: 6),
+              Text(exam['why_fit'] as String? ?? '',
+                style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+              const SizedBox(height: 6),
+              Row(children: [
+                const Icon(Icons.currency_rupee, size: 12, color: Colors.white54),
+                const SizedBox(width: 4),
+                Text(exam['salary'] as String? ?? '', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                const SizedBox(width: 12),
+                const Icon(Icons.schedule, size: 12, color: Colors.white54),
+                const SizedBox(width: 4),
+                Text(exam['timeline'] as String? ?? '', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+              ]),
+            ]),
+          );
+        }),
+        const SizedBox(height: 8),
+      ],
+
+      // Study plan key topics
+      if ((studyPlan['key_topics'] as List?)?.isNotEmpty == true) ...[
+        const Text('📚 Key Topics', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8, runSpacing: 6,
+          children: (studyPlan['key_topics'] as List).map<Widget>((t) =>
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(t as String, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+            )
+          ).toList(),
+        ),
+        const SizedBox(height: 14),
+      ],
+
+      // Motivational tip
+      if (tip.isNotEmpty) ...[
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('💡', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(tip, style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.5))),
+          ]),
+        ),
+        const SizedBox(height: 14),
+      ],
+
+      // Common mistakes
+      if (mistakes.isNotEmpty) ...[
+        const Text('⚠️ Avoid These Mistakes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 8),
+        ...mistakes.map<Widget>((m) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('✗ ', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w700)),
+            Expanded(child: Text(m as String, style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4))),
+          ]),
+        )),
+      ],
+    ]);
   }
 }
 
