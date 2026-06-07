@@ -41,6 +41,9 @@ def _generate(model: str, prompt: str, max_tokens: int = 2048,
             "temperature": temperature,
             "maxOutputTokens": max_tokens,
         },
+        # Disable internal reasoning — not needed for structured JSON output,
+        # and it consumes token budget that would otherwise go to the response.
+        "thinkingConfig": {"thinkingBudget": 0},
     }
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
@@ -56,17 +59,30 @@ def _generate(model: str, prompt: str, max_tokens: int = 2048,
 
 
 def _parse_json(raw: str) -> dict | list | None:
-    """Strip markdown code fences and parse JSON."""
+    """Strip markdown code fences and extract the outermost JSON object/array."""
     if raw is None:
         return None
     raw = raw.strip()
+    # Strip markdown code fences
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
+    raw = raw.strip()
+    # Try direct parse first
     try:
         return json.loads(raw)
     except (ValueError, TypeError):
-        log.error("Gemini returned invalid JSON: %s", raw[:200])
-        return None
+        pass
+    # Extract outermost { ... } or [ ... ] block (handles extra preamble/suffix)
+    for start_ch, end_ch in [('{', '}'), ('[', ']')]:
+        start = raw.find(start_ch)
+        end   = raw.rfind(end_ch)
+        if start != -1 and end > start:
+            try:
+                return json.loads(raw[start:end + 1])
+            except (ValueError, TypeError):
+                pass
+    log.error("Gemini returned invalid JSON: %s", raw[:300])
+    return None
 
 
 # ── Quiz generation ──────────────────────────────────────────────────────────
@@ -201,7 +217,7 @@ def generate_career_roadmap(profile: dict) -> dict | None:
         exam_type=profile.get("exam_type", "Any"),
         prep_level=profile.get("prep_level", "Beginner"),
     )
-    raw = _generate(_MODEL_FLASH, prompt, max_tokens=2048, temperature=0.6, timeout=45)
+    raw = _generate(_MODEL_FLASH, prompt, max_tokens=8192, temperature=0.6, timeout=45)
     roadmap = _parse_json(raw)
     if not isinstance(roadmap, dict):
         return None
