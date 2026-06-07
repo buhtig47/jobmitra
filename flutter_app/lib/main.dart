@@ -12,6 +12,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/ad_service.dart';
 import 'services/notification_service.dart';
+import 'utils/ad_ids.dart';
 import 'utils/constants.dart';
 import 'utils/i18n.dart';
 
@@ -123,6 +124,7 @@ Future<void> _bootstrap() async {
 
   // 4. AdMob
   await AdService.initialize();
+  AdIds.warnIfTestIds();
   AdService().loadInterstitial();
   AdService().loadAppOpen();
   AdService().loadRewarded();

@@ -10,6 +10,8 @@
 //
 // Create rewarded ad unit in AdMob console → New ad unit → Rewarded format.
 
+import 'package:flutter/foundation.dart';
+
 class AdIds {
   static const String interstitial = String.fromEnvironment(
     'ADMOB_INTERSTITIAL_ID',
@@ -39,4 +41,17 @@ class AdIds {
 
   static bool get isUsingTestIds =>
       interstitial.startsWith('ca-app-pub-3940256099942544');
+
+  static void warnIfTestIds() {
+    if (!isUsingTestIds) return;
+    debugPrint(
+      '[AdMob] WARNING: Using TEST ad unit IDs. '
+      'Inject real IDs via --dart-define before release builds.',
+    );
+    assert(
+      !kReleaseMode,
+      'Release build is using test AdMob IDs! '
+      'Pass --dart-define=ADMOB_INTERSTITIAL_ID=... etc. at build time.',
+    );
+  }
 }
