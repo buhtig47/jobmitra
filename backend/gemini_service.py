@@ -41,9 +41,6 @@ def _generate(model: str, prompt: str, max_tokens: int = 2048,
             "temperature": temperature,
             "maxOutputTokens": max_tokens,
         },
-        # Disable internal reasoning — not needed for structured JSON output,
-        # and it consumes token budget that would otherwise go to the response.
-        "thinkingConfig": {"thinkingBudget": 0},
     }
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
