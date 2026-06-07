@@ -16,8 +16,8 @@ import requests
 
 log = logging.getLogger("jobmitra")
 
-_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1/models"
-_MODEL_FLASH = "gemini-1.5-flash"
+_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+_MODEL_FLASH = "gemini-2.5-flash"
 
 
 def _api_key() -> str | None:
