@@ -210,6 +210,7 @@ class _FeedTabState extends State<_FeedTab> {
   String _userName = '';
   int _activeAlertCount = 0;
   String? _stateOverride; // null = use profile state; "all_india" = drop filter
+  int _quizStreak = 0;
 
   static const _kStatePrefKey = 'home_state_override';
 
@@ -236,6 +237,10 @@ class _FeedTabState extends State<_FeedTab> {
   void initState() {
     super.initState();
     _restoreStateOverride().then((_) => _loadJobs());
+    SharedPreferences.getInstance().then((p) {
+      final streak = p.getInt('quiz_streak') ?? 0;
+      if (mounted && streak > 0) setState(() => _quizStreak = streak);
+    });
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
     });
@@ -453,6 +458,24 @@ class _FeedTabState extends State<_FeedTab> {
                         ),
                       ),
                     ),
+                  if (_quizStreak > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '🔥 $_quizStreak',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   // Bell / Alerts button with active badge
                   GestureDetector(

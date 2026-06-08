@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../screens/announcements_screen.dart';
+import '../screens/daily_quiz_screen.dart';
 import '../main.dart' show navigatorKey;
 
 // Top-level handler — must be outside the class (FCM requirement)
@@ -93,6 +94,10 @@ class NotificationService {
     if (payload == 'announcements') {
       nav.push(MaterialPageRoute(
         builder: (_) => AnnouncementsScreen(api: ApiService()),
+      ));
+    } else if (payload == 'quiz') {
+      nav.push(MaterialPageRoute(
+        builder: (_) => const DailyQuizScreen(),
       ));
     } else {
       nav.popUntil((route) => route.isFirst);

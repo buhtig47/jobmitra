@@ -1482,6 +1482,21 @@ def trigger_scrape(secret: str = Query(...)):
         raise HTTPException(status_code=500, detail="internal error")
 
 
+@app.post("/admin/notify-quiz")
+def notify_quiz(secret: str = Query(...)):
+    """Send daily quiz reminder to all subscribed users via topic push."""
+    require_admin(secret)
+    from datetime import date
+    day_num = (date.today() - date(2026, 1, 1)).days % 60  # 60-day rotation
+    ok = send_fcm_to_topic(
+        "jobmitra_announcements",
+        title="📝 Aaj ka Quiz Ready!",
+        body=f"Daily GK quiz #{day_num + 1} — kya tum aaj bhi perfect score loge? 🔥",
+        data={"screen": "quiz"},
+    )
+    return {"sent": ok}
+
+
 @app.post("/admin/notify")
 def manual_notify(
     secret: str = Query(...),
