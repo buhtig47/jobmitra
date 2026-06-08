@@ -533,6 +533,92 @@ def user_qualifies(user_education: str, job_qualifications: list) -> bool:
     return False
 
 # ─────────────────────────────────────────
+# CLOUD SCHEDULER — OIDC-VERIFIED CRON
+# ─────────────────────────────────────────
+
+_SCHEDULER_SA       = "jobmitra-scheduler@jobmitra-17db0.iam.gserviceaccount.com"
+_CLOUD_RUN_AUDIENCE = "https://jobmitra-api-830207301447.asia-south1.run.app"
+
+def _require_scheduler(authorization: Optional[str] = None):
+    """Verify the OIDC token that Cloud Scheduler attaches automatically.
+    Raises 403 if the token is missing, invalid, or from the wrong SA.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=403, detail="Missing OIDC token")
+    token = authorization[7:]
+    try:
+        import google.auth.transport.requests as _gtr
+        from google.oauth2 import id_token as _id_token
+        claims = _id_token.verify_oauth2_token(
+            token, _gtr.Request(), _CLOUD_RUN_AUDIENCE
+        )
+        if claims.get("email") != _SCHEDULER_SA:
+            raise HTTPException(status_code=403, detail="Wrong service account")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=403, detail="Invalid OIDC token")
+
+
+@app.post("/internal/cron/scrape")
+def cron_scrape(authorization: Optional[str] = None):
+    """Called by Cloud Scheduler daily — runs the scraper + sends job alerts."""
+    _require_scheduler(authorization)
+    try:
+        from scraper import run_all as run_all_scrapers
+        jobs = run_all_scrapers()
+        conn = get_db()
+        inserted = 0
+        new_job_ids: list[int] = []
+        cats_inserted: dict[str, int] = {}
+        for job in jobs:
+            row_id = _insert_job(conn, job)
+            if row_id is not None:
+                inserted += 1
+                new_job_ids.append(row_id)
+                cats_inserted[job["category"]] = cats_inserted.get(job["category"], 0) + 1
+        expired = 0
+        for j in conn.execute("SELECT id, last_date FROM jobs WHERE is_active=1").fetchall():
+            try:
+                if (datetime.strptime(j["last_date"], "%d/%m/%Y") - datetime.now()).days < 0:
+                    conn.execute("UPDATE jobs SET is_active=0 WHERE id=?", (j["id"],))
+                    expired += 1
+            except Exception:
+                pass
+        notified = 0
+        if inserted > 0:
+            try: notified = notify_users_personalized(conn, cats_inserted)
+            except Exception: pass
+        alert_pushes = 0
+        if new_job_ids:
+            try: alert_pushes = notify_users_alert_rule_matches(conn, new_job_ids)
+            except Exception: pass
+        log.info("cron/scrape done inserted=%d expired=%d notified=%d", inserted, expired, notified)
+        return {"inserted": inserted, "expired": expired, "notified": notified, "alert_pushes": alert_pushes}
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("cron/scrape failed")
+        raise HTTPException(status_code=500, detail="internal error")
+
+
+@app.post("/internal/cron/quiz")
+def cron_quiz(authorization: Optional[str] = None):
+    """Called by Cloud Scheduler daily — sends quiz reminder to all subscribers."""
+    _require_scheduler(authorization)
+    from datetime import date
+    day_num = (date.today() - date(2026, 1, 1)).days % 60
+    ok = send_fcm_to_topic(
+        "jobmitra_announcements",
+        title="📝 Aaj ka Quiz Ready!",
+        body=f"Daily GK quiz #{day_num + 1} — kya tum aaj bhi perfect score loge? 🔥",
+        data={"screen": "quiz"},
+    )
+    log.info("cron/quiz sent=%s", ok)
+    return {"sent": ok}
+
+
+# ─────────────────────────────────────────
 # FIREBASE PUSH NOTIFICATIONS
 # ─────────────────────────────────────────
 
