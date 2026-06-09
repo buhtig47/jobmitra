@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../screens/announcements_screen.dart';
@@ -160,6 +161,58 @@ class NotificationService {
     );
 
     await prefs.setString('last_deadline_notif_date', today);
+  }
+
+  // ── Per-job Deadline Reminder (scheduled) ───────────────────
+  // jobId is used as the notification ID so cancellation is precise.
+  // daysLeft comes from the backend feed (pre-calculated).
+  // daysBefore: 0 = on the last date, 3 = 3 days before, 7 = 1 week before.
+  static Future<void> scheduleJobReminder({
+    required int jobId,
+    required String jobTitle,
+    required int daysLeft,
+    required int daysBefore,
+  }) async {
+    final daysFromNow = daysLeft - daysBefore;
+    if (daysFromNow < 0) return; // deadline already passed
+
+    final now = tz.TZDateTime.now(tz.local);
+    final tz.TZDateTime scheduled;
+    if (daysFromNow == 0) {
+      // Immediate — show in 5 seconds so user sees the confirm feedback first
+      scheduled = now.add(const Duration(seconds: 5));
+    } else {
+      final base = now.add(Duration(days: daysFromNow));
+      scheduled = tz.TZDateTime(tz.local, base.year, base.month, base.day, 9, 0);
+    }
+
+    final body = daysBefore == 0
+        ? '$jobTitle — Aaj last date hai! Abhi apply karo.'
+        : '$jobTitle — $daysBefore din mein last date. Abhi apply karo!';
+
+    await _plugin.zonedSchedule(
+      jobId,
+      '⏰ JobMitra — Deadline Alert!',
+      body,
+      scheduled,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _deadlineChannelId,
+          'Deadline Alerts',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'saved',
+    );
+  }
+
+  static Future<void> cancelJobReminder(int jobId) async {
+    await _plugin.cancel(jobId);
   }
 
   // ── Smart Alerts — check new jobs against user alert rules ──
