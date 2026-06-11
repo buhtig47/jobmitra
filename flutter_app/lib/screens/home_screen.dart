@@ -497,6 +497,35 @@ class _FeedTabState extends State<_FeedTab> {
   }
 
   // Builds a flat list of display items: section headers, job cards, and ad slots.
+  // Live subtitle: "12 new today • Updated 2h ago" beats a static tagline —
+  // it tells the user the feed is fresh (trust) and what's waiting (pull).
+  String get _feedSubtitle {
+    if (_jobs.isEmpty) {
+      return _userName.isNotEmpty
+          ? 'Your Sarkari Jobs Today'
+          : 'Today\'s Government Jobs';
+    }
+    final newCount = _jobs.where((j) => j.isNew).length;
+    var newest = '';
+    for (final j in _jobs) {
+      if (j.scrapedAt.compareTo(newest) > 0) newest = j.scrapedAt;
+    }
+    String ago = '';
+    try {
+      final diff = DateTime.now().difference(DateTime.parse(newest));
+      ago = diff.inMinutes < 60
+          ? '${diff.inMinutes}m ago'
+          : diff.inHours < 24
+              ? '${diff.inHours}h ago'
+              : '${diff.inDays}d ago';
+    } catch (_) {}
+    final parts = <String>[
+      if (newCount > 0) '$newCount new today',
+      if (ago.isNotEmpty) 'Updated $ago',
+    ];
+    return parts.isEmpty ? 'Your Sarkari Jobs Today' : parts.join('  •  ');
+  }
+
   List<Object> get _feedItems {
     final all = _filteredJobs;
     if (all.isEmpty) return [];
@@ -578,7 +607,7 @@ class _FeedTabState extends State<_FeedTab> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _userName.isNotEmpty ? 'Your Sarkari Jobs Today' : 'Today\'s Government Jobs',
+                          _feedSubtitle,
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 11,

@@ -209,6 +209,47 @@ class Job {
     if (vacancies >= 1000) return '${(vacancies / 1000).toStringAsFixed(1)}K+';
     return '$vacancies posts';
   }
+
+  // Formats raw payScale ("18000-56900") as "₹18,000–₹56,900/month".
+  // Non-range strings (e.g. "Level 7 (44900-142400)") pass through as-is.
+  // Empty when the scraper found nothing — callers should hide the row.
+  String get salaryText {
+    final raw = (payScale ?? '').trim();
+    if (raw.isEmpty) return '';
+    final m = RegExp(r'^(\d{4,6})\s*-\s*(\d{4,6})?$').firstMatch(raw);
+    if (m == null) return raw;
+    // Indian digit grouping: 144200 → 1,44,200
+    String fmt(String d) {
+      if (d.length <= 3) return d;
+      final last3 = d.substring(d.length - 3);
+      var rest = d.substring(0, d.length - 3);
+      final parts = <String>[];
+      while (rest.length > 2) {
+        parts.insert(0, rest.substring(rest.length - 2));
+        rest = rest.substring(0, rest.length - 2);
+      }
+      parts.insert(0, rest);
+      return '${parts.join(',')},$last3';
+    }
+    final lo = fmt(m.group(1)!);
+    final hi = m.group(2);
+    return hi == null || hi.isEmpty
+        ? '₹$lo+/month'
+        : '₹$lo–₹${fmt(hi)}/month';
+  }
+
+  // "2h ago" / "3d ago" freshness from scraped_at — '' when unknown.
+  String get scrapedAgo {
+    if (scrapedAt.isEmpty) return '';
+    try {
+      final diff = DateTime.now().difference(DateTime.parse(scrapedAt));
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) {
+      return '';
+    }
+  }
 }
 
 

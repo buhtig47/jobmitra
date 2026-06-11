@@ -1073,32 +1073,39 @@ def extract_vacancies(text: str) -> int:
     v6: More aggressive vacancy extraction.
     Patterns ordered from most → least specific.
     """
+    # (pattern, explicit) — `explicit` means the post-count word sits right
+    # next to the number ("2025 posts"), so a year-sized value is plausibly
+    # a real count. Non-explicit patterns ("Recruitment of 2025", "apply for
+    # 2026", "2025 Teacher Vacancy") match the notification YEAR constantly —
+    # for those, reject values that look like a year.
     PATTERNS = [
-        # "22195 Posts" / "22,195 posts"
-        r"(\d[\d,]+)\s*(?:posts?|vacancies|vacancy|seats?|positions?|openings?)",
+        # "22195 Posts" / "22,195 posts" / "5 posts"
+        (r"(\d[\d,]*)\s*(?:posts?|vacancies|vacancy|seats?|positions?|openings?)", True),
         # "for 22195 Posts"
-        r"for\s+(\d[\d,]+)\s+(?:posts?|vacancies|various|vacancy)",
-        # "Recruitment of 500"
-        r"recruitment\s+(?:for|of)\s+(\d[\d,]+)",
-        # "apply for 5000"
-        r"apply\s+(?:online\s+)?for\s+(\d[\d,]+)",
-        # Hindi
-        r"(\d[\d,]+)\s*(?:नियुक्तियां|पद|रिक्तियां|भर्ती)",
-        # "500 job openings"
-        r"(\d[\d,]+)\s*(?:jobs?|openings?|positions?)",
-        # "(22195 Posts)" in title parentheses
-        r"\((\d[\d,]+)\s*(?:posts?|vacancies)\)",
-        # "1440 Medical Officer" — number + role
-        r"\b(\d{2,6})\b\s+(?:group|constable|engineer|teacher|clerk|officer|nurse|doctor|assistant|inspector|worker|helper|apprentice|trainee)",
+        (r"for\s+(\d[\d,]*)\s+(?:posts?|vacancies|various|vacancy)", True),
         # "Total: 500" or "No. of posts: 500"
-        r"(?:total|no\.?\s*of)\s*(?:posts?|vacancies)\s*[:\-–]?\s*(\d[\d,]+)",
+        (r"(?:total|no\.?\s*of)\s*(?:posts?|vacancies)\s*[:\-–]?\s*(\d[\d,]*)", True),
+        # "(22195 Posts)" in title parentheses
+        (r"\((\d[\d,]*)\s*(?:posts?|vacancies)\)", True),
+        # Hindi
+        (r"(\d[\d,]*)\s*(?:नियुक्तियां|पद|रिक्तियां|भर्ती)", True),
+        # "Recruitment of 500"
+        (r"recruitment\s+(?:for|of)\s+(\d[\d,]*)", False),
+        # "apply for 5000"
+        (r"apply\s+(?:online\s+)?for\s+(\d[\d,]*)", False),
+        # "500 job openings"
+        (r"(\d[\d,]*)\s*(?:jobs?|openings?|positions?)", False),
+        # "1440 Medical Officer" — number + role
+        (r"\b(\d{2,6})\b\s+(?:group|constable|engineer|teacher|clerk|officer|nurse|doctor|assistant|inspector|worker|helper|apprentice|trainee)", False),
     ]
-    for pat in PATTERNS:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
+    for pat, explicit in PATTERNS:
+        for m in re.finditer(pat, text, re.IGNORECASE):
             v = int(m.group(1).replace(",", ""))
-            if 0 < v < 1000000:
-                return v
+            if not (0 < v < 1000000):
+                continue
+            if 2024 <= v <= 2030 and not explicit:
+                continue  # almost certainly the notification year
+            return v
     return 0
 
 def _parse_date_str(raw: str) -> str | None:
@@ -1134,39 +1141,47 @@ def extract_last_date(text: str) -> str | None:
     v6: Try harder to find the actual last_date from content.
     Priority: explicit last-date labels > apply-by > walk-in > bare dates.
     """
-    PATTERNS = [
-        # Explicit last date
+    # Tier 1 — the date is explicitly LABELLED as a deadline. These always
+    # win: content routinely also mentions exam dates, result dates and
+    # admit-card dates, and mixing tiers used to surface those as the
+    # "last date" whenever they were nearer.
+    LABELED = [
         r"last\s*date\s*(?:of\s*(?:application|apply|online\s*form|receipt))?\s*[:\-–]\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})",
         r"closing\s*date\s*[:\-–]\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})",
         r"(?:last|closing)\s*date\s*[:\-–]\s*(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+20\d{2})",
-        # Apply by / till
         r"apply\s*(?:online\s*)?(?:by|before|till|upto|up\s*to)\s*[:\-–]?\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})",
         r"application\s*(?:end|close)s?\s*(?:on|:)\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})",
-        # Walk-in date
         r"walk\s*-?\s*in\s*(?:date|interview|on)\s*[:\-–]?\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})",
-        # "on DD/MM/YYYY" or "on DD-MM-YYYY"
+    ]
+    # Tier 2 — unlabelled dates. Could be anything; only used when the
+    # content never labels a deadline.
+    BARE = [
         r"\bon\s+(\d{1,2}[\-\/]\d{1,2}[\-\/]20(?:2[4-8]))\b",
-        # Bare date with year 2025-2028
         r"\b(\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]20(?:2[5-8]))\b",
         r"\b(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+20(?:2[5-8]))\b",
-        # ISO format YYYY-MM-DD (from structured sources)
         r"\b(20(?:2[5-8])-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b",
     ]
-    candidates = []
-    for pat in PATTERNS:
-        for m in re.finditer(pat, text, re.IGNORECASE):
-            parsed = _parse_date_str(m.group(1))
-            if parsed:
-                try:
-                    dt = datetime.strptime(parsed, "%d/%m/%Y")
-                    # Only future dates (allow up to 1 day past)
-                    if dt >= datetime.now() - timedelta(days=1):
-                        candidates.append(dt)
-                except ValueError:
-                    pass
-    if candidates:
-        # Return the nearest upcoming date (most urgent)
-        return min(candidates).strftime("%d/%m/%Y")
+
+    def _collect(patterns):
+        out = []
+        for pat in patterns:
+            for m in re.finditer(pat, text, re.IGNORECASE):
+                parsed = _parse_date_str(m.group(1))
+                if parsed:
+                    try:
+                        dt = datetime.strptime(parsed, "%d/%m/%Y")
+                        # Only future dates (allow up to 1 day past)
+                        if dt >= datetime.now() - timedelta(days=1):
+                            out.append(dt)
+                    except ValueError:
+                        pass
+        return out
+
+    for tier in (LABELED, BARE):
+        candidates = _collect(tier)
+        if candidates:
+            # Nearest upcoming date within the tier (most urgent)
+            return min(candidates).strftime("%d/%m/%Y")
     return None
 
 def _parse_pubdate_to_lastdate(pub_date: str) -> str | None:
@@ -1391,14 +1406,15 @@ def _extract_fee(text: str) -> tuple:
         gen = int(gen_m.group(1).replace(",", ""))
         obc = int(obc_m.group(1).replace(",", "")) if obc_m else gen
         sc  = 0 if sc_free else (int(sc_m.group(1).replace(",", "")) if sc_m else 0)
-        if 50 <= gen <= 2500:
+        # ₹10 floor (not 50): postal/anganwadi/state fees of ₹25-40 are real
+        if 10 <= gen <= 2500:
             return gen, obc, sc
 
     # Fallback: collect all Rs./₹ amounts in range
     amounts = []
     for m in re.finditer(r"(?:rs\.?\s*|₹\s*)(\d[\d,]*)\s*/?-?", text, re.IGNORECASE):
         v = int(m.group(1).replace(",", ""))
-        if 50 <= v <= 2500:
+        if 10 <= v <= 2500:
             amounts.append(v)
 
     if not amounts:
@@ -1409,7 +1425,7 @@ def _extract_fee(text: str) -> tuple:
         )
         if m2:
             v = int(m2.group(1))
-            if 50 <= v <= 2500:
+            if 10 <= v <= 2500:
                 amounts = [v]
 
     if not amounts:

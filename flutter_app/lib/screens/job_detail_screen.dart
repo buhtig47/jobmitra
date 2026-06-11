@@ -363,7 +363,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          _buildStatCard('📅', 'Last Date', job.lastDate),
+          _buildStatCard('📅', 'Last Date',
+              job.lastDate.isEmpty ? 'Notification dekho' : job.lastDate),
           const SizedBox(width: 10),
           _buildStatCard('🎂', 'Age Limit', '${job.ageMin}–${job.ageMax} yrs'),
         ]),
@@ -383,10 +384,42 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('💵 Pay Scale / Salary', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
                 const SizedBox(height: 5),
-                Text(job.payScale!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(job.salaryText.isNotEmpty ? job.salaryText : job.payScale!,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               ]),
             ),
           ),
+
+        // Source attribution + freshness — accuracy framing. Scraped data
+        // can lag the official site; say where it came from and when, and
+        // nudge users to verify on the official notification before paying.
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8EE),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFE0B2)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.verified_outlined,
+                  size: 16, color: Color(0xFFE65100)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Source: ${job.source}'
+                  '${job.scrapedAgo.isNotEmpty ? '  •  Updated ${job.scrapedAgo}' : ''}'
+                  '\nApply se pehle official notification se dates & fee verify karo',
+                  style: const TextStyle(
+                      fontSize: 11, height: 1.45,
+                      color: Color(0xFF8D6E63)),
+                ),
+              ),
+            ]),
+          ),
+        ),
         const SizedBox(height: 14),
 
         _buildCheatsheetCard(),

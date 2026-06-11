@@ -36,9 +36,12 @@ class _JobShareSheetState extends State<_JobShareSheet> {
   final GlobalKey _cardKey = GlobalKey();
   bool _sharing = false;
 
+  String get _lastDateText =>
+      widget.job.lastDate.isEmpty ? 'Notification dekho' : widget.job.lastDate;
+
   String get _caption =>
       '🇮🇳 *${widget.job.cleanTitle}*\n'
-      '📅 Last Date: ${widget.job.lastDate}\n\n'
+      '📅 Last Date: $_lastDateText\n\n'
       'Details: ${widget.job.sourceUrl}\n'
       '📲 Sarkari naukri alerts FREE: $kPlayStoreUrl';
 
@@ -47,7 +50,7 @@ class _JobShareSheetState extends State<_JobShareSheet> {
       '*${widget.job.cleanTitle}*\n'
       '${widget.job.cleanDepartment}\n\n'
       '📋 Vacancies: ${widget.job.vacanciesText}\n'
-      '📅 Last Date: ${widget.job.lastDate}\n'
+      '📅 Last Date: $_lastDateText\n'
       '💰 Fee: ${widget.job.feeText}\n\n'
       'Details: ${widget.job.sourceUrl}\n\n'
       '📲 _JobMitra app — apni eligible sarkari naukri track karo (FREE):_\n'
@@ -239,7 +242,8 @@ class _ShareCard extends StatelessWidget {
                 Row(
                   children: [
                     _Fact(
-                      icon: '📅', label: 'Last Date', value: job.lastDate,
+                      icon: '📅', label: 'Last Date',
+                      value: job.lastDate.isEmpty ? 'See notice' : job.lastDate,
                       valueColor: urgent ? const Color(0xFFC62828) : null,
                     ),
                     if (urgent) ...[

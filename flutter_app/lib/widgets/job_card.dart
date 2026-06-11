@@ -159,6 +159,27 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                               ],
                             ),
                           ],
+                          // Salary is the #1 decision factor — surface it on
+                          // the card whenever the scraper found a pay scale.
+                          if (job.salaryText.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(Icons.payments_outlined,
+                                    size: 13, color: Color(0xFF2E7D32)),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    job.salaryText,
+                                    style: AppText.caption(
+                                        c: const Color(0xFF2E7D32)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: Color(0xFFF0F0F0)),
                           const SizedBox(height: 10),
