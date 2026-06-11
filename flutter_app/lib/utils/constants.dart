@@ -1,5 +1,6 @@
 // lib/utils/constants.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // ─────────────────────────────────────────
@@ -98,6 +99,17 @@ ThemeData appTheme() {
       secondary: AppColors.accent,
     ),
     scaffoldBackgroundColor: AppColors.background,
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+    // Android 12+ sparkle ripple — noticeably more premium than the flat
+    // grey splash, zero layout risk.
+    splashFactory: InkSparkle.splashFactory,
+    // M3 fade-forwards route transition — subtle horizontal fade instead of
+    // the dated zoom. Applies to every Navigator.push in the app at once.
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      },
+    ),
     textTheme: GoogleFonts.poppinsTextTheme().copyWith(
       headlineLarge: GoogleFonts.poppins(
         fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary,
@@ -121,6 +133,12 @@ ThemeData appTheme() {
       elevation: 0,
       titleTextStyle: GoogleFonts.poppins(
         fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white,
+      ),
+      // Every app bar in the app is dark green — force light status bar
+      // icons so the clock/battery never disappear into the gradient.
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -153,6 +171,88 @@ ThemeData appTheme() {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.primary, width: 2),
       ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppColors.textHint),
+    ),
+    // ── App-wide component consistency. Screens that hand-roll their own
+    // styles keep working; everything else inherits these. ──
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF2B2B2B),
+      contentTextStyle: GoogleFonts.poppins(
+          fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.white),
+      actionTextColor: AppColors.accent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titleTextStyle: GoogleFonts.poppins(
+          fontSize: 17, fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary),
+      contentTextStyle: GoogleFonts.poppins(
+          fontSize: 14, height: 1.45, color: AppColors.textSecondary),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+        textStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        textStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: Colors.white,
+      selectedColor: AppColors.primary.withValues(alpha: 0.12),
+      labelStyle: GoogleFonts.poppins(
+          fontSize: 12.5, fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary),
+      side: const BorderSide(color: AppColors.divider),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white70,
+      indicatorColor: AppColors.accent,
+      labelStyle: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700),
+      unselectedLabelStyle:
+          GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? Colors.white : null),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? AppColors.primary : null),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? AppColors.primary : null),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+    ),
+    progressIndicatorTheme:
+        const ProgressIndicatorThemeData(color: AppColors.primary),
+    dividerTheme: const DividerThemeData(
+        color: AppColors.divider, thickness: 1, space: 1),
+    listTileTheme: const ListTileThemeData(iconColor: AppColors.primary),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
     ),
   );
 }

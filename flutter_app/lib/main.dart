@@ -164,6 +164,20 @@ class JobMitraApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       theme: appTheme(),
+      // Many users run system fonts at "Largest" — unclamped that breaks
+      // chip rows and the metadata grids. 1.3 keeps text readable for
+      // accessibility without destroying layouts; 0.85 floors tiny-font
+      // phones so captions stay legible.
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler
+                .clamp(minScaleFactor: 0.85, maxScaleFactor: 1.3),
+          ),
+          child: child!,
+        );
+      },
       home: showHome
           ? HomeScreen(userId: userId!)
           : const OnboardingScreen(),

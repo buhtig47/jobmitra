@@ -79,6 +79,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildResultsList() {
     final items = _displayItems;
     return ListView.builder(
+      // Swiping through results drops the keyboard — otherwise it covers
+      // the bottom half of the list after every search.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: items.length,
       itemBuilder: (ctx, i) {
