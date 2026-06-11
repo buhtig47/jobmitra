@@ -162,6 +162,18 @@ class Job {
   String get cleanTitle      => _clean(title);
   String get cleanDepartment => _clean(department);
 
+  // Department safe for display. Older scrapes fell back to title[:70] as
+  // the department, so every card showed its title twice. Hide it when
+  // it's empty or just a prefix of the title (no information added).
+  String get displayDepartment {
+    final dept = cleanDepartment;
+    if (dept.isEmpty) return '';
+    final t = cleanTitle.toLowerCase();
+    final d = dept.toLowerCase();
+    if (t.startsWith(d) || d.startsWith(t)) return '';
+    return dept;
+  }
+
   String get categoryEmoji {
     const map = {
       'railway': '🚂', 'banking': '🏦', 'ssc': '📋',
@@ -186,12 +198,17 @@ class Job {
     return map[category] ?? 'Others';
   }
 
+  // Backend sends 999 when the scraper found no deadline — render that as
+  // "check the notification", never a fabricated countdown. 0 means the
+  // form closes TODAY (date-only math) — that's peak urgency, not Expired.
+  bool get deadlineUnknown => daysLeft >= 999;
+
   String get urgencyText {
-    if (daysLeft <= 0)  return 'Expired';
-    if (daysLeft == 1)  return 'Last day!';
+    if (deadlineUnknown) return 'Date check karo';
+    if (daysLeft < 0)   return 'Expired';
+    if (daysLeft == 0)  return 'Aaj last date!';
+    if (daysLeft == 1)  return '1 day left!';
     if (daysLeft <= 3)  return '$daysLeft days left!';
-    if (daysLeft <= 7)  return '$daysLeft days left';
-    if (daysLeft <= 14) return '$daysLeft days left';
     return '$daysLeft days left';
   }
 

@@ -532,6 +532,31 @@ def user_qualifies(user_education: str, job_qualifications: list) -> bool:
             return True
     return False
 
+# Sentinel: deadline unknown (scraper found no date). The app renders this
+# as "date notification mein dekho" instead of a fabricated countdown.
+DAYS_LEFT_UNKNOWN = 999
+
+def days_until(last_date_str) -> int:
+    """Days until last_date using DATE-only math.
+
+    Datetime subtraction made jobs go negative the moment the last-date
+    midnight passed — so the app said "Expired" for the entire final day,
+    exactly when applying is most urgent. A form is open the whole last
+    day: 0 must mean "aaj last date".
+    """
+    if not last_date_str:
+        return DAYS_LEFT_UNKNOWN
+    try:
+        ld = datetime.strptime(last_date_str, "%d/%m/%Y").date()
+    except (ValueError, TypeError):
+        return DAYS_LEFT_UNKNOWN
+    return (ld - datetime.now().date()).days
+
+def urgency_for(days_left: int) -> str:
+    if days_left >= DAYS_LEFT_UNKNOWN:
+        return "green"
+    return "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green")
+
 # ─────────────────────────────────────────
 # CLOUD SCHEDULER — OIDC-VERIFIED CRON
 # ─────────────────────────────────────────
@@ -1047,8 +1072,9 @@ def get_job_feed(
         if not user_qualifies(user_education, job_quals):
             continue
 
-        last_date_dt = datetime.strptime(job["last_date"], "%d/%m/%Y")
-        days_left = (last_date_dt - today).days
+        days_left = days_until(job["last_date"])
+        if days_left < 0:
+            continue  # expired — never serve in the feed
 
         if user_category == "obc":
             fee = job["fee_obc"]
@@ -1068,7 +1094,7 @@ def get_job_feed(
             "vacancies":        job["vacancies"],
             "last_date":        job["last_date"],
             "days_left":        days_left,
-            "urgency":          "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "urgency":          urgency_for(days_left),
             "fee":              fee,
             "is_free":          fee == 0,
             "qualifications":   job_quals,
@@ -1113,12 +1139,8 @@ def search_jobs(
 
     results = []
     for job in jobs_raw:
-        try:
-            last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
-            days_left = (last_date - datetime.now()).days
-        except (ValueError, TypeError):
-            continue
-
+        # Unknown deadline (999) stays searchable — only truly expired are hidden
+        days_left = days_until(job["last_date"])
         if days_left < 0:
             continue
 
@@ -1140,7 +1162,7 @@ def search_jobs(
             "vacancies":        job["vacancies"],
             "last_date":        job["last_date"],
             "days_left":        days_left,
-            "urgency":          "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "urgency":          urgency_for(days_left),
             "fee":              fee,
             "is_free":          fee == 0,
             "qualifications":   _safe_json_loads(job["qualifications"], []),
@@ -1162,11 +1184,7 @@ def get_job_detail(job_id: int, user_category: str = "general"):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    try:
-        last_date = datetime.strptime(job["last_date"], "%d/%m/%Y")
-        days_left = (last_date - datetime.now()).days
-    except (ValueError, TypeError):
-        days_left = 0
+    days_left = days_until(job["last_date"])
 
     fee = job["fee_general"]
     if user_category == "obc":             fee = job["fee_obc"]
@@ -1183,7 +1201,7 @@ def get_job_detail(job_id: int, user_category: str = "general"):
         "vacancies":      job["vacancies"],
         "last_date":      job["last_date"],
         "days_left":      days_left,
-        "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+        "urgency":        urgency_for(days_left),
         "age_min":        job["age_min"],
         "age_max":        job["age_max"],
         "fee":            fee,
@@ -1231,11 +1249,7 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
 
     results = []
     for row in rows:
-        try:
-            ld = datetime.strptime(row["last_date"], "%d/%m/%Y")
-            days_left = (ld - datetime.now()).days
-        except (ValueError, TypeError):
-            days_left = 0
+        days_left = days_until(row["last_date"])
 
         if cat == "obc":
             fee = row["fee_obc"]
@@ -1254,7 +1268,7 @@ def get_saved_jobs(user_id: int, user_category: str = "general"):
             "vacancies":      row["vacancies"],
             "last_date":      row["last_date"],
             "days_left":      days_left,
-            "urgency":        "red" if days_left <= 7 else ("yellow" if days_left <= 14 else "green"),
+            "urgency":        urgency_for(days_left),
             "fee":            fee,
             "is_free":        fee == 0,
             "qualifications": json.loads(row["qualifications"] or "[]"),

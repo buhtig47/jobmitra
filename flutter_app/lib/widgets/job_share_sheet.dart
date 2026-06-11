@@ -48,7 +48,7 @@ class _JobShareSheetState extends State<_JobShareSheet> {
   String get _textMessage =>
       '🇮🇳 *Govt Job Alert!*\n\n'
       '*${widget.job.cleanTitle}*\n'
-      '${widget.job.cleanDepartment}\n\n'
+      '${widget.job.displayDepartment.isNotEmpty ? '${widget.job.displayDepartment}\n' : ''}\n'
       '📋 Vacancies: ${widget.job.vacanciesText}\n'
       '📅 Last Date: $_lastDateText\n'
       '💰 Fee: ${widget.job.feeText}\n\n'
@@ -223,13 +223,15 @@ class _ShareCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         height: 1.3,
                         color: Color(0xFF1A1A1A))),
-                const SizedBox(height: 4),
-                Text(job.cleanDepartment,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500)),
+                if (job.displayDepartment.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(job.displayDepartment,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500)),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [

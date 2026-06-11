@@ -87,16 +87,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     'district court': 'https://njdg.ecourts.gov.in',
   };
 
-  static const Map<String, String> _categoryPortals = {
-    'ssc':      'https://ssc.gov.in',
-    'upsc':     'https://upsconline.nic.in',
-    'railway':  'https://rrbapply.gov.in',
-    'banking':  'https://www.ibps.in',
-    'defence':  'https://joinindianarmy.nic.in',
-    'postal':   'https://indiapostgdsonline.gov.in',
-    'teaching': 'https://ctet.nic.in',
-  };
-
   /// Returns (url, portalName) — best apply URL we can determine.
   (String, String?) _resolveApply() {
     if (_job == null) return ('', null);
@@ -119,14 +109,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       }
     }
 
-    // Category fallback
-    final cat = _categoryPortals[_job!.category];
-    if (cat != null) {
-      final host = Uri.tryParse(cat)?.host ?? cat;
-      return (cat, host);
-    }
-
-    return (_job!.sourceUrl, null); // last resort: news article
+    // NO category fallback: category comes from keyword detection and is
+    // sometimes wrong — a miscategorised private job was sending users to
+    // upsconline.nic.in. Better an honest "View details" to the source page
+    // than a confident link to the wrong government portal.
+    return (_job!.sourceUrl, null);
   }
 
   Color get _catColor => _job == null
@@ -339,13 +326,15 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                       const SizedBox(height: 10),
                       Text(job.cleanTitle,
                           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.35)),
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        Icon(Icons.account_balance_outlined, size: 13, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Expanded(child: Text(job.cleanDepartment,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
-                      ]),
+                      if (job.displayDepartment.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(children: [
+                          Icon(Icons.account_balance_outlined, size: 13, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text(job.displayDepartment,
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+                        ]),
+                      ],
                     ],
                   ),
                 ),
@@ -1362,6 +1351,15 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   void _showReminderSheet() {
     if (_job == null) return;
     HapticFeedback.lightImpact();
+    // Can't schedule against a deadline the scraper never found —
+    // a reminder pinned to a made-up date is worse than none.
+    if (_job!.deadlineUnknown) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Is job ki last date pata nahi — official notification dekho'),
+      ));
+      return;
+    }
     final daysLeft = _job!.daysLeft;
 
     showModalBottomSheet(

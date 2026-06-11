@@ -125,7 +125,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (job.cleanDepartment.isNotEmpty) ...[
+                          if (job.displayDepartment.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Row(
                               children: [
@@ -134,7 +134,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
-                                    job.cleanDepartment,
+                                    job.displayDepartment,
                                     style: AppText.caption(),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -369,6 +369,13 @@ class _DeadlinePill extends StatelessWidget {
   Widget build(BuildContext context) {
     Color bg, fg;
     IconData icon;
+    if (job.deadlineUnknown) {
+      // No deadline in the source — neutral, not a green "all clear"
+      bg = const Color(0xFFF5F5F5);
+      fg = const Color(0xFF757575);
+      icon = Icons.event_note_rounded;
+      return _pill(bg, fg, icon, job.urgencyText);
+    }
     switch (job.urgency) {
       case 'red':
         bg = const Color(0xFFFFEBEE);
@@ -385,6 +392,10 @@ class _DeadlinePill extends StatelessWidget {
         fg = const Color(0xFF2E7D32);
         icon = Icons.check_circle_outline_rounded;
     }
+    return _pill(bg, fg, icon, job.urgencyText);
+  }
+
+  Widget _pill(Color bg, Color fg, IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -394,7 +405,7 @@ class _DeadlinePill extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: fg),
           const SizedBox(width: 4),
-          Text(job.urgencyText,
+          Text(text,
               style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
         ],

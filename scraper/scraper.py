@@ -949,6 +949,14 @@ PRIVATE_JOB_BLOCKLIST = {
     "campus placement", "freshers drive", "batch freshers",
     "infor off campus", "royal jet", "burjeel holdings",
     "25 hours hotel", "shutdown jobs uae",
+    # Private-shop clickbait that leaked into the feed mislabelled as govt
+    # ("Mobile Company Job Requirement Noida : मोबाइल कंपनी में ... बंपर भर्ती")
+    # NOTE: "बंपर भर्ती" alone is NOT blocked — legit govt headlines use it
+    # ("रेलवे में बंपर भर्ती"). Only company-specific phrases below.
+    "mobile company", "company job requirement", "private company",
+    "company me job", "कंपनी में", "company में",
+    "showroom job", "mall job", "call center job", "call centre job",
+    "delivery boy", "delivery job", "courier company",
 }
 
 GARBAGE_TITLE_PATTERNS = [
@@ -1228,11 +1236,16 @@ def _extract_dept(title: str) -> str:
         r"(?:Recruitment|Vacancy|Vacancies|Notification|Jobs?|Bharti)\b",
         title, re.IGNORECASE
     )
-    dept = m.group(1).strip() if m else title[:70]
+    # No match → empty, NOT title[:70]. The old fallback made every card
+    # show its title twice (title line + identical "department" line).
+    # The app hides the department row when it's empty.
+    if not m:
+        return ""
+    dept = m.group(1).strip()
     # v9: strip year and noise words from department name
     dept = _DEPT_NOISE.sub(" ", dept).strip().rstrip(",-:")
     dept = re.sub(r"\s{2,}", " ", dept).strip()
-    return dept[:80] if dept else title[:70]
+    return dept[:80]
 
 # ── v6: Expanded STATE_MAP with abbreviations ────────────
 STATE_MAP = {
@@ -1719,8 +1732,12 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         except ValueError:
             pass
     else:
-        # Default: 30 days from now
-        last_date = (datetime.now() + timedelta(days=30)).strftime("%d/%m/%Y")
+        # No deadline found → store empty. The old behaviour fabricated
+        # "now + 30 days", which the app rendered as a confident
+        # "24 days left" countdown that existed nowhere in the source —
+        # and flipped to "Expired" 30 days later. Unknown must look
+        # unknown ("date notification mein dekho"), not invented.
+        last_date = ""
 
     age_min, age_max = _extract_age(combined)
     fee_gen, fee_obc, fee_sc = _extract_fee(combined)

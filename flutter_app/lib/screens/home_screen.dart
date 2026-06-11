@@ -539,6 +539,10 @@ class _FeedTabState extends State<_FeedTab> {
     // for sarkari aspirants — surfacing them here instead of burying them
     // in Tools measurably lifts announcement engagement.
     final items = <Object>['__quick__'];
+    // Narrow preferences (e.g. only PSU+UPSC) can shrink the feed to a
+    // handful of stale jobs while fresh ones land in other categories.
+    // Tell the user why the feed is thin instead of looking broken.
+    if (all.length < 10) items.add('__thin__');
     int jobCount = 0;
 
     void addJob(Job j) {
@@ -746,6 +750,7 @@ class _FeedTabState extends State<_FeedTab> {
                               final item = items[i];
                               if (item == '__ad__') return const BannerAdWidget();
                               if (item == '__quick__') return _buildQuickAccessRow();
+                              if (item == '__thin__') return _buildThinFeedBanner();
                               if (item is (String, String)) {
                                 return _SectionHeader(title: item.$1, subtitle: item.$2);
                               }
@@ -883,6 +888,58 @@ class _FeedTabState extends State<_FeedTab> {
     if (!mounted) return;
     setState(() => _stateOverride = (code == null || code.isEmpty) ? null : code);
     _loadJobs(refresh: true);
+  }
+
+  // Shown when the filtered feed has <10 jobs — narrow job-type
+  // preferences are usually the cause, and the fix is one tap away.
+  Widget _buildThinFeedBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8EE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.tune_rounded, color: Color(0xFFE65100), size: 20),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Kam jobs dikh rahi hain? Job categories badhao — '
+              'aur naukriyan milengi',
+              style: TextStyle(fontSize: 12.5, height: 1.4,
+                  color: Color(0xFF8D6E63), fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfileEditScreen(
+                      api: widget.api, userId: widget.userId),
+                ),
+              );
+              _loadJobs(refresh: true);
+            },
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE65100),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('Badhao',
+                  style: TextStyle(color: Colors.white, fontSize: 12,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Quick-access shortcuts to the highest-intent announcement tabs.
