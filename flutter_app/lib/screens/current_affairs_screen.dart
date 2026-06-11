@@ -352,19 +352,25 @@ class _DaysChip extends StatelessWidget {
               const Text('How many days back?',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 16),
-              ...[(1, 'Today'), (3, 'Last 3 days'), (7, 'Last week'), (14, 'Last 2 weeks'), (30, 'Last month')]
-                  .map((t) {
-                final (d, label) = t;
-                return ListTile(
-                  title: Text(label),
-                  leading: Radio<int>(
-                    value: d, groupValue: days,
-                    activeColor: AppColors.primary,
-                    onChanged: (v) { Navigator.pop(context); onChanged(v!); },
-                  ),
-                  onTap: () { Navigator.pop(context); onChanged(d); },
-                );
-              }),
+              RadioGroup<int>(
+                groupValue: days,
+                onChanged: (v) { Navigator.pop(context); onChanged(v!); },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [(1, 'Today'), (3, 'Last 3 days'), (7, 'Last week'), (14, 'Last 2 weeks'), (30, 'Last month')]
+                      .map((t) {
+                    final (d, label) = t;
+                    return ListTile(
+                      title: Text(label),
+                      leading: Radio<int>(
+                        value: d,
+                        activeColor: AppColors.primary,
+                      ),
+                      onTap: () { Navigator.pop(context); onChanged(d); },
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
           ),
         ),

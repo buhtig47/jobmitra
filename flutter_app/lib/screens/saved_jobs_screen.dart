@@ -602,9 +602,11 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                         onTap: () async {
                           setS(() => localStage = s.key);
                           await widget.api.updateTracker(job.id, {'stage': s.key});
-                          if (mounted) setState(() {
+                          if (mounted) {
+                            setState(() {
                             _trackers[job.id] = {...(_trackers[job.id] ?? {}), 'stage': s.key};
                           });
+                          }
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),

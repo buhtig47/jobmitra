@@ -239,7 +239,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
               'notif_daily_quiz'      => _dailyQuiz,
               _                       => _currentAffairs,
             },
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
             onChanged: (v) => _toggleFeature(key, v),
           ),
         const SizedBox(height: 8),
@@ -282,7 +282,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
       subtitle: const Text(
           'Daily roll-up — all new admit cards / results / answer keys'),
       value: _generalEnabled,
-      activeColor: AppColors.primary,
+      activeThumbColor: AppColors.primary,
       onChanged: _toggleGeneral,
     );
   }
@@ -305,7 +305,7 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
     return SwitchListTile(
       title: Text(label, style: const TextStyle(fontSize: 14)),
       value: _enabled[code] ?? true,
-      activeColor: AppColors.primary,
+      activeThumbColor: AppColors.primary,
       dense: true,
       onChanged: (v) => _toggleOrg(code, v),
     );

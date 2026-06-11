@@ -42,7 +42,10 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
         title: Text(L10n.tr('profile_language'),
             style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
-      body: ListView(
+      body: RadioGroup<String>(
+        groupValue: _selected,
+        onChanged: (v) => _pick(v ?? 'hinglish'),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
         children: L10n.supported.entries.map((e) {
           final selected = _selected == e.key;
@@ -65,8 +68,6 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
             ),
             child: RadioListTile<String>(
               value: e.key,
-              groupValue: _selected,
-              onChanged: (v) => _pick(v ?? 'hinglish'),
               activeColor: AppColors.primary,
               title: Text(e.value,
                   style: const TextStyle(
@@ -77,6 +78,7 @@ class _LanguagePickerScreenState extends State<LanguagePickerScreen> {
             ),
           );
         }).toList(),
+        ),
       ),
     );
   }

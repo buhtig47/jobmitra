@@ -422,8 +422,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               final selected = _selectedJobTypes.contains(cat['key']);
               return InkWell(
                 onTap: () => setState(() {
-                  if (selected) _selectedJobTypes.remove(cat['key']);
-                  else          _selectedJobTypes.add(cat['key']!);
+                  if (selected) {
+                    _selectedJobTypes.remove(cat['key']);
+                  } else {
+                    _selectedJobTypes.add(cat['key']!);
+                  }
                 }),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(

@@ -264,15 +264,15 @@ class ExamCalendarScreen extends StatefulWidget {
 
 ExamEntry? _parseApiEntry(Map<String, dynamic> e) {
   try {
-    DateTime? _dt(String? s) => (s != null && s.isNotEmpty) ? DateTime.tryParse(s) : null;
+    DateTime? dt(String? s) => (s != null && s.isNotEmpty) ? DateTime.tryParse(s) : null;
     return ExamEntry(
       id:           e['id'] as String,
       name:         e['name'] as String,
       category:     e['category'] as String? ?? 'other',
       emoji:        e['emoji'] as String? ?? '📅',
-      notifDate:    _dt(e['notif_date'] as String?),
-      lastDate:     _dt(e['last_date'] as String?),
-      examDate:     _dt(e['exam_date'] as String?),
+      notifDate:    dt(e['notif_date'] as String?),
+      lastDate:     dt(e['last_date'] as String?),
+      examDate:     dt(e['exam_date'] as String?),
       isTentative:  (e['is_tentative'] as bool?) ?? false,
       officialSite: e['official_site'] as String?,
     );
@@ -596,7 +596,7 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
                 color: AppColors.accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(badge, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accent)),
+              child: Text(badge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accent)),
             ),
           ],
         ],

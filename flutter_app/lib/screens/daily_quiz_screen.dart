@@ -951,8 +951,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(Icons.lightbulb_rounded, color: Color(0xFFE65100), size: 18),
                             SizedBox(width: 6),
                             Text('Explanation',

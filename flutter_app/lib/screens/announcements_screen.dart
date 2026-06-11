@@ -369,12 +369,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                               ),
                             ],
                             const SizedBox(height: 8),
-                            Align(
+                            const Align(
                               alignment: Alignment.centerRight,
                               child: Icon(
                                 Icons.open_in_new,
                                 size: 18,
-                                color: const Color(0xFF1A6B3C),
+                                color: Color(0xFF1A6B3C),
                               ),
                             ),
                           ],

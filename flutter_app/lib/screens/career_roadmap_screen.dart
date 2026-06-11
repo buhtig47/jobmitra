@@ -249,10 +249,12 @@ class _CareerRoadmapScreenState extends State<CareerRoadmapScreen> {
 
   Future<void> _load() async {
     final p = await widget.api.getSavedProfile();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       _profile = p;
       _recs = _filterRecs(p);
     });
+    }
   }
 
   void _onGetAiRoadmap() {
@@ -478,10 +480,10 @@ class _AiRoadmapSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              const Text('🤖', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: 10),
-              const Expanded(
+            const Row(children: [
+              Text('🤖', style: TextStyle(fontSize: 24)),
+              SizedBox(width: 10),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -879,10 +881,10 @@ class _ProfileMissingBanner extends StatelessWidget {
       color: Colors.white.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(12),
     ),
-    child: Row(children: [
-      const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-      const SizedBox(width: 8),
-      const Expanded(child: Text('Set your profile for personalized recommendations',
+    child: const Row(children: [
+      Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
+      SizedBox(width: 8),
+      Expanded(child: Text('Set your profile for personalized recommendations',
           style: TextStyle(color: Colors.white, fontSize: 12))),
     ]),
   );
@@ -891,16 +893,16 @@ class _ProfileMissingBanner extends StatelessWidget {
 // ── Empty state ─────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context) => const Center(
     child: Padding(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(40),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('🤔', style: TextStyle(fontSize: 48)),
-        const SizedBox(height: 16),
-        const Text('No exams match your current profile',
+        Text('🤔', style: TextStyle(fontSize: 48)),
+        SizedBox(height: 16),
+        Text('No exams match your current profile',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text('Update your profile — check age and education settings',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),

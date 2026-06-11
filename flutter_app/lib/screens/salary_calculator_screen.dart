@@ -228,7 +228,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen>
                   tabs: const [Tab(text: 'Calculator'), Tab(text: '5-Year Growth')],
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white54,
-                  indicatorColor: Color(0xFFFF9933),
+                  indicatorColor: const Color(0xFFFF9933),
                   indicatorWeight: 3,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 ),
@@ -568,7 +568,9 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen>
 
   Widget _buildYearRow(int year) {
     double b = _payMatrix[_payLevel]!.toDouble();
-    for (int i = 0; i < year; i++) b = ((b * 1.03 / 100).ceil()) * 100.0;
+    for (int i = 0; i < year; i++) {
+      b = ((b * 1.03 / 100).ceil()) * 100.0;
+    }
     final basic = b.toInt();
     final da    = (basic * _daRate).round();
     final hra   = (basic * _hraRate[_cityType]!).round();

@@ -1367,10 +1367,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               ),
             ),
             const SizedBox(height: 16),
-            Row(children: [
-              const Icon(Icons.notifications_outlined, color: AppColors.primary, size: 22),
-              const SizedBox(width: 8),
-              const Text('Deadline Reminder',
+            const Row(children: [
+              Icon(Icons.notifications_outlined, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text('Deadline Reminder',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 4),

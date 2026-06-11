@@ -319,7 +319,9 @@ class AlertRule {
     if (freeOnly && !job.isFree) return false;
     if (keyword.isNotEmpty &&
         !job.title.toLowerCase().contains(keyword.toLowerCase()) &&
-        !job.department.toLowerCase().contains(keyword.toLowerCase())) return false;
+        !job.department.toLowerCase().contains(keyword.toLowerCase())) {
+      return false;
+    }
     if (state.isNotEmpty) {
       final jobStates = job.states.map((s) => s.toLowerCase()).toList();
       if (!jobStates.contains('all') && !jobStates.contains(state.toLowerCase())) return false;

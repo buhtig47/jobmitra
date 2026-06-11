@@ -34,7 +34,7 @@ class ApiService {
         if (res.statusCode == 200) return res;
       } catch (e) {
         if (i == retries) debugPrint('GET failed: $e');
-        await Future.delayed(Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
     return null;

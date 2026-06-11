@@ -221,7 +221,7 @@ class _AlertTile extends StatelessWidget {
       ),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Switch(value: rule.isActive, onChanged: (_) => onToggle(),
-            activeColor: AppColors.primary, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
+            activeThumbColor: AppColors.primary, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
         PopupMenuButton<String>(
           icon: Icon(Icons.more_vert_rounded, color: Colors.grey[400], size: 20),
           onSelected: (v) {
@@ -320,7 +320,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
           Text(isEdit ? 'Edit Alert' : 'New Alert',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
           const SizedBox(height: 4),
-          Text('You\'ll be notified when a matching job is posted',
+          const Text('You\'ll be notified when a matching job is posted',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 20),
 
@@ -341,7 +341,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
           const Text('📍 State (optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _state,
+            initialValue: _state,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -358,7 +358,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
           const Text('📂 Category (optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _category,
+            initialValue: _category,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -385,7 +385,7 @@ class _AddAlertSheetState extends State<_AddAlertSheet> {
               const Expanded(child: Text('Free jobs only (no application fee)',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
               Switch(value: _freeOnly, onChanged: (v) => setState(() => _freeOnly = v),
-                  activeColor: AppColors.primary),
+                  activeThumbColor: AppColors.primary),
             ]),
           ),
           const SizedBox(height: 24),
@@ -426,7 +426,7 @@ class _EmptyState extends StatelessWidget {
         const Text('No Alerts Set',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
         const SizedBox(height: 8),
-        Text('Set alerts for the jobs you want\nand get notified automatically',
+        const Text('Set alerts for the jobs you want\nand get notified automatically',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5)),
         const SizedBox(height: 28),

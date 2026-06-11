@@ -297,7 +297,7 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
             const SizedBox(height: 12),
             // Stats row
             Row(children: [
-              _statBox('Vacancies', '${_Exam._fmt(e.vacancies)}', Icons.work_outline, AppColors.primary),
+              _statBox('Vacancies', _Exam._fmt(e.vacancies), Icons.work_outline, AppColors.primary),
               const SizedBox(width: 10),
               _statBox('Applicants', e.appText, Icons.people_outline, const Color(0xFF7B1FA2)),
               const SizedBox(width: 10),

@@ -346,7 +346,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         hint: Text('Select $label'),
         decoration: InputDecoration(
           labelText: label,

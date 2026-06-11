@@ -65,7 +65,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (daysSinceInstall < 3) return;
     final snoozeUntil = prefs.getString('rate_us_snooze_until');
     if (snoozeUntil != null &&
-        DateTime.now().isBefore(DateTime.parse(snoozeUntil))) return;
+        DateTime.now().isBefore(DateTime.parse(snoozeUntil))) {
+      return;
+    }
     if (!mounted) return;
     _showRateUsDialog();
   }
@@ -368,10 +370,12 @@ class _FeedTabState extends State<_FeedTab> {
     SharedPreferences.getInstance().then((p) {
       final streak = p.getInt('quiz_streak') ?? 0;
       final seen = p.getBool('disclaimer_seen') ?? false;
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         if (streak > 0) { _quizStreak = streak; }
         _disclaimerSeen = seen;
       });
+      }
     });
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
@@ -511,17 +515,23 @@ class _FeedTabState extends State<_FeedTab> {
 
     if (closing.isNotEmpty) {
       items.add(('🚨 Closing Soon', '${closing.length} jobs expiring within 7 days'));
-      for (final j in closing) addJob(j);
+      for (final j in closing) {
+        addJob(j);
+      }
     }
     if (newToday.isNotEmpty) {
       items.add(('🆕 New Today', '${newToday.length} freshly added'));
-      for (final j in newToday) addJob(j);
+      for (final j in newToday) {
+        addJob(j);
+      }
     }
     if (rest.isNotEmpty) {
       if (closing.isNotEmpty || newToday.isNotEmpty) {
         items.add(('📋 All Jobs', '${rest.length} jobs'));
       }
-      for (final j in rest) addJob(j);
+      for (final j in rest) {
+        addJob(j);
+      }
     }
     return items;
   }

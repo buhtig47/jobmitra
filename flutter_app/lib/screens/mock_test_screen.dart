@@ -720,7 +720,11 @@ class _MockTestScreenState extends State<MockTestScreen> {
           questions:     const [],
           questionCount: p['question_count'] as int?,
         );
-        if (pack.isPyq) pyq.add(pack); else practice.add(pack);
+        if (pack.isPyq) {
+          pyq.add(pack);
+        } else {
+          practice.add(pack);
+        }
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -728,11 +732,13 @@ class _MockTestScreenState extends State<MockTestScreen> {
       for (final p in [...practice, ...pyq]) {
         map[p.id] = prefs.getInt('mock_best_${p.id}') ?? -1;
       }
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _apiPracticePacks = practice;
         _apiPyqPacks = pyq;
         _bestScores = map;
       });
+      }
     } catch (e, st) {
       if (!kDebugMode) FirebaseCrashlytics.instance.recordError(e, st);
     }
@@ -1348,8 +1354,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: const [
+                              const Row(
+                                children: [
                                   Icon(Icons.lightbulb_rounded,
                                       color: Color(0xFFE65100), size: 18),
                                   SizedBox(width: 6),
@@ -1553,10 +1559,10 @@ class _MockTestScreenState extends State<MockTestScreen> {
                   ],
 
                   // Review heading
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(4, 4, 4, 8),
                     child: Row(
-                      children: const [
+                      children: [
                         Icon(Icons.fact_check_rounded, size: 16, color: AppColors.textSecondary),
                         SizedBox(width: 6),
                         Text('Question Review',

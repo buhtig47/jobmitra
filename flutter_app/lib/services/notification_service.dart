@@ -195,7 +195,7 @@ class NotificationService {
       '⏰ JobMitra — Deadline Alert!',
       body,
       scheduled,
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _deadlineChannelId,
           'Deadline Alerts',
