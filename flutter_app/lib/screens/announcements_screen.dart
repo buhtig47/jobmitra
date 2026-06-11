@@ -12,7 +12,10 @@ import '../utils/constants.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   final ApiService api;
-  const AnnouncementsScreen({super.key, required this.api});
+  // When set (e.g. 'result', 'admit_card'), opens directly on that tab —
+  // used by the home-screen quick-access shortcuts.
+  final String? initialType;
+  const AnnouncementsScreen({super.key, required this.api, this.initialType});
 
   @override
   State<AnnouncementsScreen> createState() => _AnnouncementsScreenState();
@@ -41,10 +44,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _specs.length, vsync: this);
+    final initialIdx = widget.initialType == null
+        ? 0
+        : _specs.indexWhere((s) => s.type == widget.initialType).clamp(0, _specs.length - 1);
+    _tabs = TabController(
+        length: _specs.length, vsync: this, initialIndex: initialIdx);
     _tabs.addListener(_onTab);
     _fetchCounts();
-    _loadTab(_specs.first.type);
+    _loadTab(_specs[initialIdx].type);
     _loadReadIds();
     _searchCtrl.addListener(() {
       setState(() => _searchQuery = _searchCtrl.text);

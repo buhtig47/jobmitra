@@ -9,6 +9,11 @@ const String kApiBase = "https://jobmitra-api-830207301447.asia-south1.run.app";
 // const String kApiBase = "https://jobmitra-api.onrender.com";  // legacy Render
 // const String kApiBase = "http://localhost:8000";  // iOS simulator
 
+// Play Store install link — appended to every outbound share so a share
+// in a WhatsApp group doubles as an install funnel.
+const String kPlayStoreUrl =
+    "https://play.google.com/store/apps/details?id=com.jobmitra.app";
+
 // ─────────────────────────────────────────
 // SPACING TOKENS — 4-pt scale. Use these instead of bare numbers in new code;
 // existing screens can migrate gradually. Keeps vertical rhythm consistent

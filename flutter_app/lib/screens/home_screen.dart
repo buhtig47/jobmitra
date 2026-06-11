@@ -20,6 +20,7 @@ import 'language_picker_screen.dart';
 import 'personal_info_screen.dart';
 import 'tools_screen.dart';
 import 'alerts_screen.dart';
+import 'announcements_screen.dart';
 import 'disclaimer_screen.dart';
 import '../services/notification_service.dart';
 import '../services/ad_service.dart';
@@ -504,7 +505,11 @@ class _FeedTabState extends State<_FeedTab> {
     final newToday = all.where((j) => j.isNew && j.urgency != 'red').toList();
     final rest     = all.where((j) => j.urgency != 'red' && !j.isNew).toList();
 
-    final items = <Object>[];
+    // Quick-access strip rides at the top of the feed (scrolls away while
+    // browsing). Admit cards / results are the highest-intent destinations
+    // for sarkari aspirants — surfacing them here instead of burying them
+    // in Tools measurably lifts announcement engagement.
+    final items = <Object>['__quick__'];
     int jobCount = 0;
 
     void addJob(Job j) {
@@ -711,6 +716,7 @@ class _FeedTabState extends State<_FeedTab> {
                               }
                               final item = items[i];
                               if (item == '__ad__') return const BannerAdWidget();
+                              if (item == '__quick__') return _buildQuickAccessRow();
                               if (item is (String, String)) {
                                 return _SectionHeader(title: item.$1, subtitle: item.$2);
                               }
@@ -848,6 +854,63 @@ class _FeedTabState extends State<_FeedTab> {
     if (!mounted) return;
     setState(() => _stateOverride = (code == null || code.isEmpty) ? null : code);
     _loadJobs(refresh: true);
+  }
+
+  // Quick-access shortcuts to the highest-intent announcement tabs.
+  // Rendered as the first feed item so it scrolls away while browsing jobs.
+  Widget _buildQuickAccessRow() {
+    Widget shortcut(String emoji, String label, String type, Color color) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  AnnouncementsScreen(api: widget.api, initialType: type),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(height: 4),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          shortcut('📊', 'Results', 'result', const Color(0xFF1A6B3C)),
+          const SizedBox(width: 10),
+          shortcut('🎟️', 'Admit Cards', 'admit_card', const Color(0xFFE65100)),
+          const SizedBox(width: 10),
+          shortcut('🔑', 'Answer Keys', 'answer_key', const Color(0xFF6A1B9A)),
+        ],
+      ),
+    );
   }
 
   Widget _buildStateBar() {

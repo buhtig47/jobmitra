@@ -1,10 +1,9 @@
 // lib/widgets/job_card.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../utils/constants.dart';
+import 'job_share_sheet.dart';
 
 class JobCard extends StatefulWidget {
   final Job job;
@@ -43,23 +42,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
   void _onTapUp(_) { _controller.forward(); HapticFeedback.lightImpact(); widget.onTap(); }
   void _onTapCancel() => _controller.forward();
 
-  Future<void> _shareJob(Job job) async {
-    final msg =
-        '🇮🇳 *Govt Job Alert!*\n\n'
-        '*${job.cleanTitle}*\n'
-        '${job.cleanDepartment}\n\n'
-        '📋 Vacancies: ${job.vacanciesText}\n'
-        '📅 Last Date: ${job.lastDate}\n'
-        '💰 Fee: ${job.feeText}\n\n'
-        'Details: ${job.sourceUrl}\n\n'
-        '_From JobMitra — track your eligible govt jobs!_';
-    final waUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(msg)}');
-    if (await canLaunchUrl(waUrl)) {
-      await launchUrl(waUrl);
-    } else {
-      Share.share(msg);
-    }
-  }
+  Future<void> _shareJob(Job job) => showJobShareSheet(context, job);
 
   Color get _categoryColor => JobCategoryColors.colorFor(widget.job.category);
 

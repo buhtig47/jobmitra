@@ -1,6 +1,7 @@
 // lib/screens/tools_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
@@ -107,7 +108,22 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
   void _open(_ToolDef def) {
     _markRecent(def.id);
+    // 'invite' is an action tile, not a screen — fires the share sheet.
+    if (def.id == 'invite') {
+      _shareApp();
+      return;
+    }
     Navigator.push(context, MaterialPageRoute(builder: (_) => def.builder(widget.api)));
+  }
+
+  Future<void> _shareApp() async {
+    const msg = '🇮🇳 *JobMitra* — Sarkari Naukri ka smart app!\n\n'
+        '✅ Sirf eligible jobs (profile-based filter)\n'
+        '✅ Admit Card / Result / Answer Key alerts\n'
+        '✅ Daily GK Quiz + Mock Tests — FREE\n'
+        '✅ Deadline reminders — koi form miss nahi\n\n'
+        'Download (FREE): $kPlayStoreUrl';
+    await Share.share(msg);
   }
 
   // ── Source of truth for every tile. Add a new tool here and it shows up
@@ -205,6 +221,15 @@ class _ToolsScreenState extends State<ToolsScreen> {
           color: const Color(0xFF1A237E),
           builder: (api) => DeptProfilesScreen(api: api),
         ),
+        _ToolDef(
+          id: 'invite',
+          emoji: '🤝',
+          title: 'Dosto ko Bhejo',
+          subtitle: 'WhatsApp pe JobMitra share karo — taiyari saath karo',
+          section: 'Share',
+          color: const Color(0xFFFF9933),
+          builder: (_) => const SizedBox.shrink(), // action tile — see _open
+        ),
       ];
 
   int get _annTotal =>
@@ -243,7 +268,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     for (final t in remaining) {
       bySection.putIfAbsent(t.section, () => <_ToolDef>[]).add(t);
     }
-    const sectionOrder = ['Finance', 'Practice', 'Planning', 'Analysis'];
+    const sectionOrder = ['Finance', 'Practice', 'Planning', 'Analysis', 'Share'];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -362,6 +387,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
         'Practice' => '📚',
         'Planning' => '📅',
         'Analysis' => '📊',
+        'Share'    => '🤝',
         _          => '🔧',
       };
 

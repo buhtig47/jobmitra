@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_review/in_app_review.dart';
@@ -11,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../utils/constants.dart';
 import '../widgets/profile_fill_sheet.dart';
+import '../widgets/job_share_sheet.dart';
 import '../services/cheatsheet_pdf.dart';
 import 'compare_exams_screen.dart';
 import '../services/notification_service.dart';
@@ -1162,21 +1162,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
   Future<void> _shareJob() async {
     if (_job == null) return;
-    final msg =
-        '🇮🇳 *Govt Job Alert!*\n\n'
-        '*${_job!.cleanTitle}*\n'
-        '${_job!.cleanDepartment}\n\n'
-        '📋 Vacancies: ${_job!.vacanciesText}\n'
-        '📅 Last Date: ${_job!.lastDate}\n'
-        '💰 Fee: ${_job!.feeText}\n\n'
-        'Apply here: ${_job!.sourceUrl}\n\n'
-        '_From JobMitra — track your eligible govt jobs!_';
-    final waUrl = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(msg)}');
-    if (await canLaunchUrl(waUrl)) {
-      await launchUrl(waUrl);
-    } else {
-      Share.share(msg);
-    }
+    await showJobShareSheet(context, _job!);
   }
 
   Future<void> _applyAndMark() async {
