@@ -83,6 +83,9 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    # Bundled Poppins — google_fonts uses these instead of fetching at
+    # runtime, killing the cold-start FOUT that clipped chip labels
+    - assets/google_fonts/
   fonts:
     - family: NotoSansDevanagari
       fonts:

@@ -1438,23 +1438,43 @@ class _ProfileTabState extends State<_ProfileTab> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           child: Column(
             children: [
-              // Avatar — initials circle
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1A6B3C),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
-                ),
-                child: Center(
-                  child: Text(
-                    _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+              // Avatar — name initial; a person icon (not a cryptic "?")
+              // when the name isn't filled. Tap opens Personal Info so the
+              // empty avatar is its own call-to-action.
+              GestureDetector(
+                onTap: _userName.isNotEmpty
+                    ? null
+                    : () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => PersonalInfoScreen(api: _api)),
+                        );
+                        final info = await _api.getPersonalInfo();
+                        if (mounted && info.name.isNotEmpty) {
+                          setState(() => _userName = info.name);
+                        }
+                      },
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1A6B3C),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
+                  ),
+                  child: Center(
+                    child: _userName.isNotEmpty
+                        ? Text(
+                            _userName[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.person_add_alt_1_rounded,
+                            size: 34, color: Colors.white70),
                   ),
                 ),
               ),

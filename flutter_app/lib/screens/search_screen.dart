@@ -76,6 +76,18 @@ class _SearchScreenState extends State<SearchScreen> {
     return out;
   }
 
+  static const _catLabels = {
+    'railway': 'Railway', 'banking': 'Banking', 'ssc': 'SSC',
+    'teaching': 'Teaching', 'police': 'Police', 'defence': 'Defence',
+    'upsc': 'UPSC', 'anganwadi': 'Anganwadi', 'psu': 'PSU',
+    'medical': 'Medical', 'research': 'Research',
+    'engineering': 'Engineering', 'legal': 'Legal', 'postal': 'Postal',
+    'admin': 'Admin', 'it_tech': 'IT', 'accounts': 'Accounts',
+    'forest': 'Forest',
+  };
+
+  String _catLabel(String cat) => _catLabels[cat] ?? 'Others';
+
   Widget _buildResultsList() {
     final items = _displayItems;
     return ListView.builder(
@@ -438,8 +450,9 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: selected ? AppColors.primary.withValues(alpha: 0.4) : Colors.transparent,
                           ),
                         ),
+                        // "📋 SSC (10)" — bare "📋 10" was unreadable
                         child: Text(
-                          '$emoji $count',
+                          '$emoji ${_catLabel(cat)} ($count)',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
