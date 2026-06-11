@@ -107,7 +107,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+          colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
       ),
@@ -257,7 +257,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+          colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
         ),
         borderRadius: BorderRadius.circular(16),
       ),

@@ -1,5 +1,8 @@
 // lib/screens/exam_calendar_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
 
@@ -303,7 +306,25 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
           return;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Internet check karo ya baad mein try karo'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () { setState(() => _loading = true); _loadFromBackend(); },
+            ),
+          ),
+        );
+        return;
+      }
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -401,7 +422,7 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
                   final (key, label, emoji) = f;
                   final sel = _filter == key;
                   return GestureDetector(
-                    onTap: () => setState(() => _filter = key),
+                    onTap: () { HapticFeedback.lightImpact(); setState(() => _filter = key); },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.only(right: 8),
@@ -427,11 +448,36 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
 
           // ── Exam list ──
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: exams.length,
-              itemBuilder: (ctx, i) => _buildCard(exams[i]),
-            ),
+            child: _loading
+                ? _buildShimmer()
+                : RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () { setState(() => _loading = true); return _loadFromBackend(); },
+                    child: exams.isEmpty
+                        ? ListView(
+                            children: [
+                              const SizedBox(height: 80),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.event_busy_rounded, size: 56, color: Colors.grey[400]),
+                                    const SizedBox(height: 12),
+                                    Text('Koi exam nahi mila',
+                                        style: TextStyle(color: Colors.grey[600], fontSize: 15, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 6),
+                                    Text('Filter change karke dekho',
+                                        style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: exams.length,
+                            itemBuilder: (ctx, i) => _buildCard(exams[i]),
+                          ),
+                  ),
           ),
         ],
       ),
@@ -444,7 +490,9 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
     final dtExam   = e.daysToExam;
     final dtLast   = e.daysToLastDate;
 
-    return Container(
+    return GestureDetector(
+      onTap: () { HapticFeedback.lightImpact(); _showExamDetail(e); },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -474,17 +522,26 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                         ),
                       ),
-                      // Status badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${_statusEmoji[status]} ${_statusLabels[status]}',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
-                        ),
+                      // Status badge + countdown badge stacked
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_statusEmoji[status]} ${_statusLabels[status]}',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+                            ),
+                          ),
+                          if (dtExam != null && dtExam >= 0 && status != 'result_awaited') ...[
+                            const SizedBox(height: 4),
+                            _countdownBadge(dtExam),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -516,7 +573,8 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
           ],
         ),
       ),
-    );
+    ),  // Container
+  );    // GestureDetector
   }
 
   Widget _dateRow(String label, DateTime date, String? badge, {bool highlight = false}) {
@@ -569,6 +627,244 @@ class _ExamCalendarScreenState extends State<ExamCalendarScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // M16 — color-coded countdown pill badge
+  Widget _countdownBadge(int days) {
+    final Color color;
+    final String text;
+    if (days == 0) {
+      color = const Color(0xFFB71C1C);
+      text = 'AAJ Exam!';
+    } else if (days <= 30) {
+      color = const Color(0xFFB71C1C);
+      text = '$days days left';
+    } else if (days <= 60) {
+      color = const Color(0xFFE65100);
+      text = '$days days left';
+    } else {
+      color = const Color(0xFF2E7D32);
+      text = '$days days left';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text('⏰ $text',
+          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+    );
+  }
+
+  // M4 — shimmer skeleton while loading
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE0E0E0),
+      highlightColor: const Color(0xFFF5F5F5),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 6,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          height: 140,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // M15 — tap card → bottom sheet with full timeline + "View Site" CTA
+  void _showExamDetail(ExamEntry e) {
+    final status  = e.status;
+    final color   = _statusColors[status]!;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, ctrl) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                child: Row(
+                  children: [
+                    Text(e.emoji, style: const TextStyle(fontSize: 28)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(e.name,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_statusEmoji[status]} ${_statusLabels[status]}',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Timeline
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: ctrl,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('IMPORTANT DATES',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8, color: AppColors.textSecondary)),
+                      const SizedBox(height: 16),
+                      _timelineItem('📢', 'Notification', e.notifDate, color, isFirst: true),
+                      _timelineItem('📝', 'Last Date to Apply', e.lastDate, color),
+                      _timelineItem('📅', 'Exam Date', e.examDate, color),
+                      _timelineItem('🏆', 'Result', null, color, isLast: true,
+                          label2: 'To be announced'),
+                      if (e.isTentative) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: Colors.grey[500]),
+                            const SizedBox(width: 6),
+                            Text('Dates are tentative', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic)),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              // CTA
+              if (e.officialSite != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final uri = Uri.parse('https://${e.officialSite}');
+                        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                      },
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: Text('Visit ${e.officialSite}'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _timelineItem(String emoji, String label, DateTime? date, Color accent,
+      {bool isFirst = false, bool isLast = false, String? label2}) {
+    final fmtDate = date == null
+        ? (label2 ?? 'TBA')
+        : '${date.day.toString().padLeft(2, '0')} '
+            '${['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.month]} '
+            '${date.year}';
+    final isPast = date != null && DateTime.now().isAfter(date);
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 36,
+            child: Column(
+              children: [
+                Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(
+                    color: isPast
+                        ? accent.withValues(alpha: 0.12)
+                        : (date == null ? Colors.grey[100] : AppColors.primary.withValues(alpha: 0.1)),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isPast ? accent : (date == null ? Colors.grey[300]! : AppColors.primary.withValues(alpha: 0.4)),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Center(child: Text(emoji, style: const TextStyle(fontSize: 13))),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: Colors.grey[200],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isPast ? accent : AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(fmtDate,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: date == null ? Colors.grey[400] : AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

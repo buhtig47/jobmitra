@@ -2,7 +2,9 @@
 //
 // Admit Cards / Results / Answer Keys / Cut-offs / Syllabus / Exam Dates.
 // Discovery + deep-link to official portal — we never host the artefact itself.
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
@@ -32,6 +34,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   final Map<String, bool> _loading = {};
   Map<String, int> _counts = {};
 
+  Set<int> _readIds = {};
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -39,11 +45,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     _tabs.addListener(_onTab);
     _fetchCounts();
     _loadTab(_specs.first.type);
+    _loadReadIds();
+    _searchCtrl.addListener(() {
+      setState(() => _searchQuery = _searchCtrl.text);
+    });
   }
 
   @override
   void dispose() {
     _tabs.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -68,12 +79,44 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     });
   }
 
+  Future<void> _loadReadIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('read_notification_ids') ?? '[]';
+    final list = (jsonDecode(raw) as List).cast<int>();
+    if (mounted) setState(() => _readIds = list.toSet());
+  }
+
   Future<void> _open(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _onCardTap(Announcement a) async {
+    _open(a.sourceUrl);
+    if (_readIds.contains(a.id)) return;
+    setState(() => _readIds.add(a.id));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        'read_notification_ids', jsonEncode(_readIds.toList()));
+  }
+
+  String _relativeTime(String isoDate) {
+    if (isoDate.isEmpty) return '';
+    final dt = DateTime.tryParse(isoDate);
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${dt.day} ${months[dt.month - 1]}';
   }
 
   @override
@@ -127,7 +170,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
   Widget _buildTab(_TabSpec spec) {
     final loading = _loading[spec.type] ?? true;
-    final items = _data[spec.type] ?? const <Announcement>[];
+    final allItems = _data[spec.type] ?? const <Announcement>[];
 
     if (loading) {
       return Center(
@@ -135,17 +178,66 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       );
     }
 
-    if (items.isEmpty) {
+    if (allItems.isEmpty) {
       return _buildEmpty(spec);
     }
+
+    final items = _searchQuery.isEmpty
+        ? allItems
+        : allItems
+            .where((a) =>
+                a.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+            .toList();
 
     return RefreshIndicator(
       color: spec.color,
       onRefresh: () => _loadTab(spec.type),
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        itemCount: items.length,
-        itemBuilder: (_, i) => _buildCard(items[i], spec),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Exam ya subject search karo...',
+                hintStyle:
+                    const TextStyle(fontSize: 13, color: Colors.grey),
+                prefixIcon:
+                    const Icon(Icons.search, size: 20, color: Colors.grey),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close,
+                            size: 18, color: Colors.grey),
+                        onPressed: () => _searchCtrl.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                contentPadding: const EdgeInsets.symmetric(
+                    vertical: 0, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                constraints: const BoxConstraints(maxHeight: 40),
+              ),
+            ),
+          ),
+          Expanded(
+            child: items.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Koi result nahi mila 🔍',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    itemCount: items.length,
+                    itemBuilder: (_, i) => _buildCard(items[i], spec),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -177,98 +269,138 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   Widget _buildCard(Announcement a, _TabSpec spec) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: spec.color.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: spec.color.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => _open(a.sourceUrl),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: spec.color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      a.organisation.isNotEmpty ? a.organisation : a.source,
-                      style: TextStyle(
-                          color: spec.color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (a.releaseDate.isNotEmpty)
-                    Text(
-                      a.releaseDate.length >= 10
-                          ? a.releaseDate.substring(0, 10)
-                          : a.releaseDate,
-                      style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                a.title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    height: 1.3),
-              ),
-              if (a.description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  a.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      height: 1.35),
-                ),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.open_in_new_rounded,
-                      size: 14, color: spec.color),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Official portal pe download karo',
-                    style: TextStyle(
-                        color: spec.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ],
+    final timeStr = _relativeTime(a.scrapedAt);
+    final isUnread = !_readIds.contains(a.id);
+
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: spec.color.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 3, color: spec.color),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _onCardTap(a),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 120),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    a.organisation.isNotEmpty
+                                        ? a.organisation
+                                        : a.source,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1A6B3C),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (a.releaseDate.isNotEmpty)
+                                  Text(
+                                    a.releaseDate.length >= 10
+                                        ? a.releaseDate.substring(0, 10)
+                                        : a.releaseDate,
+                                    style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              a.title,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                  height: 1.3),
+                            ),
+                            if (timeStr.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                timeStr,
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey[500]),
+                              ),
+                            ],
+                            if (a.description.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                a.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                    height: 1.35),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Icon(
+                                Icons.open_in_new,
+                                size: 18,
+                                color: const Color(0xFF1A6B3C),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+        if (isUnread)
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1565C0),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

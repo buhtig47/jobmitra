@@ -1,5 +1,6 @@
 // lib/screens/competition_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/constants.dart';
 
 class _Exam {
@@ -186,7 +187,7 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
                 final (key, label, emoji) = f;
                 final sel = _filter == key;
                 return GestureDetector(
-                  onTap: () => setState(() => _filter = key),
+                  onTap: () { HapticFeedback.lightImpact(); setState(() => _filter = key); },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     margin: const EdgeInsets.only(right: 8),
@@ -208,7 +209,7 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
                 ...[('ratio', 'Difficulty'), ('vacancies', 'Vacancies'), ('applicants', 'Applicants')].map((s) {
                   final sel = _sort == s.$1;
                   return GestureDetector(
-                    onTap: () => setState(() => _sort = s.$1),
+                    onTap: () { HapticFeedback.lightImpact(); setState(() => _sort = s.$1); },
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -227,10 +228,33 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
         ),
         // ── List ──
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _sorted.length,
-            itemBuilder: (ctx, i) => _buildCard(_sorted[i], i),
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async => setState(() {}),
+            child: _sorted.isEmpty
+                ? ListView(
+                    children: [
+                      const SizedBox(height: 80),
+                      Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.analytics_outlined, size: 56, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text('Data available nahi hai',
+                                style: TextStyle(color: Colors.grey[600], fontSize: 15, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 6),
+                            Text('Baad mein try karo',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _sorted.length,
+                    itemBuilder: (ctx, i) => _buildCard(_sorted[i], i),
+                  ),
           ),
         ),
       ]),
@@ -291,15 +315,30 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            Row(children: [
-              Icon(e.trendUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                  size: 14, color: e.trendUp ? Colors.red[600] : Colors.green[600]),
-              const SizedBox(width: 4),
-              Text(
-                e.trendUp ? 'Competition badh rahi hai' : 'Competition stable/ghaat rahi hai',
-                style: TextStyle(fontSize: 11, color: e.trendUp ? Colors.red[600] : Colors.green[600]),
-              ),
-            ]),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Mini sparkline: 5 bars ascending (trendUp) or descending (trendDown)
+                ...List.generate(5, (i) {
+                  final h = e.trendUp ? (4.0 + i * 3.5) : (21.5 - i * 3.5);
+                  final c = (e.trendUp ? Colors.red[600] : Colors.green[600])!;
+                  return Container(
+                    width: 5,
+                    height: h,
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: c.withValues(alpha: 0.5 + i * 0.1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  );
+                }),
+                const SizedBox(width: 8),
+                Text(
+                  e.trendUp ? 'Competition badh rahi hai' : 'Competition ghaat rahi hai',
+                  style: TextStyle(fontSize: 11, color: e.trendUp ? Colors.red[600] : Colors.green[600]),
+                ),
+              ],
+            ),
           ]),
         ),
       ),

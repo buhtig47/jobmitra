@@ -34,13 +34,122 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedTab = 0;
-  int _savedRefreshKey = 0; // Increments every time Saved tab is visited
+  int _savedRefreshKey = 0;
+  int _savedCount = 0;
   final _api = ApiService();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadSavedCount();
+    Future.delayed(const Duration(seconds: 3), _maybeShowRateUs);
+  }
+
+  void _loadSavedCount() {
+    _api.getSavedJobs(widget.userId).then((jobs) {
+      if (mounted) setState(() => _savedCount = jobs.length);
+    });
+  }
+
+  Future<void> _maybeShowRateUs() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('has_rated') ?? false) return;
+    final openCount = prefs.getInt('app_open_count') ?? 0;
+    if (openCount < 5) return;
+    final firstOpen = prefs.getString('first_open_date');
+    if (firstOpen == null) return;
+    final daysSinceInstall =
+        DateTime.now().difference(DateTime.parse(firstOpen)).inDays;
+    if (daysSinceInstall < 3) return;
+    final snoozeUntil = prefs.getString('rate_us_snooze_until');
+    if (snoozeUntil != null &&
+        DateTime.now().isBefore(DateTime.parse(snoozeUntil))) return;
+    if (!mounted) return;
+    _showRateUsDialog();
+  }
+
+  void _showRateUsDialog() {
+    int stars = 0;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('JobMitra kaisa laga? ⭐',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ek minute mein apna review do —\nismein bahut mehnat lagi hai!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  5,
+                  (i) => GestureDetector(
+                    onTap: () => setSt(() => stars = i + 1),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        stars > i ? Icons.star_rounded : Icons.star_border_rounded,
+                        color: const Color(0xFFFF9933),
+                        size: 38,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final prefs = await SharedPreferences.getInstance();
+                final snooze = DateTime.now()
+                    .add(const Duration(days: 7))
+                    .toIso8601String()
+                    .substring(0, 10);
+                await prefs.setString('rate_us_snooze_until', snooze);
+              },
+              child: const Text('Baad Mein', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: stars == 0
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('has_rated', true);
+                      if (stars >= 4) {
+                        final uri = Uri.parse(
+                            'https://play.google.com/store/apps/details?id=com.jobmitra.app');
+                        try {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        } catch (_) {}
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Submit Review'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -64,7 +173,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           _FeedTab(userId: widget.userId, api: _api),
           SearchScreen(api: _api),
-          SavedJobsScreen(key: ValueKey(_savedRefreshKey), userId: widget.userId, api: _api),
+          SavedJobsScreen(
+            key: ValueKey(_savedRefreshKey),
+            userId: widget.userId,
+            api: _api,
+            onBrowseJobs: () => setState(() => _selectedTab = 0),
+          ),
           ToolsScreen(api: _api),
           _ProfileTab(userId: widget.userId),
         ],
@@ -72,7 +186,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTab,
         onDestinationSelected: (i) {
-          if (i == 2 && _selectedTab != 2) _savedRefreshKey++;
+          if (i == 2 && _selectedTab != 2) {
+            _savedRefreshKey++;
+            _loadSavedCount();
+          }
           setState(() => _selectedTab = i);
         },
         backgroundColor: Colors.white,
@@ -89,8 +206,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             label: L10n.tr('nav_search'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.bookmark_outline),
-            selectedIcon: const Icon(Icons.bookmark, color: AppColors.primary),
+            icon: Badge(
+              label: Text('$_savedCount'),
+              backgroundColor: const Color(0xFFFF9933),
+              isLabelVisible: _savedCount > 0,
+              child: const Icon(Icons.bookmark_outline),
+            ),
+            selectedIcon: Badge(
+              label: Text('$_savedCount'),
+              backgroundColor: const Color(0xFFFF9933),
+              isLabelVisible: _savedCount > 0,
+              child: const Icon(Icons.bookmark, color: AppColors.primary),
+            ),
             label: L10n.tr('nav_saved'),
           ),
           NavigationDestination(
@@ -211,6 +338,7 @@ class _FeedTabState extends State<_FeedTab> {
   int _activeAlertCount = 0;
   String? _stateOverride; // null = use profile state; "all_india" = drop filter
   int _quizStreak = 0;
+  bool _disclaimerSeen = true; // default true; set false only if pref missing
 
   static const _kStatePrefKey = 'home_state_override';
 
@@ -239,7 +367,11 @@ class _FeedTabState extends State<_FeedTab> {
     _restoreStateOverride().then((_) => _loadJobs());
     SharedPreferences.getInstance().then((p) {
       final streak = p.getInt('quiz_streak') ?? 0;
-      if (mounted && streak > 0) setState(() => _quizStreak = streak);
+      final seen = p.getBool('disclaimer_seen') ?? false;
+      if (mounted) setState(() {
+        if (streak > 0) { _quizStreak = streak; }
+        _disclaimerSeen = seen;
+      });
     });
     widget.api.getSavedProfile().then((p) {
       if (mounted) setState(() => _profile = p);
@@ -532,7 +664,7 @@ class _FeedTabState extends State<_FeedTab> {
       ),
       body: Column(
         children: [
-          _buildDisclaimerStrip(),
+          if (!_disclaimerSeen) _buildDisclaimerStrip(),
           // State landing chips (top-traffic Indian states)
           _buildStateBar(),
           // Category filter chips + free toggle
@@ -597,23 +729,31 @@ class _FeedTabState extends State<_FeedTab> {
     );
   }
 
+  Future<void> _markDisclaimerSeen() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('disclaimer_seen', true);
+    if (mounted) setState(() => _disclaimerSeen = true);
+  }
+
   Widget _buildDisclaimerStrip() {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const DisclaimerScreen()),
-      ),
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFFFF3E0),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            const Icon(Icons.info_outline,
-                size: 14, color: Color(0xFFE65100)),
-            const SizedBox(width: 6),
-            const Expanded(
-              child: Text(
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3E0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: Color(0xFFE65100)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                _markDisclaimerSeen();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DisclaimerScreen()),
+                );
+              },
+              child: const Text(
                 'Not affiliated with any Govt. entity. Info aggregated from official sources.',
                 style: TextStyle(
                     fontSize: 11,
@@ -621,17 +761,31 @@ class _FeedTabState extends State<_FeedTab> {
                     fontWeight: FontWeight.w500),
               ),
             ),
-            const Text('View sources',
+          ),
+          GestureDetector(
+            onTap: () {
+              _markDisclaimerSeen();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DisclaimerScreen()),
+              );
+            },
+            child: const Text('View sources',
                 style: TextStyle(
                     fontSize: 11,
                     color: Color(0xFFBF360C),
                     fontWeight: FontWeight.w700,
                     decoration: TextDecoration.underline)),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right,
-                size: 14, color: Color(0xFFBF360C)),
-          ],
-        ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: _markDisclaimerSeen,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 6),
+              child: Icon(Icons.close, size: 14, color: Color(0xFFBF360C)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1076,8 +1230,8 @@ class _ProfileTabState extends State<_ProfileTab> {
                       _buildSectionTitle('Personal Info'),
                       const SizedBox(height: 10),
                       _buildInfoTile(Icons.location_on_rounded, 'State / Region', _profile!.state, const Color(0xFF1565C0)),
-                      _buildInfoTile(Icons.school_rounded, 'Education', _profile!.education, const Color(0xFF6A1B9A)),
-                      _buildInfoTile(Icons.badge_rounded, 'Category', _profile!.category.toUpperCase(), const Color(0xFF00695C)),
+                      _buildInfoTile(Icons.school_rounded, 'Education', _titleCase(_profile!.education), const Color(0xFF6A1B9A)),
+                      _buildInfoTile(Icons.badge_rounded, 'Category', _titleCase(_profile!.category), const Color(0xFF00695C)),
                       _buildInfoTile(Icons.cake_rounded, 'Age', '${_profile!.age} yrs', const Color(0xFFE65100)),
                       const SizedBox(height: 20),
                       _buildSectionTitle('Job Preferences'),
@@ -1088,17 +1242,19 @@ class _ProfileTabState extends State<_ProfileTab> {
                       const SizedBox(height: 10),
                       _buildFormDetailsTile(),
                       const SizedBox(height: 20),
-                      _buildSectionTitle('Notifications'),
+                      _buildSectionTitle('Notifications & Language'),
                       const SizedBox(height: 10),
                       _buildNotifPrefsTile(),
-                      const SizedBox(height: 20),
-                      _buildSectionTitle('Language'),
                       const SizedBox(height: 10),
                       _buildLanguageTile(),
                       const SizedBox(height: 20),
-                      _buildSectionTitle('About'),
+                      _buildSectionTitle('Support'),
                       const SizedBox(height: 10),
-                      _buildAboutTile(),
+                      _buildSupportTile(),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle('Legal & Info'),
+                      const SizedBox(height: 10),
+                      _buildLegalTile(),
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -1123,17 +1279,24 @@ class _ProfileTabState extends State<_ProfileTab> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           child: Column(
             children: [
-              // Avatar
+              // Avatar — initials circle
               Container(
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: const Color(0xFF1A6B3C),
                   border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2.5),
                 ),
-                child: const Center(
-                  child: Text('👤', style: TextStyle(fontSize: 38)),
+                child: Center(
+                  child: Text(
+                    _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1180,14 +1343,16 @@ class _ProfileTabState extends State<_ProfileTab> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              _buildCompletionBar(),
+              const SizedBox(height: 16),
               // Quick pills row
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildPill(_profile!.state),
                   const SizedBox(width: 8),
-                  _buildPill(_profile!.category.toUpperCase()),
+                  _buildPill(_titleCase(_profile!.category)),
                   const SizedBox(width: 8),
                   _buildPill('${_profile!.age} yrs'),
                 ],
@@ -1210,6 +1375,61 @@ class _ProfileTabState extends State<_ProfileTab> {
       child: Text(
         text,
         style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s.split(' ').map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+  }
+
+  Widget _buildCompletionBar() {
+    int filled = 0;
+    final p = _profile!;
+    if (p.state.isNotEmpty) filled++;
+    if (p.education.isNotEmpty) filled++;
+    if (p.category.isNotEmpty) filled++;
+    if (p.age > 0) filled++;
+    if (p.jobTypes.isNotEmpty) filled++;
+    const total = 5;
+    final pct = filled / total;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Profile Complete',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '${(pct * 100).toInt()}%',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 6,
+              backgroundColor: Colors.white.withValues(alpha: 0.25),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1291,7 +1511,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Job Types', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
-                  Text('Interested categories', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text('Preferred Job Types', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 ],
               ),
             ],
@@ -1381,7 +1601,7 @@ class _ProfileTabState extends State<_ProfileTab> {
     );
   }
 
-  Widget _buildAboutTile() {
+  Widget _buildSupportTile() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1410,6 +1630,42 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
           const Divider(height: 1, indent: 56),
           _aboutRow(
+            icon: Icons.email_outlined,
+            color: const Color(0xFF2E7D32),
+            title: 'Contact Support',
+            subtitle: 'support.jobmitra@gmail.com',
+            onTap: () => _openExternal(
+                'mailto:support.jobmitra@gmail.com?subject=JobMitra%20Feedback'),
+          ),
+          const Divider(height: 1, indent: 56),
+          // Play Console Data Safety form requires either an in-app delete
+          // affordance or a publicly reachable URL.
+          _aboutRow(
+            icon: Icons.delete_forever_outlined,
+            color: const Color(0xFFC62828),
+            title: 'Delete My Data',
+            subtitle: 'Request account & profile deletion',
+            onTap: () => _openExternal(
+                'https://buhtig47.github.io/jobmitra/delete-data.html'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalTile() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          _aboutRow(
             icon: Icons.gavel_rounded,
             color: const Color(0xFFE65100),
             title: 'Disclaimer & Official Sources',
@@ -1429,27 +1685,6 @@ class _ProfileTabState extends State<_ProfileTab> {
                 'https://buhtig47.github.io/jobmitra/privacy.html'),
           ),
           const Divider(height: 1, indent: 56),
-          // Play Console Data Safety form requires either an in-app delete
-          // affordance or a publicly reachable URL. We expose the latter so
-          // users can submit a deletion request without contacting support.
-          _aboutRow(
-            icon: Icons.delete_forever_outlined,
-            color: const Color(0xFFC62828),
-            title: 'Delete My Data',
-            subtitle: 'Request account & profile deletion',
-            onTap: () => _openExternal(
-                'https://buhtig47.github.io/jobmitra/delete-data.html'),
-          ),
-          const Divider(height: 1, indent: 56),
-          _aboutRow(
-            icon: Icons.email_outlined,
-            color: const Color(0xFF2E7D32),
-            title: 'Contact Support',
-            subtitle: 'ayushsrivastava47@gmail.com',
-            onTap: () => _openExternal(
-                'mailto:ayushsrivastava47@gmail.com?subject=JobMitra%20Feedback'),
-          ),
-          const Divider(height: 1, indent: 56),
           _aboutRow(
             icon: Icons.info_outline_rounded,
             color: const Color(0xFF6A1B9A),
@@ -1466,10 +1701,14 @@ class _ProfileTabState extends State<_ProfileTab> {
 
   Future<void> _shareApp() async {
     const msg =
-        '🇮🇳 *JobMitra — Sarkari Naukri Alerts*\n\n'
-        'Govt jobs, admit cards, results — sab ek hi app me. Eligibility '
-        'filter, push alerts, form-fill cheat-sheet PDF.\n\n'
-        'Download: https://play.google.com/store/apps/details?id=$_playStoreId';
+        '🇮🇳 *JobMitra — Free Sarkari Naukri App*\n\n'
+        '✅ 270+ govt jobs daily\n'
+        '✅ Eligibility filter — no waste results\n'
+        '✅ Admit cards & results in one place\n'
+        '✅ Daily GK quiz + current affairs\n'
+        '✅ Deadline & exam date alerts\n\n'
+        '👇 Free download karo:\n'
+        'https://play.google.com/store/apps/details?id=$_playStoreId';
     await Share.share(msg);
   }
 

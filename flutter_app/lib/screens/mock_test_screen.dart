@@ -1,10 +1,13 @@
 // lib/screens/mock_test_screen.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import '../services/ad_service.dart';
 import '../services/api_service.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
@@ -626,7 +629,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   // Bookmarked question IDs (shared key with daily-quiz so a single "Review
   // Bookmarks" view eventually covers both).
-  static const _kBookmarksKey = 'quiz_bookmarks_v1';
+  static const _kBookmarksKey     = 'quiz_bookmarks_v1';
+  static const _kBookmarksDataKey = 'quiz_bookmarks_data_v1';
   Set<String> _bookmarks = <String>{};
 
   @override
@@ -645,18 +649,37 @@ class _MockTestScreenState extends State<MockTestScreen> {
     });
   }
 
-  Future<void> _toggleBookmark(String id) async {
+  Future<void> _toggleBookmark(String id, _Q q) async {
     if (id.isEmpty) return;
+    HapticFeedback.lightImpact();
     final next = Set<String>.from(_bookmarks);
-    if (next.contains(id)) {
-      next.remove(id);
-    } else {
-      next.add(id);
-    }
+    final adding = !next.contains(id);
+    if (adding) { next.add(id); } else { next.remove(id); }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_kBookmarksKey, next.toList());
+
+    final existing = prefs.getStringList(_kBookmarksDataKey) ?? [];
+    if (adding) {
+      existing.add(jsonEncode({'id': id, 'q': q.q, 'opts': q.opts, 'ans': q.ans, 'exp': q.explanation, 'src': 'mock'}));
+    } else {
+      existing.removeWhere((s) {
+        try { return (jsonDecode(s) as Map)['id'] == id; } catch (_) { return false; }
+      });
+    }
+    await prefs.setStringList(_kBookmarksDataKey, existing);
+
     if (!mounted) return;
     setState(() => _bookmarks = next);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(adding ? '🔖 Bookmarked!' : 'Bookmark hataya'),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void _toggleFlag(int idx) {
@@ -731,6 +754,37 @@ class _MockTestScreenState extends State<MockTestScreen> {
       await prefs.setInt('mock_best_$id', score);
       setState(() => _bestScores[id] = score);
     }
+  }
+
+  void _unlockBonusRound() {
+    AdService().showRewarded(
+      onRewarded: () {
+        if (!mounted) return;
+        final allQ = [..._practicePacks, ..._pyqPacks]
+            .where((p) => p.id != _pack.id)
+            .expand((p) => p.questions)
+            .toList()..shuffle();
+        _startPack(_Pack(
+          id: '${_pack.id}_bonus',
+          title: '🎁 Bonus Round',
+          subtitle: '5 random questions unlocked!',
+          emoji: '🎁',
+          color: const Color(0xFFFF9933),
+          questions: allQ.take(5).toList(),
+        ));
+      },
+      onFailed: () {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ad unavailable — try again later'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.grey[800],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      },
+    );
   }
 
   void _startPack(_Pack pack) {
@@ -946,7 +1000,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+          colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
       ),
@@ -1209,7 +1263,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
                               ),
                               if (q.id.isNotEmpty)
                                 InkWell(
-                                  onTap: () => _toggleBookmark(q.id),
+                                  onTap: () => _toggleBookmark(q.id, q),
                                   child: Padding(
                                     padding: const EdgeInsets.all(4),
                                     child: Icon(
@@ -1521,32 +1575,62 @@ class _MockTestScreenState extends State<MockTestScreen> {
             Container(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
               color: Colors.white,
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => setState(() => _stage = _Stage.list),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 50),
-                        side: BorderSide(color: _pack.color),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  if (!_pack.id.endsWith('_bonus'))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          onPressed: _unlockBonusRound,
+                          icon: const Icon(Icons.card_giftcard_rounded,
+                              size: 18, color: Color(0xFFE65100)),
+                          label: const Text('🎁 Bonus Round (Watch Ad)',
+                              style: TextStyle(
+                                  color: Color(0xFFE65100), fontWeight: FontWeight.w700)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE65100)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
                       ),
-                      child: Text('All Tests',
-                          style: TextStyle(color: _pack.color, fontWeight: FontWeight.w700)),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _startPack(_pack),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(0, 50),
-                        backgroundColor: _pack.color,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setState(() => _stage = _Stage.list),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 50),
+                            side: BorderSide(color: _pack.color),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text('All Tests',
+                              style: TextStyle(
+                                  color: _pack.color, fontWeight: FontWeight.w700)),
+                        ),
                       ),
-                      child: const Text('Retry',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _startPack(_pack),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 50),
+                            backgroundColor: _pack.color,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Retry',
+                              style: TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1627,7 +1711,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
                 ),
               if (q.id.isNotEmpty)
                 InkWell(
-                  onTap: () => _toggleBookmark(q.id),
+                  onTap: () => _toggleBookmark(q.id, q),
                   child: Icon(
                     _bookmarks.contains(q.id)
                         ? Icons.bookmark_rounded

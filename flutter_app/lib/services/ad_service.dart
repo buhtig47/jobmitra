@@ -22,10 +22,9 @@ class AdService {
   bool _rewardedReady = false;
   int _rewardedRetry = 0;
 
-  // Minimum gap between two interstitial impressions. Users open 5+ job details
-  // per session; without this floor we'd show 5 fullscreen ads in 90s and lose
-  // the install. Industry standard for content apps is 60-120s.
-  static const _minIntervalMs = 90 * 1000;
+  // Minimum gap between two interstitial impressions. 3 minutes prevents users
+  // from getting annoyed on rapid job-browsing sessions (5+ detail opens).
+  static const _minIntervalMs = 3 * 60 * 1000;
   DateTime? _lastShownAt;
 
   // ── App Open Ad ─────────────────────────────────────────────

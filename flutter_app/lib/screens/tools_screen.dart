@@ -1,4 +1,5 @@
 // lib/screens/tools_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
@@ -24,9 +25,10 @@ class ToolsScreen extends StatefulWidget {
 
 // Pin + Recent persistence keys. Bump _kPrefsVersion if the tool ID set ever
 // breaks compat (e.g. an ID is renamed) so stale prefs flush cleanly.
-const _kPinnedKey  = 'tools_pinned_ids_v1';
-const _kRecentKey  = 'tools_recent_ids_v1';
-const _kRecentMax  = 3;
+const _kPinnedKey       = 'tools_pinned_ids_v1';
+const _kRecentKey       = 'tools_recent_ids_v1';
+const _kBookmarksData   = 'quiz_bookmarks_data_v1';
+const _kRecentMax       = 3;
 
 class _ToolsScreenState extends State<ToolsScreen> {
   final _searchCtrl = TextEditingController();
@@ -35,6 +37,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
   Set<String> _pinned = {};
   List<String> _recent = [];
   Map<String, int> _annCounts = {};
+  List<Map<String, dynamic>> _bookmarked = [];
 
   @override
   void initState() {
@@ -51,10 +54,16 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final bookmarkedRaw = prefs.getStringList(_kBookmarksData) ?? const <String>[];
+    final parsed = <Map<String, dynamic>>[];
+    for (final s in bookmarkedRaw) {
+      try { parsed.add(Map<String, dynamic>.from(jsonDecode(s) as Map)); } catch (_) {}
+    }
     if (!mounted) return;
     setState(() {
-      _pinned = (prefs.getStringList(_kPinnedKey) ?? const <String>[]).toSet();
-      _recent = prefs.getStringList(_kRecentKey) ?? const <String>[];
+      _pinned    = (prefs.getStringList(_kPinnedKey) ?? const <String>[]).toSet();
+      _recent    = prefs.getStringList(_kRecentKey) ?? const <String>[];
+      _bookmarked = parsed;
     });
   }
 
@@ -305,6 +314,12 @@ class _ToolsScreenState extends State<ToolsScreen> {
               delegate: SliverChildListDelegate([
                 if (pinnedTiles.isEmpty && recentTiles.isEmpty && remaining.isEmpty)
                   _buildEmptyState(),
+                if (_bookmarked.isNotEmpty && _query.isEmpty) ...[
+                  _buildSectionLabel('🔖 Saved Questions'),
+                  const SizedBox(height: 10),
+                  _buildBookmarksCard(),
+                  const SizedBox(height: 12),
+                ],
                 if (pinnedTiles.isNotEmpty) ...[
                   _buildSectionLabel('📌 Pinned'),
                   const SizedBox(height: 10),
@@ -379,6 +394,207 @@ class _ToolsScreenState extends State<ToolsScreen> {
       badgeCount: t.badge?.call(),
       onTap: () => _open(t),
       onLongPress: () => _togglePin(t.id),
+    );
+  }
+
+  Widget _buildBookmarksCard() {
+    final count = _bookmarked.length;
+    return GestureDetector(
+      onTap: _showBookmarksSheet,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE65100).withValues(alpha: 0.25)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE65100).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(child: Text('🔖', style: TextStyle(fontSize: 22))),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bookmarked Questions',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('$count saved question${count == 1 ? '' : 's'} — tap to review',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE65100).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('$count',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFE65100))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBookmarksSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, ctrl) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Row(
+                  children: [
+                    const Text('🔖', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text('Bookmarked Questions',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                    ),
+                    Text('${_bookmarked.length} saved',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _bookmarked.length,
+                  itemBuilder: (_, i) {
+                    final b = _bookmarked[i];
+                    final opts = (b['opts'] as List?)?.cast<String>() ?? [];
+                    final ans  = (b['ans'] as int?) ?? 0;
+                    final exp  = (b['exp'] as String?) ?? '';
+                    final src  = (b['src'] as String?) ?? '';
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: src == 'daily'
+                                      ? const Color(0xFF4A148C).withValues(alpha: 0.1)
+                                      : const Color(0xFF1565C0).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(src == 'daily' ? 'Daily Quiz' : 'Mock Test',
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: src == 'daily' ? const Color(0xFF4A148C) : const Color(0xFF1565C0))),
+                              ),
+                              const SizedBox(width: 6),
+                              Text('Q${i + 1}', style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(b['q']?.toString() ?? '',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.4)),
+                          const SizedBox(height: 10),
+                          ...List.generate(opts.length, (j) {
+                            final correct = j == ans;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: correct
+                                    ? const Color(0xFF2E7D32).withValues(alpha: 0.10)
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: correct ? const Color(0xFF2E7D32).withValues(alpha: 0.5) : Colors.transparent,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(String.fromCharCode(65 + j),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: correct ? const Color(0xFF2E7D32) : Colors.grey[500])),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(opts[j],
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: correct ? FontWeight.w600 : FontWeight.w400,
+                                            color: correct ? const Color(0xFF1B5E20) : AppColors.textPrimary)),
+                                  ),
+                                  if (correct) const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF2E7D32)),
+                                ],
+                              ),
+                            );
+                          }),
+                          if (exp.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1565C0).withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('💡 ', style: TextStyle(fontSize: 13)),
+                                  Expanded(child: Text(exp,
+                                      style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

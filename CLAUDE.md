@@ -1,76 +1,75 @@
 ## Project Overview
 Indian Sarkari Naukri aggregator Android app.
-- **Live API**: https://jobmitra-api-830207301447.asia-south1.run.app (Google Cloud Run, asia-south1)
-- **Legacy API**: https://jobmitra-api.onrender.com (Render, deprecated — kill once Flutter ships)
+- **Live API**: https://jobmitra-api-830207301447.asia-south1.run.app (Google Cloud Run, asia-south1, revision 00043)
+- **Legacy API**: https://jobmitra-api.onrender.com (Render, deprecated — dead, do not use)
 - **GitHub**: https://github.com/buhtig47/jobmitra
 - **Local path**: ~/jobmitra/
 - **GCP project**: jobmitra-17db0
 - **Scraper secret**: `jobmitra_secret_2024` (synced to Secret Manager `SCRAPER_SECRET:latest` for Cloud Run, also in GitHub Secrets). Rotate later as a security pass.
+- **Play Store**: v1.7.5+21 AAB built — ready to upload once v1.7.4+20 description fix is approved
 
 ## Stack
 | Layer | Tech |
 |-------|------|
 | Backend | FastAPI + Turso (libsql cloud), Python 3.11.8 |
 | Deploy | Google Cloud Run, asia-south1, scale-to-zero |
-| Secrets | Google Secret Manager (TURSO_URL, TURSO_TOKEN, SCRAPER_SECRET) |
+| Secrets | Google Secret Manager (TURSO_URL, TURSO_TOKEN, SCRAPER_SECRET, GEMINI_API_KEY) |
 | Frontend | Flutter Android |
 | Font | Google Fonts — Poppins |
 | HTTP | package:http |
-| Storage | SharedPreferences |
+| Storage | SharedPreferences + Hive (offline cache) |
 | Animation | shimmer: ^3.0.0 |
+| Ads | google_mobile_ads (banner, interstitial, app open) |
+| Push | firebase_messaging + flutter_local_notifications |
+| Automation | Cloud Scheduler (OIDC) → Cloud Run cron endpoints |
 
 ---
 
 ## Current Status
 - [x] Scraper v8 — ~270 jobs from 86+ sources
-- [x] FastAPI backend live on Render
-- [x] Flutter app running on Android
-- [x] Premium job cards with category colors
-- [x] Jobs feed working (139 jobs showing)
+- [x] FastAPI backend live on Cloud Run (asia-south1, rev 00043)
+- [x] Flutter app on Play Store (v1.7.4+20 in review)
+- [x] Premium job cards with category colors + urgency badges
 - [x] Job detail screen with Apply button
 - [x] Onboarding flow complete
-- [x] Search + Saved + Profile screens exist
+- [x] Search + Saved + Profile screens
+- [x] Firebase Push Notifications (FCM topics, deadline alerts, smart alerts)
+- [x] Hive offline cache (feed cached, "Last updated X ago" shown)
+- [x] AdMob — banner (every 5th card), interstitial, app open on resume
+- [x] Daily Quiz with streak tracking (streak shown on home screen + quiz screen)
+- [x] Announcements screen
+- [x] Alert rules (user sets keyword/category rules, gets notified on match)
+- [x] Cloud Scheduler automation — scrape @ 2 AM IST + quiz push @ 8 AM IST (OIDC-secured)
 
 ---
 
 ## Pending Tasks (Priority Order)
 
-### 1. Shimmer Animation Fix
-**File**: `flutter_app/lib/screens/home_screen.dart`
-**Problem**: Shimmer shows blank white cards — no visible animation
-**Fix**:
-- Add fixed height: 160 to shimmer skeleton cards
-- Add colored shimmer bar at top of each card
-- Add shimmer to search results loading too
+### Phase 1 — Bug Fixes + Quick Wins ✅ ALL DONE
+All Phase 1 items were already implemented in prior sessions. Verified clean in v1.7.5+21.
 
-### 2. New RSS Sources
-**File**: `scraper/scraper.py`
-**Add to RSS_SOURCES list**:
-```python
-{"name": "freejobalert",    "url": "https://www.freejobalert.com/feed/"},
-{"name": "bharatnaukri",    "url": "https://bharatnaukri.com/feed/"},
-{"name": "govtjobsdiary",   "url": "https://govtjobsdiary.com/feed/"},
-{"name": "sharmajobs",      "url": "https://www.sharmajobs.com/feed/"},
-{"name": "sarkarinaukri2025","url": "https://sarkarinaukri2025.com/feed/"},
-```
-After adding: copy scraper.py to backend/ and push to GitHub.
+### Phase 2 — UI/UX Redesign (next session)
+- Job card: left-edge colored bar, hero title, 2-col metadata grid, full-card tap, "NEW" badge <24h
+- Home screen: sticky greeting header, categories carousel, sectioned feed (Closing Soon / New Today / All)
+- Job detail: collapsing SliverAppBar, tabbed content (Overview/Eligibility/How to Apply/Docs), sticky CTA
+- Search: inline loading, recent searches chips, filter sheet
+- Profile edit: PopScope dirty-check dialog, age slider validation
+- Saved jobs: stage tracker pill row, filter chips
 
-### 3. Firebase Push Notifications
-- Firebase project banana hai
-- google-services.json add karo android/app/
-- firebase_messaging package add karo
-- FCM token properly save karo (abhi "test" hardcoded)
+### Phase 3 — Backend Refactors (future)
+- SQL pushdown for feed (fix "fetch 300, filter, slice" anti-pattern)
+- Turso connection pool
+- Async FCM fanout (aiohttp)
+- SCRAPER_SECRET rotation + remove `_LEGACY_LEAKED_SECRET` block
+- Mojibake filter (reject Devanagari+Latin garbage)
+- Scraper observability (alert if >20% sources fail)
+- `CREATE INDEX idx_jobs_scraped_at ON jobs(scraped_at DESC)`
 
-### 4. Offline Mode (Hive Cache)
-- hive + hive_flutter packages add karo
-- Jobs fetch hone ke baad Hive mein save karo
-- App open pe pehle Hive se load karo (instant)
-- "Last updated X min ago" show karo
-
-### 5. AdMob Integration
-- google_mobile_ads package add karo
-- Banner ad har 5th job card ke baad
-- Interstitial job detail se back aane par
+### Next: Upload AAB to Play Store
+- AAB built: `flutter_app/build/app/outputs/bundle/release/app-release.aab` (63.5 MB)
+- Version: 1.7.5+21
+- Changes vs v1.7.4+20: quiz streak chip on home screen, quiz notification deep-link, job card shows location/states for state-specific jobs
+- Upload once v1.7.4+20 description-fix review is approved (or upload directly to a new release)
 
 ---
 
@@ -78,10 +77,11 @@ After adding: copy scraper.py to backend/ and push to GitHub.
 
 | Bug | Fix |
 |-----|-----|
-| ~~Render cold start 50s~~ | Migrated to Cloud Run (asia-south1). Cold start ~2s. wakeUpServer() in main.dart now redundant — remove next pass |
-| ~~DB resets on Render redeploy~~ | Stale — Turso (cloud DB) used; persistent across deploys |
-| Hindi garbled text | Force UTF-8, filter mojibake in scraper |
-| user_id mismatch | adb shell pm clear com.example.jobmitra |
+| Shimmer invisible (white-on-white) | Phase 1 B1 — change placeholder boxes to `Color(0xFFE0E0E0)` |
+| wakeUpServer() still in main.dart | Phase 1 B2 — delete function + call site |
+| Interstitial not firing on job detail back | Phase 1 B3 — PopScope → AdService().showInterstitial() |
+| Hindi garbled text | Phase 3 — mojibake filter in scraper |
+| user_id mismatch | `adb shell pm clear com.jobmitra.app` |
 
 ---
 
@@ -90,12 +90,29 @@ After adding: copy scraper.py to backend/ and push to GitHub.
 | File | Purpose |
 |------|---------|
 | flutter_app/lib/utils/constants.dart | API URL, Colors, Theme |
-| flutter_app/lib/screens/home_screen.dart | Main feed + shimmer |
+| flutter_app/lib/screens/home_screen.dart | Main feed + shimmer + streak chip |
 | flutter_app/lib/widgets/job_card.dart | Premium job card UI |
 | flutter_app/lib/services/api_service.dart | All API calls |
 | flutter_app/lib/models/job_model.dart | Job + UserProfile models |
-| backend/main.py | FastAPI endpoints |
-| scraper/scraper.py | Multi-source scraper, entry: run_all() |
+| flutter_app/lib/services/ad_service.dart | Banner, interstitial, app open ads |
+| flutter_app/lib/services/ad_ids.dart | AdMob unit IDs (test vs prod via --dart-define) |
+| flutter_app/lib/services/notification_service.dart | FCM + local notifications + deeplink routing |
+| flutter_app/lib/screens/daily_quiz_screen.dart | Daily quiz + streak tracking (SharedPrefs: quiz_streak) |
+| flutter_app/lib/screens/announcements_screen.dart | Announcements feed |
+| backend/main.py | FastAPI endpoints (OIDC cron at /internal/cron/scrape + /internal/cron/quiz) |
+| backend/scraper.py | Canonical scraper (DO NOT overwrite with scraper/scraper.py) |
+| backend/quiz_scraper.py | Quiz content scraper |
+| scraper/scraper.py | Dev copy — sync to backend/scraper.py after changes |
+
+---
+
+## Cloud Scheduler (Automated — no manual curl needed)
+| Job | Schedule | Endpoint | What it does |
+|-----|----------|----------|--------------|
+| `jobmitra-daily-scrape` | 20:30 UTC (2 AM IST) daily | `POST /internal/cron/scrape` | Scrapes all sources + pushes "New Jobs" FCM notification |
+| `jobmitra-daily-quiz` | 02:30 UTC (8 AM IST) daily | `POST /internal/cron/quiz` | Scrapes quiz questions + pushes "Aaj ka Quiz Ready!" notification |
+
+Both endpoints use OIDC auth (`jobmitra-scheduler@jobmitra-17db0.iam.gserviceaccount.com`).
 
 ---
 
@@ -111,27 +128,25 @@ background = Color(0xFFF5F7F5)
 # Cloud Run redeploy (from backend/)
 # --max-instances 2: caps billing; backend is I/O-bound (Turso HTTP), 2 instances handle peak load
 # --memory 512Mi: default is 1Gi; FastAPI+uvicorn+scraper fits in 512Mi, halves idle cost
-# --cpu 1: default; leave as-is (scale-to-zero zeroes cost between scrape runs)
 cd ~/jobmitra/backend && gcloud run deploy jobmitra-api \
   --source=. --region=asia-south1 --project=jobmitra-17db0 \
   --max-instances=2 --memory=512Mi --cpu=1 \
   --set-secrets=TURSO_URL=TURSO_URL:latest,TURSO_TOKEN=TURSO_TOKEN:latest,SCRAPER_SECRET=SCRAPER_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest
 
-# Fetch SCRAPER_SECRET (for curl admin endpoints)
+# Manual scrape trigger (only for testing — normally runs via Cloud Scheduler)
 SECRET=$(gcloud secrets versions access latest --secret=SCRAPER_SECRET --project=jobmitra-17db0)
-
-# Trigger scrape
 curl -X POST "https://jobmitra-api-830207301447.asia-south1.run.app/admin/scrape?secret=${SECRET}"
 
 # Check stats
 curl https://jobmitra-api-830207301447.asia-south1.run.app/stats
 
+# Check health
+curl https://jobmitra-api-830207301447.asia-south1.run.app/health
+
 # Clear app data
 adb shell pm clear com.jobmitra.app
 
 # Release APK build (real AdMob unit IDs injected at build time)
-# ADMOB_APP_OPEN_ID: create in AdMob console → New ad unit → App open format
-# ADMOB_REWARDED_ID: create in AdMob console → New ad unit → Rewarded format
 cd ~/jobmitra/flutter_app && flutter build apk --release \
   --dart-define=ADMOB_INTERSTITIAL_ID=ca-app-pub-1651515480969781/2757886235 \
   --dart-define=ADMOB_BANNER_ID=ca-app-pub-1651515480969781/7986162182 \
@@ -147,3 +162,4 @@ cd ~/jobmitra/flutter_app && flutter build appbundle --release \
 
 # Flutter run
 cd ~/jobmitra/flutter_app && flutter run
+```

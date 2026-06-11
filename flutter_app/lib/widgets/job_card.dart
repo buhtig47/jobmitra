@@ -1,5 +1,6 @@
 // lib/widgets/job_card.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
@@ -39,7 +40,7 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
   }
 
   void _onTapDown(_) => _controller.reverse();
-  void _onTapUp(_) { _controller.forward(); widget.onTap(); }
+  void _onTapUp(_) { _controller.forward(); HapticFeedback.lightImpact(); widget.onTap(); }
   void _onTapCancel() => _controller.forward();
 
   Future<void> _shareJob(Job job) async {
@@ -61,6 +62,20 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
   }
 
   Color get _categoryColor => JobCategoryColors.colorFor(widget.job.category);
+
+  // Returns a human-readable location string for state-specific jobs.
+  // Returns null for All India jobs (no chip shown — avoids redundant noise).
+  String? _locationLabel(Job job) {
+    final states = job.states
+        .where((s) => s.isNotEmpty && s.toLowerCase() != 'all')
+        .toList();
+    if (states.isEmpty) return null;
+    final display = states
+        .take(3)
+        .map((s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase())
+        .join(', ');
+    return states.length > 3 ? '$display +${states.length - 3}' : display;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,29 +160,44 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
                               ],
                             ),
                           ],
+                          if (_locationLabel(job) case final loc when loc != null) ...[
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 13, color: Colors.grey[500]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  loc,
+                                  style: AppText.caption(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: Color(0xFFF0F0F0)),
                           const SizedBox(height: 10),
                           // Metadata grid — two facts left, two action buttons right.
                           Row(
                             children: [
-                              _StatChip(
-                                icon: Icons.people_outline,
-                                label: job.vacanciesText,
-                                color: job.vacancies > 0
-                                    ? const Color(0xFF2E7D32)
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 8),
-                              _StatChip(
-                                icon: Icons.currency_rupee,
-                                label: job.feeText,
-                                color: job.isFree
-                                    ? const Color(0xFF2E7D32)
-                                    : job.fee < 0
-                                        ? Colors.grey
-                                        : const Color(0xFF1565C0),
-                              ),
+                              if (job.vacancies > 0) ...[
+                                _StatChip(
+                                  icon: Icons.people_outline,
+                                  label: job.vacanciesText,
+                                  color: const Color(0xFF2E7D32),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              if (job.fee >= 0)
+                                _StatChip(
+                                  icon: Icons.currency_rupee,
+                                  label: job.feeText,
+                                  color: job.isFree
+                                      ? const Color(0xFF2E7D32)
+                                      : const Color(0xFF1565C0),
+                                ),
                               const Spacer(),
                               _IconAction(
                                 icon: Icons.share_rounded,

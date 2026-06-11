@@ -909,6 +909,34 @@ NON_JOB_WORDS = {
     "in hand salary of",
 }
 
+# Phrases that strongly indicate a news article, not a job listing.
+# Checked against the title only — descriptions can legitimately mention these.
+NEWS_TITLE_PHRASES = {
+    "faces", "amid", "cyber attack", "hacked", "portal down",
+    "news", "latest update", "breaking",
+}
+
+# At least one of these must appear in the title for a post to be a valid job.
+JOB_TITLE_KEYWORDS = {
+    "recruitment", "vacancy", "vacancies", "apply", "application",
+    "jobs", "post", "posts", "bharti", "notification", "admit card",
+    "result", "answer key", "syllabus", "cut off", "merit list",
+    "sarkari", "naukri", "hiring", "opening", "walk-in",
+}
+
+
+def is_valid_job(title: str, description: str) -> bool:
+    """Return False (and log) if title looks like a news article, not a job."""
+    t = title.lower()
+    if any(phrase in t for phrase in NEWS_TITLE_PHRASES):
+        log.info(f"REJECTED (not a job): {title}")
+        return False
+    if not any(kw in t for kw in JOB_TITLE_KEYWORDS):
+        log.info(f"REJECTED (not a job): {title}")
+        return False
+    return True
+
+
 PRIVATE_JOB_BLOCKLIST = {
     "gulf job", "gulf vacancy", "gulf walkin", "saudi aramco", "saudi arabia",
     "dubai job", "uae job", "qatar job", "kuwait job", "bahrain job",
@@ -1642,6 +1670,9 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         return None
 
     if _is_private_job(title, url):
+        return None
+
+    if not is_valid_job(title, extra):
         return None
 
     # Mojibake check on both title and description — corrupt UTF-8 sequences

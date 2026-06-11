@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -37,6 +39,8 @@ void main() async {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  tz_data.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
 
   // 1. Offline cache. Hive init can fail on a corrupted file (rare, but a
   // single bad write during an OOM kill can leave the box unreadable). Swallow
@@ -131,6 +135,12 @@ Future<void> _bootstrap() async {
 
   final prefs = await SharedPreferences.getInstance();
   await _ensureInstallId(prefs);  // stable identity across reinstalls/token rotations
+  // Track opens for rate-us prompt — first_open_date set once, count increments each launch
+  final openCount = (prefs.getInt('app_open_count') ?? 0) + 1;
+  await prefs.setInt('app_open_count', openCount);
+  if (!prefs.containsKey('first_open_date')) {
+    await prefs.setString('first_open_date', DateTime.now().toIso8601String().substring(0, 10));
+  }
   await L10n.loadFromPrefs();     // pick language from prefs once at boot
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final userId = prefs.getInt('user_id');

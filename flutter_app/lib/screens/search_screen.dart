@@ -1,6 +1,7 @@
 // lib/screens/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -28,14 +29,37 @@ class _SearchScreenState extends State<SearchScreen> {
   UserProfile? _profile;
   List<String> _recentSearches = [];
   String? _lastQuery;
+  String _deadlineFilter = 'any'; // 'any' | 'week' | 'month'
+  bool _filterHasVacancies = false;
+  bool _filterNewOnly = false;
+  String? _stateFilter;
 
-  bool get _hasActiveFilter => _categoryFilter != null || _filterFreeOnly;
+  bool get _hasActiveFilter =>
+      _categoryFilter != null ||
+      _filterFreeOnly ||
+      _deadlineFilter != 'any' ||
+      _filterHasVacancies ||
+      _filterNewOnly ||
+      _stateFilter != null;
 
   List<Job> get _filteredResults {
-    var list = _categoryFilter == null
-        ? _results
-        : _results.where((j) => j.category == _categoryFilter).toList();
+    var list = _results.toList();
+    if (_categoryFilter != null) list = list.where((j) => j.category == _categoryFilter).toList();
     if (_filterFreeOnly) list = list.where((j) => j.isFree).toList();
+    if (_filterHasVacancies) list = list.where((j) => j.vacancies > 0).toList();
+    if (_filterNewOnly) {
+      final cutoff = DateTime.now().subtract(const Duration(days: 7));
+      list = list.where((j) {
+        try { return DateTime.parse(j.scrapedAt).isAfter(cutoff); } catch (_) { return false; }
+      }).toList();
+    }
+    if (_deadlineFilter != 'any') {
+      final maxDays = _deadlineFilter == 'week' ? 7 : 30;
+      list = list.where((j) => j.daysLeft >= 0 && j.daysLeft <= maxDays).toList();
+    }
+    if (_stateFilter != null) {
+      list = list.where((j) => j.states.contains(_stateFilter)).toList();
+    }
     return list;
   }
 
@@ -321,24 +345,29 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildBody() {
-    if (_isSearching) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Searching for "$_lastQuery"...',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_isSearching) return _buildShimmer();
     if (_lastQuery == null) return _buildDiscovery();
-    if (_results.isEmpty) return _buildNoResults();
+    if (_filteredResults.isEmpty) return _buildNoResults();
     return _buildResults();
+  }
+
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE0E0E0),
+      highlightColor: Colors.white,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        itemCount: 4,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          height: 130,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildResults() {
@@ -434,46 +463,8 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Trending searches ──
-          _buildSectionHeader('🔥 Trending Searches', null),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _kTrending.map((t) {
-              final (term, emoji, color) = t;
-              return GestureDetector(
-                onTap: () { _controller.text = term; _search(term); },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: color.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(emoji, style: const TextStyle(fontSize: 14)),
-                      const SizedBox(width: 6),
-                      Text(
-                        term,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-
-          // ── Recent searches ──
+          // ── Recent searches (shown first if available) ──
           if (_recentSearches.isNotEmpty) ...[
-            const SizedBox(height: 28),
             _buildSectionHeader(
               '⏰ Recent Searches',
               GestureDetector(
@@ -567,7 +558,45 @@ class _SearchScreenState extends State<SearchScreen> {
               'Long press to remove a recent search',
               style: TextStyle(fontSize: 11, color: AppColors.textHint),
             ),
+            const SizedBox(height: 28),
           ],
+
+          // ── Trending searches ──
+          _buildSectionHeader('🔥 Trending Searches', null),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _kTrending.map((t) {
+              final (term, emoji, color) = t;
+              return GestureDetector(
+                onTap: () { _controller.text = term; _search(term); },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: color.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        term,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
@@ -593,82 +622,184 @@ class _SearchScreenState extends State<SearchScreen> {
   void _showFilterSheet() {
     String? tempCat = _categoryFilter;
     bool tempFree = _filterFreeOnly;
+    String tempDeadline = _deadlineFilter;
+    bool tempHasVacancies = _filterHasVacancies;
+    bool tempNewOnly = _filterNewOnly;
+    String? tempState = _stateFilter;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Text('Filters', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () { setS(() { tempCat = null; tempFree = false; }); },
-                    child: const Text('Clear all', style: TextStyle(color: AppColors.primary)),
-                  ),
-                ],
+        builder: (ctx, setS) {
+          Widget toggleTile(String emoji, String label, bool value, VoidCallback onTap) {
+            return GestureDetector(
+              onTap: onTap,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: value ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: value ? AppColors.primary : AppColors.divider),
+                ),
+                child: Row(
+                  children: [
+                    Text(emoji, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+                    if (value) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                  ],
+                ),
               ),
-              const SizedBox(height: 4),
-              const Text('Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                children: [
-                  _filterChip('All', null, tempCat, (v) => setS(() => tempCat = v)),
-                  ...JobCategories.all.map((c) => _filterChip(
-                    '${c['icon']} ${c['label']}', c['key'] as String, tempCat, (v) => setS(() => tempCat = v),
-                  )),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text('Options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => setS(() => tempFree = !tempFree),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: tempFree ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: tempFree ? AppColors.primary : AppColors.divider),
+            );
+          }
+
+          Widget deadlineOption(String value, String label) {
+            final sel = tempDeadline == value;
+            return GestureDetector(
+              onTap: () => setS(() => tempDeadline = value),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: sel ? AppColors.primary.withValues(alpha: 0.12) : AppColors.background,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: sel ? AppColors.primary : AppColors.divider),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel ? AppColors.primary : AppColors.textSecondary,
                   ),
-                  child: Row(
+                ),
+              ),
+            );
+          }
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.82,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Header (fixed)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('💸', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 10),
-                      const Expanded(child: Text('Free to Apply only', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-                      if (tempFree) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                      Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          const Text('Filters', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => setS(() {
+                              tempCat = null; tempFree = false; tempDeadline = 'any';
+                              tempHasVacancies = false; tempNewOnly = false; tempState = null;
+                            }),
+                            child: const Text('Clear all', style: TextStyle(color: AppColors.primary)),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() { _categoryFilter = tempCat; _filterFreeOnly = tempFree; });
-                    Navigator.pop(ctx);
-                  },
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-                  child: const Text('Apply Filters'),
+                // Scrollable content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // State filter (S2)
+                        const Text('State', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 36,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _filterChip('🌏 All India', null, tempState, (v) => setS(() => tempState = v)),
+                              const SizedBox(width: 8),
+                              ...IndianStates.all
+                                  .where((s) => s != 'All India')
+                                  .map((s) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _filterChip(s, s, tempState, (v) => setS(() => tempState = v)),
+                              )),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Category
+                        const Text('Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: [
+                            _filterChip('All', null, tempCat, (v) => setS(() => tempCat = v)),
+                            ...JobCategories.all.map((c) => _filterChip(
+                              '${c['icon']} ${c['label']}', c['key'] as String, tempCat, (v) => setS(() => tempCat = v),
+                            )),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Deadline
+                        const Text('Deadline', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            deadlineOption('any', '📅 Any'),
+                            deadlineOption('week', '⚡ This Week'),
+                            deadlineOption('month', '🗓️ This Month'),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Options
+                        const Text('Options', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        toggleTile('💸', 'Free to Apply only', tempFree, () => setS(() => tempFree = !tempFree)),
+                        toggleTile('🏢', 'Has Vacancies listed', tempHasVacancies, () => setS(() => tempHasVacancies = !tempHasVacancies)),
+                        toggleTile('🆕', 'New Jobs (last 7 days)', tempNewOnly, () => setS(() => tempNewOnly = !tempNewOnly)),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
+                // Apply button (fixed at bottom)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _categoryFilter = tempCat;
+                          _filterFreeOnly = tempFree;
+                          _deadlineFilter = tempDeadline;
+                          _filterHasVacancies = tempHasVacancies;
+                          _filterNewOnly = tempNewOnly;
+                          _stateFilter = tempState;
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+                      child: const Text('Apply Filters'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -690,6 +821,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildNoResults() {
+    final filtersActive = _hasActiveFilter && _results.isNotEmpty;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -705,9 +837,9 @@ class _SearchScreenState extends State<SearchScreen> {
               child: const Text('🔍', style: TextStyle(fontSize: 48)),
             ),
             const SizedBox(height: 20),
-            Text(
-              'No jobs found for "$_lastQuery"',
-              style: const TextStyle(
+            const Text(
+              'Koi job nahi mila 🔍',
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -715,20 +847,41 @@ class _SearchScreenState extends State<SearchScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Try a different keyword — e.g. "railway", "clerk", "constable"',
+            Text(
+              filtersActive
+                  ? 'Filters ki wajah se koi result nahi'
+                  : 'Dusra keyword try karo — e.g. "railway", "clerk", "constable"',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 28),
-            ElevatedButton.icon(
-              onPressed: () { _controller.clear(); _focusNode.requestFocus(); },
-              icon: const Icon(Icons.search_rounded, size: 18),
-              label: const Text('Search Again'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            if (filtersActive)
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _categoryFilter = null;
+                    _filterFreeOnly = false;
+                    _deadlineFilter = 'any';
+                    _filterHasVacancies = false;
+                    _filterNewOnly = false;
+                    _stateFilter = null;
+                  });
+                },
+                icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+                label: const Text('Filters Clear Karo'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: () { _controller.clear(); _focusNode.requestFocus(); },
+                icon: const Icon(Icons.search_rounded, size: 18),
+                label: const Text('Search Again'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
               ),
-            ),
           ],
         ),
       ),

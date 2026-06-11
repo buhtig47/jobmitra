@@ -1,9 +1,13 @@
 // lib/screens/daily_quiz_screen.dart
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'package:share_plus/share_plus.dart';
+import '../services/ad_service.dart';
 import '../services/api_service.dart';
 
 class _Q {
@@ -525,12 +529,16 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   int _todayScore = 0;
   bool _loading = true;
 
+  bool _hintUsed = false;
+  Set<int> _eliminatedOptions = {};
+
   // Per-session answer trail so end-of-quiz review can show every wrong answer
   // with its explanation. Index parallel to _questions.
   final List<int?> _trail = [];
   // Bookmarked question IDs across sessions (any quiz, any day). Stored as
   // a JSON-free SharedPreferences StringList keyed by _Q.id.
-  static const _kBookmarksKey = 'quiz_bookmarks_v1';
+  static const _kBookmarksKey     = 'quiz_bookmarks_v1';
+  static const _kBookmarksDataKey = 'quiz_bookmarks_data_v1';
   Set<String> _bookmarks = {};
 
   @override
@@ -604,6 +612,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (_answered) return;
     final qs = _questions;
     if (qs == null || _qIndex < 0 || _qIndex >= qs.length) return;
+    HapticFeedback.lightImpact();
     setState(() {
       _selected = idx;
       _answered = true;
@@ -631,21 +640,71 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       _qIndex++;
       _selected = null;
       _answered = false;
+      _hintUsed = false;
+      _eliminatedOptions = {};
     });
   }
 
-  Future<void> _toggleBookmark(String id) async {
+  Future<void> _toggleBookmark(String id, _Q q) async {
     if (id.isEmpty) return;
+    HapticFeedback.lightImpact();
     final next = Set<String>.from(_bookmarks);
-    if (next.contains(id)) {
-      next.remove(id);
-    } else {
-      next.add(id);
-    }
+    final adding = !next.contains(id);
+    if (adding) { next.add(id); } else { next.remove(id); }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_kBookmarksKey, next.toList());
+
+    // Persist full question so tools_screen can display it without re-fetching.
+    final existing = prefs.getStringList(_kBookmarksDataKey) ?? [];
+    if (adding) {
+      existing.add(jsonEncode({'id': id, 'q': q.q, 'opts': q.opts, 'ans': q.ans, 'exp': q.explanation, 'src': 'daily'}));
+    } else {
+      existing.removeWhere((s) {
+        try { return (jsonDecode(s) as Map)['id'] == id; } catch (_) { return false; }
+      });
+    }
+    await prefs.setStringList(_kBookmarksDataKey, existing);
+
     if (!mounted) return;
     setState(() => _bookmarks = next);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(adding ? '🔖 Bookmarked!' : 'Bookmark hataya'),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _useHint() {
+    if (_hintUsed || _answered) return;
+    final q = _questions![_qIndex];
+    AdService().showRewarded(
+      onRewarded: () {
+        if (!mounted) return;
+        final wrongOpts = List.generate(q.opts.length, (i) => i)
+            .where((i) => i != q.ans)
+            .toList()..shuffle();
+        setState(() {
+          _hintUsed = true;
+          _eliminatedOptions = wrongOpts.take(2).toSet();
+        });
+      },
+      onFailed: () {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ad unavailable — try again later'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.grey[800],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -668,7 +727,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+          colors: [Color(0xFF1A6B3C), Color(0xFF0D4A28)],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
       ),
@@ -772,7 +831,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                           const Spacer(),
                           if (q.id.isNotEmpty)
                             InkWell(
-                              onTap: () => _toggleBookmark(q.id),
+                              onTap: () => _toggleBookmark(q.id, q),
                               child: Padding(
                                 padding: const EdgeInsets.all(2),
                                 child: Icon(
@@ -791,11 +850,31 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                // 50-50 hint via rewarded ad — eliminates 2 wrong options
+                if (!_hintUsed && !_answered)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: _useHint,
+                      icon: const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                      label: const Text('50-50 Hint (Watch Ad)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
                 // Options
                 ...List.generate(q.opts.length, (i) {
-                  Color bg = Colors.white;
-                  Color border = Colors.grey.withValues(alpha: 0.2);
-                  Color text = AppColors.textPrimary;
+                  final eliminated = !_answered && _eliminatedOptions.contains(i);
+                  Color bg = eliminated ? const Color(0xFFF5F5F5) : Colors.white;
+                  Color border = eliminated
+                      ? Colors.grey.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.2);
+                  Color text = eliminated ? Colors.grey[400]! : AppColors.textPrimary;
                   Widget? trailing;
 
                   if (_answered) {
@@ -817,42 +896,49 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   }
 
                   return GestureDetector(
-                    onTap: () => _answer(i),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 26, height: 26,
-                            decoration: BoxDecoration(
-                              color: border.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                String.fromCharCode(65 + i),
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: border),
+                    onTap: eliminated ? null : () => _answer(i),
+                    child: Opacity(
+                      opacity: eliminated ? 0.45 : 1.0,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: border),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 26, height: 26,
+                              decoration: BoxDecoration(
+                                color: border.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  String.fromCharCode(65 + i),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: border),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(q.opts[i], style: TextStyle(fontSize: 14, color: text, fontWeight: FontWeight.w500))),
-                          if (trailing != null) trailing,
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(q.opts[i], style: TextStyle(
+                                fontSize: 14,
+                                color: text,
+                                fontWeight: FontWeight.w500,
+                                decoration: eliminated ? TextDecoration.lineThrough : null))),
+                            if (trailing != null) trailing,
+                          ],
+                        ),
                       ),
                     ),
                   );
                 }),
                 const SizedBox(height: 8),
-                // Explanation card — appears after the user has answered.
-                // Hidden entirely when explanation is empty (static fallback rows).
-                if (_answered && q.explanation.isNotEmpty)
+                // Answer explanation — always shown after answering.
+                // Falls back to "Sahi jawab: X" when no explanation in data.
+                if (_answered)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -874,8 +960,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        Text(q.explanation,
-                            style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF5D4037))),
+                        Text(
+                          q.explanation.isNotEmpty
+                              ? q.explanation
+                              : 'Sahi jawab: ${q.opts[q.ans]}',
+                          style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF5D4037))),
                       ],
                     ),
                   ),
@@ -1002,7 +1091,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                             const Spacer(),
                             if (q.id.isNotEmpty)
                               InkWell(
-                                onTap: () => _toggleBookmark(q.id),
+                                onTap: () => _toggleBookmark(q.id, q),
                                 child: Icon(
                                   _bookmarks.contains(q.id) ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                                   color: _bookmarks.contains(q.id) ? const Color(0xFFE65100) : Colors.grey[400],
@@ -1039,6 +1128,35 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   );
                 }),
                 const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final total = _questions!.length;
+                    final pct = (_score / total * 100).round();
+                    final grade = pct >= 80
+                        ? '🏆 Excellent!'
+                        : pct >= 60
+                            ? '👍 Good Job!'
+                            : pct >= 40
+                                ? '📚 Keep Practising'
+                                : '💪 Try Again Tomorrow';
+                    Share.share(
+                      '🇮🇳 JobMitra Daily Quiz\n'
+                      'Score: $_score / $total ($pct%)\n'
+                      '$grade\n'
+                      '🔥 $_streak day streak!\n\n'
+                      'Sarkari Naukri ki daily taiyari — JobMitra app pe!',
+                    );
+                  },
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Share Result'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(

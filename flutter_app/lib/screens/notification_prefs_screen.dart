@@ -75,7 +75,12 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
   };
 
   final Map<String, bool> _enabled = {};
-  bool _generalEnabled = true;
+  bool _generalEnabled   = true;
+  bool _newJobs          = true;
+  bool _deadlines        = true;
+  bool _examReminders    = true;
+  bool _dailyQuiz        = true;
+  bool _currentAffairs   = true;
   bool _loading = true;
 
   @override
@@ -86,13 +91,32 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    _generalEnabled = prefs.getBool('notif_general') ?? true;
+    _generalEnabled  = prefs.getBool('notif_general')         ?? true;
+    _newJobs         = prefs.getBool('notif_new_jobs')         ?? true;
+    _deadlines       = prefs.getBool('notif_deadlines')        ?? true;
+    _examReminders   = prefs.getBool('notif_exam_reminders')   ?? true;
+    _dailyQuiz       = prefs.getBool('notif_daily_quiz')       ?? true;
+    _currentAffairs  = prefs.getBool('notif_current_affairs')  ?? true;
     for (final group in _groups.values) {
       for (final (code, _) in group) {
         _enabled[code] = prefs.getBool('notif_org_$code') ?? true;
       }
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _toggleFeature(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+    setState(() {
+      switch (key) {
+        case 'notif_new_jobs':        _newJobs        = value;
+        case 'notif_deadlines':       _deadlines      = value;
+        case 'notif_exam_reminders':  _examReminders  = value;
+        case 'notif_daily_quiz':      _dailyQuiz      = value;
+        case 'notif_current_affairs': _currentAffairs = value;
+      }
+    });
   }
 
   Future<void> _toggleOrg(String code, bool value) async {
@@ -170,6 +194,8 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
           : ListView(
               children: [
                 _buildIntro(),
+                _buildFeatureSection(),
+                const Divider(height: 1),
                 _buildGeneralTile(),
                 const Divider(height: 1),
                 for (final entry in _groups.entries) ...[
@@ -180,6 +206,44 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
                 const SizedBox(height: 24),
               ],
             ),
+    );
+  }
+
+  Widget _buildFeatureSection() {
+    const features = [
+      ('notif_new_jobs',        '💼', 'New matching jobs',      'Notifications when new jobs match your profile'),
+      ('notif_deadlines',       '📅', 'Deadline alerts',        '3 days before last date to apply'),
+      ('notif_exam_reminders',  '📝', 'Exam date reminders',    'Alert before scheduled exam dates'),
+      ('notif_daily_quiz',      '🧠', 'Daily quiz reminder',    'Aaj ka quiz ready! — 8 AM push'),
+      ('notif_current_affairs', '📰', 'Current affairs',        'Daily current affairs digest'),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Text('NOTIFICATION TYPES',
+              style: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+        ),
+        for (final (key, emoji, title, subtitle) in features)
+          SwitchListTile(
+            secondary: Text(emoji, style: const TextStyle(fontSize: 20)),
+            title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            value: switch (key) {
+              'notif_new_jobs'        => _newJobs,
+              'notif_deadlines'       => _deadlines,
+              'notif_exam_reminders'  => _examReminders,
+              'notif_daily_quiz'      => _dailyQuiz,
+              _                       => _currentAffairs,
+            },
+            activeColor: AppColors.primary,
+            onChanged: (v) => _toggleFeature(key, v),
+          ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 

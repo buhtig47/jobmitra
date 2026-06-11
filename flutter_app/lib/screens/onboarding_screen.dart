@@ -24,8 +24,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int     _selectedAge = 25;
   final   Set<String> _selectedJobTypes = {};
   bool    _isLoading = false;
+  final TextEditingController _stateSearchCtrl = TextEditingController();
+  String  _stateSearch = '';
 
   final _api = ApiService();
+
+  @override
+  void dispose() {
+    _stateSearchCtrl.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +137,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // ─── PAGE 2: State ───
   Widget _buildStatePage() {
+    final filtered = _stateSearch.isEmpty
+        ? IndianStates.all
+        : IndianStates.all
+            .where((s) => s.toLowerCase().contains(_stateSearch.toLowerCase()))
+            .toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -141,16 +156,52 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Text('State-specific jobs will be shown for you',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: IndianStates.all.map((state) => _buildSelectChip(
-              label: state,
-              isSelected: _selectedState == state,
-              onTap: () => setState(() => _selectedState = state),
-            )).toList(),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _stateSearchCtrl,
+            onChanged: (v) => setState(() => _stateSearch = v),
+            decoration: InputDecoration(
+              hintText: 'Apna state search karo...',
+              hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+              prefixIcon: const Icon(Icons.search, size: 20, color: Colors.grey),
+              suffixIcon: _stateSearch.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                      onPressed: () {
+                        _stateSearchCtrl.clear();
+                        setState(() => _stateSearch = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFFF5F5F5),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              constraints: const BoxConstraints(maxHeight: 44),
+            ),
           ),
+          const SizedBox(height: 16),
+          if (filtered.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text('Koi state nahi mila 🔍',
+                    style: TextStyle(color: Colors.grey, fontSize: 14)),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: filtered.map((state) => _buildSelectChip(
+                label: state,
+                isSelected: _selectedState == state,
+                onTap: () => setState(() => _selectedState = state),
+              )).toList(),
+            ),
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: _selectedState != null ? _nextPage : null,
@@ -227,7 +278,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('A Little More',
+          Text('Tell Us About You',
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: 32),
@@ -296,13 +347,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ],
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _selectedCategory != null ? _nextPage : null,
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
             child: const Text('Next →'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           TextButton(
             onPressed: () {
               _selectedAge = 25;

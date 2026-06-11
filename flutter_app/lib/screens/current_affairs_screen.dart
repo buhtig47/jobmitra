@@ -241,7 +241,7 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
             Text(
               _bookmarksOnly
                   ? 'No bookmarks yet\nTap the bookmark icon on any article'
-                  : 'No articles yet\nTry refreshing!',
+                  : 'Articles update ho rahe hain,\nthodi der mein try karo',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
             ),

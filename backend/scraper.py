@@ -909,6 +909,34 @@ NON_JOB_WORDS = {
     "in hand salary of",
 }
 
+# Phrases that strongly indicate a news article, not a job listing.
+# Checked against the title only — descriptions can legitimately mention these.
+NEWS_TITLE_PHRASES = {
+    "faces", "amid", "cyber attack", "hacked", "portal down",
+    "news", "latest update", "breaking",
+}
+
+# At least one of these must appear in the title for a post to be a valid job.
+JOB_TITLE_KEYWORDS = {
+    "recruitment", "vacancy", "vacancies", "apply", "application",
+    "jobs", "post", "posts", "bharti", "notification", "admit card",
+    "result", "answer key", "syllabus", "cut off", "merit list",
+    "sarkari", "naukri", "hiring", "opening", "walk-in",
+}
+
+
+def is_valid_job(title: str, description: str) -> bool:
+    """Return False (and log) if title looks like a news article, not a job."""
+    t = title.lower()
+    if any(phrase in t for phrase in NEWS_TITLE_PHRASES):
+        log.info(f"REJECTED (not a job): {title}")
+        return False
+    if not any(kw in t for kw in JOB_TITLE_KEYWORDS):
+        log.info(f"REJECTED (not a job): {title}")
+        return False
+    return True
+
+
 PRIVATE_JOB_BLOCKLIST = {
     "gulf job", "gulf vacancy", "gulf walkin", "saudi aramco", "saudi arabia",
     "dubai job", "uae job", "qatar job", "kuwait job", "bahrain job",
@@ -1624,7 +1652,7 @@ _MOJIBAKE_PATTERNS = re.compile(
     # `Ã¤` for ä, `â€“` for –, `â€œ` for “, `Ã±` for ñ, etc.). Real Hindi/
     # Devanagari text never produces these. Anything matching is broken
     # encoding from the source — better to drop than to ship to users.
-    r"â€™|â€œ|â€|â€“|â€”|â€¢|â„¢|Ã[©¨ª«¬®¯°±´¹»¼]|Ã\s|â€\s|â€\?"
+    r"â€™|â€œ|â€|â€“|â€”|â€¢|â„¢|Ã[©¨ª«¬®¯°±´¹»¼]|Ã\s|â€\s|â€\?"
 )
 
 
@@ -1642,6 +1670,9 @@ def build_job(title: str, url: str, source: str, extra: str = "",
         return None
 
     if _is_private_job(title, url):
+        return None
+
+    if not is_valid_job(title, extra):
         return None
 
     # Mojibake check on both title and description — corrupt UTF-8 sequences
@@ -2378,150 +2409,6 @@ def run_all() -> list:
         log.warning(f"\n  ⚠ 'others' is {others_pct}% — add more category keywords")
 
     return unique
-
-
-# ════════════════════════════════════════════════════════
-#  ANNOUNCEMENTS PASS (v13)
-#  Captures admit-cards / results / answer-keys / cut-offs /
-#  syllabus / exam-date items that the job filter rejects.
-# ════════════════════════════════════════════════════════
-
-_ANNOUNCE_PATTERNS = [
-    ("admit_card", re.compile(r"\b(?:admit\s*card|hall\s*ticket|call\s*letter|e[\s-]?admit)\b", re.I)),
-    ("answer_key", re.compile(r"\banswer\s*key\b", re.I)),
-    ("cutoff",     re.compile(r"\bcut[\s-]?off\b", re.I)),
-    ("syllabus",   re.compile(r"\b(?:syllabus|exam\s+pattern)\b", re.I)),
-    ("exam_date",  re.compile(r"\bexam\s*(?:date|schedule|postponed|rescheduled|cancelled|centre|city)\b|\bcity\s*intimation\b", re.I)),
-    ("result",     re.compile(r"\bresult\s*(?:out|declared|announced|released|published)\b|\bfinal\s+result\b|\bmerit\s+list\b|\bselection\s+list\b|\bscorecard\b", re.I)),
-]
-
-_ANN_ORG_RE = re.compile(
-    r"\b(SSC|UPSC|RRB|IBPS|SBI|RBI|NTPC|DRDO|ISRO|AIIMS|FCI|BSF|CRPF|"
-    r"BHEL|ONGC|NHM|NABARD|SEBI|BSNL|NPCIL|CSIR|ICMR|LIC|KVS|NVS|"
-    r"HSSC|UPPSC|MPPSC|BPSC|RPSC|TNPSC|KPSC|HPPSC|CTET|REET|UPSSSC|"
-    r"NEET|JEE|CUET|GATE|CDS|NDA|CAPF|AFCAT)\b",
-    re.I,
-)
-
-def _classify_announcement(text: str):
-    """Return the announcement type with the strongest signal in `text`.
-
-    The previous implementation returned the *first* matching regex in
-    declaration order, so a single clickbait article mentioning "admit card,
-    result, answer key" all got classified as admit_card. We now count match
-    hits per pattern (each occurrence is a vote) and pick the highest score;
-    ties resolve by the declaration order, which doubles as a priority list
-    (admit_card before answer_key before result, etc.)."""
-    if not text:
-        return None
-    scores: list[tuple[int, int, str]] = []  # (-score, priority, kind)
-    for priority, (kind, pat) in enumerate(_ANNOUNCE_PATTERNS):
-        n = len(pat.findall(text))
-        if n > 0:
-            scores.append((-n, priority, kind))
-    if not scores:
-        return None
-    scores.sort()  # most matches first; lower priority index wins on tie
-    return scores[0][2]
-
-
-def _extract_announcement_org(title: str) -> str:
-    m = _ANN_ORG_RE.search(title)
-    return m.group(0).upper() if m else ""
-
-
-def build_announcement(title: str, url: str, source: str, desc: str, pub_date: str):
-    if not title or not url:
-        return None
-    title = clean_title(title)
-    if len(title) < 6:
-        return None
-    kind = _classify_announcement(f"{title} {desc[:200]}")
-    if not kind:
-        return None
-    return {
-        "type":         kind,
-        "title":        title[:300],
-        "exam_name":    "",
-        "organisation": _extract_announcement_org(title),
-        "release_date": _parse_pub_date_iso(pub_date) or "",
-        "source":       source,
-        "source_url":   url,
-        "description":  (desc or "")[:500].strip(),
-        "scraped_at":   datetime.now().isoformat(),
-    }
-
-
-def _scrape_rss_for_announcements(name: str, url: str) -> list:
-    raw = _fetch(url, timeout=12)
-    if not raw:
-        return []
-    try:
-        txt = re.sub(r"&(?!(amp|lt|gt|apos|quot|#\d+);)", "&amp;", raw)
-        root = ET.fromstring(txt.encode("utf-8"))
-    except ET.ParseError:
-        return []
-
-    NS_ATOM = {"a": "http://www.w3.org/2005/Atom"}
-    items = root.findall(".//item") or root.findall(".//a:entry", NS_ATOM)
-    out = []
-    for item in items:
-        t_el = item.find("title")
-        title = (t_el.text or "").strip() if t_el is not None else ""
-        l_el = item.find("link")
-        link = ""
-        if l_el is not None:
-            link = (l_el.text or l_el.get("href") or "").strip()
-        d_el = (item.find("description")
-                or item.find("{http://www.w3.org/2005/Atom}summary"))
-        desc = ""
-        if d_el is not None and d_el.text:
-            desc = BeautifulSoup(d_el.text, "html.parser").get_text(" ", strip=True)[:500]
-        pub_el = (item.find("pubDate") or item.find("published")
-                  or item.find("{http://www.w3.org/2005/Atom}published"))
-        pub_date = (pub_el.text or "").strip() if pub_el is not None else ""
-
-        ann = build_announcement(title, link, name, desc, pub_date)
-        if ann:
-            out.append(ann)
-    return out
-
-
-def run_announcements() -> list:
-    """Parallel RSS re-scrape, returning announcement-classified items (dedup by URL)."""
-    t0 = time.time()
-    log.info(f"\n📣 Announcements scrape ({len(RSS_SOURCES)} sources)")
-    bucket: list = []
-
-    def _task(item):
-        name, u = item
-        try:
-            return _scrape_rss_for_announcements(name, u)
-        except Exception as e:
-            log.warning(f"  ❌ {name}: {e}")
-            return []
-
-    with ThreadPoolExecutor(max_workers=32) as pool:
-        futures = [pool.submit(_task, it) for it in RSS_SOURCES.items()]
-        for f in as_completed(futures):
-            bucket.extend(f.result())
-
-    seen = set()
-    uniq = []
-    for a in bucket:
-        u = a["source_url"]
-        if u in seen:
-            continue
-        seen.add(u)
-        uniq.append(a)
-
-    counts: dict = {}
-    for a in uniq:
-        counts[a["type"]] = counts.get(a["type"], 0) + 1
-    log.info(f"  ✅ {len(uniq)} unique announcements in {round(time.time()-t0,1)}s")
-    for k, n in sorted(counts.items(), key=lambda x: -x[1]):
-        log.info(f"     {k:<12} {n}")
-    return uniq
 
 
 # ════════════════════════════════════════════════════════

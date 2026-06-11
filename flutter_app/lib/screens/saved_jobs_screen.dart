@@ -1,5 +1,6 @@
 // lib/screens/saved_jobs_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -29,7 +30,8 @@ const _stages = [
 class SavedJobsScreen extends StatefulWidget {
   final int userId;
   final ApiService api;
-  const SavedJobsScreen({super.key, required this.userId, required this.api});
+  final VoidCallback? onBrowseJobs;
+  const SavedJobsScreen({super.key, required this.userId, required this.api, this.onBrowseJobs});
 
   @override
   State<SavedJobsScreen> createState() => _SavedJobsScreenState();
@@ -41,10 +43,29 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
   Map<int, Map<String, String>> _trackers = {};
   bool _isLoading = true;
   late TabController _tabController;
-  String? _stageFilter; // null = show all applied jobs
+  String? _stageFilter;
+  String _savedSort = 'recent'; // 'recent' | 'deadline' | 'alpha'
+
+  static const _kSortKey = 'saved_sort_pref';
 
   List<Job> get _savedJobs   => _allJobs.where((j) => j.jobStatus == 'saved').toList();
   List<Job> get _appliedJobs => _allJobs.where((j) => j.jobStatus == 'applied').toList();
+
+  List<Job> get _sortedSavedJobs {
+    final jobs = _savedJobs.toList();
+    switch (_savedSort) {
+      case 'deadline':
+        jobs.sort((a, b) => a.daysLeft.compareTo(b.daysLeft));
+      case 'alpha':
+        jobs.sort((a, b) => a.cleanTitle.compareTo(b.cleanTitle));
+      default:
+        jobs.sort((a, b) {
+          try { return DateTime.parse(b.scrapedAt).compareTo(DateTime.parse(a.scrapedAt)); }
+          catch (_) { return 0; }
+        });
+    }
+    return jobs;
+  }
   List<Job> get _filteredApplied {
     if (_stageFilter == null) return _appliedJobs;
     return _appliedJobs.where((j) {
@@ -58,6 +79,17 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadSavedJobs();
+    _loadSortPref();
+  }
+
+  Future<void> _loadSortPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _savedSort = prefs.getString(_kSortKey) ?? 'recent');
+  }
+
+  Future<void> _saveSortPref(String sort) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kSortKey, sort);
   }
 
   @override
@@ -163,10 +195,58 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildJobList(_savedJobs, isApplied: false),
+                _buildSavedTab(),
                 _buildAppliedTab(),
               ],
             ),
+    );
+  }
+
+  Widget _buildSavedTab() {
+    Widget sortChip(String value, String label) {
+      final sel = _savedSort == value;
+      return GestureDetector(
+        onTap: () {
+          setState(() => _savedSort = value);
+          _saveSortPref(value);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: sel ? AppColors.primary.withValues(alpha: 0.15) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: sel ? AppColors.primary : Colors.grey.shade300),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+              color: sel ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 48,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            children: [
+              sortChip('recent', '🕐 Recently Saved'),
+              sortChip('deadline', '⏰ Deadline First'),
+              sortChip('alpha', '🔤 A–Z'),
+            ],
+          ),
+        ),
+        Expanded(child: _buildJobList(_sortedSavedJobs, isApplied: false)),
+      ],
     );
   }
 
@@ -374,17 +454,91 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
                       ),
                     );
                   },
-                  child: JobCard(
-                    job: job,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => JobDetailScreen(
-                          jobId: job.id, api: widget.api, userId: widget.userId,
-                        )),
-                      );
-                      _loadSavedJobs();
-                    },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      JobCard(
+                        job: job,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => JobDetailScreen(
+                              jobId: job.id, api: widget.api, userId: widget.userId,
+                            )),
+                          );
+                          _loadSavedJobs();
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 14),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final success = await widget.api.saveJob(widget.userId, job.id, 'applied');
+                                  if (success && mounted) {
+                                    setState(() {
+                                      final idx = _allJobs.indexWhere((j) => j.id == job.id);
+                                      if (idx >= 0) _allJobs[idx] = _allJobs[idx].copyWith(jobStatus: 'applied');
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Applied ✓ Moved to Applied tab'),
+                                        backgroundColor: AppColors.primary,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.check_circle_outline, size: 16),
+                                label: const Text('Applied ✓', style: TextStyle(fontSize: 13)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(color: AppColors.primary),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Remove Job?'),
+                                      content: const Text('Is job ko saved list se hatao?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          child: const Text('Remove', style: TextStyle(color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true && mounted) {
+                                    final success = await widget.api.saveJob(widget.userId, job.id, 'unsaved');
+                                    if (success && mounted) setState(() => _allJobs.removeWhere((j) => j.id == job.id));
+                                  }
+                                },
+                                icon: const Icon(Icons.bookmark_remove_outlined, size: 16),
+                                label: const Text('Remove', style: TextStyle(fontSize: 13)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red[400],
+                                  side: BorderSide(color: Colors.red[300]!),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -574,6 +728,20 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
               style: const TextStyle(
                   fontSize: 13, color: AppColors.textSecondary, height: 1.5),
             ),
+            if (!isApplied) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: widget.onBrowseJobs,
+                icon: const Icon(Icons.work_outline, size: 18),
+                label: const Text('Jobs Browse Karo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

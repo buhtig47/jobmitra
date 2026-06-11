@@ -41,9 +41,13 @@ class CheatsheetPdf {
           pw.SizedBox(height: 10),
           _buildJobBlock(job),
           pw.SizedBox(height: 14),
+          _buildDatesBlock(job),
+          pw.SizedBox(height: 14),
           _buildPersonalBlock(info),
           pw.SizedBox(height: 14),
           _buildDocsBlock(job),
+          pw.SizedBox(height: 14),
+          _buildStepsBlock(job),
           pw.SizedBox(height: 14),
           _buildOfficialLinkBlock(job),
         ],
@@ -106,6 +110,71 @@ class CheatsheetPdf {
           if ((job.payScale ?? '').isNotEmpty)
             _row('Pay scale', job.payScale!),
         ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildDatesBlock(Job job) {
+    return _sectionCard(
+      title: 'IMPORTANT DATES',
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _row('Last Date to Apply', job.lastDate.isEmpty ? 'As per notification' : job.lastDate),
+          _row('Days Remaining', job.daysLeft >= 0 ? '${job.daysLeft} days' : 'Deadline passed'),
+          _row('Generated On', _formattedDate()),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'Note: Always verify dates on the official website before applying.',
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.red700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildStepsBlock(Job job) {
+    const steps = [
+      ('1', 'Official website kholein aur "Apply Online" link dhundhein'),
+      ('2', 'New Registration karein ya login karein (email + mobile chahiye)'),
+      ('3', 'Personal details bharen — name, DOB, category (neeche se copy karein)'),
+      ('4', 'Documents upload karein — photo (JPG <100KB), signature (JPG <30KB)'),
+      ('5', 'Fee payment karein (debit/credit card / net banking / UPI)'),
+      ('6', 'Application submit karein aur confirmation number save karein'),
+      ('7', 'Final submitted application ka printout lein (evidence ke liye)'),
+    ];
+    return _sectionCard(
+      title: 'STEPS TO APPLY',
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: steps.map(((String step, String text) e) => pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 2),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: 18, height: 18,
+                margin: const pw.EdgeInsets.only(right: 8, top: 1),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.green800,
+                  shape: pw.BoxShape.circle,
+                ),
+                child: pw.Center(
+                  child: pw.Text(e.$1,
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
+                  ),
+                ),
+              ),
+              pw.Expanded(
+                child: pw.Text(e.$2, style: const pw.TextStyle(fontSize: 10)),
+              ),
+            ],
+          ),
+        )).toList(),
       ),
     );
   }
