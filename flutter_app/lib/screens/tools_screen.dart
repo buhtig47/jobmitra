@@ -15,6 +15,7 @@ import 'mock_test_screen.dart';
 import 'age_calculator_screen.dart';
 import 'daily_quiz_screen.dart';
 import 'announcements_screen.dart';
+import 'revision_screen.dart';
 
 class ToolsScreen extends StatefulWidget {
   final ApiService api;
@@ -174,6 +175,15 @@ class _ToolsScreenState extends State<ToolsScreen> {
           section: 'Practice',
           color: const Color(0xFFE65100),
           builder: (api) => CurrentAffairsScreen(api: api),
+        ),
+        _ToolDef(
+          id: 'revision',
+          emoji: '🎯',
+          title: 'Revision Center',
+          subtitle: 'Galtiyon ki practice, bookmarks, topic-wise report',
+          section: 'Practice',
+          color: const Color(0xFF00695C),
+          builder: (api) => RevisionScreen(api: api),
         ),
         _ToolDef(
           id: 'ann',

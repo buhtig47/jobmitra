@@ -221,3 +221,32 @@ def generate_career_roadmap(profile: dict) -> dict | None:
     log.info("Gemini career roadmap generated for profile age=%s edu=%s",
              profile.get("age"), profile.get("education"))
     return roadmap
+
+
+def generate_explanation(question: str, options: list, answer_index: int) -> str | None:
+    """2-3 line Hinglish explanation of why the correct option is right.
+    Used by the Revision Center for questions scraped without explanations."""
+    try:
+        correct = options[answer_index]
+    except (IndexError, TypeError):
+        return None
+    opts_text = "\n".join(f"{chr(65 + i)}. {o}" for i, o in enumerate(options))
+    prompt = f"""You are an Indian government-exam coach. Explain briefly why the correct answer is right.
+
+Question: {question}
+Options:
+{opts_text}
+Correct answer: {chr(65 + answer_index)}. {correct}
+
+Rules:
+- Reply in simple Hinglish (Hindi written in Latin script, mixed with English exam terms)
+- 2-3 short sentences only. No preamble, no "the correct answer is" repetition.
+- Add one memorable fact or trick to remember it, if natural."""
+    # 2048 not 512: gemini-2.5-flash spends "thinking" tokens from the same
+    # maxOutputTokens budget - 512 left only ~80 chars of actual output.
+    raw = _generate(_MODEL_FLASH, prompt, max_tokens=2048, temperature=0.4, timeout=30)
+    if not raw:
+        return None
+    text = raw.strip()
+    # Defensive cap — UI shows this inline under the question.
+    return text[:600] if text else None

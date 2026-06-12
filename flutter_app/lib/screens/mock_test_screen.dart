@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../services/ad_service.dart';
 import '../services/api_service.dart';
+import '../services/practice_store.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
 
@@ -899,6 +900,21 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _userAnswers.add(chosen);
       if (_qIndex < _timePerQ.length) _timePerQ[_qIndex] = spent;
     });
+    // Feed the Revision Center (skips timeouts where nothing was chosen —
+    // those are pacing problems, not knowledge gaps).
+    if (chosen >= 0) {
+      final q = _pack.questions[_qIndex];
+      PracticeStore.recordAnswer(
+        id: q.id,
+        question: q.q,
+        options: q.opts,
+        answer: q.ans,
+        correct: chosen == correct,
+        explanation: q.explanation,
+        topic: q.topic,
+        source: 'mock',
+      );
+    }
   }
 
   void _nextQuestion() {

@@ -9,6 +9,8 @@ import '../utils/constants.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/ad_service.dart';
 import '../services/api_service.dart';
+import '../services/practice_store.dart';
+import 'revision_screen.dart';
 
 class _Q {
   final String q;
@@ -628,6 +630,19 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       }
       if (idx == qs[_qIndex].ans) _score++;
     });
+    // Feed the Revision Center: wrong answers join the mistakes deck,
+    // every answer updates topic-wise accuracy.
+    final q = qs[_qIndex];
+    PracticeStore.recordAnswer(
+      id: q.id,
+      question: q.q,
+      options: q.opts,
+      answer: q.ans,
+      correct: idx == q.ans,
+      explanation: q.explanation,
+      topic: q.topic,
+      source: 'quiz',
+    );
   }
 
   void _next() {
@@ -1036,7 +1051,25 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                // Mistakes from this (and every) session land in the
+                // Revision Center — surface it right when motivation peaks.
+                if (_score < total)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              RevisionScreen(api: widget.api ?? ApiService()),
+                        ),
+                      ),
+                      icon: const Icon(Icons.replay_rounded, size: 18),
+                      label: const Text('Galtiyon ki practice karo'),
+                    ),
+                  ),
+                const SizedBox(height: 16),
                 // Review: every question with user vs correct + explanation
                 const Align(
                   alignment: Alignment.centerLeft,

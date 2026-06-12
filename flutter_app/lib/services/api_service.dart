@@ -511,6 +511,28 @@ class ApiService {
     }
   }
 
+  // ── AI Explain (Revision Center) ───────────────────────────────────────────
+  // Hinglish explanation for a question that shipped without one.
+  Future<String?> explainQuestion({
+    required String question,
+    required List<String> options,
+    required int answer,
+  }) async {
+    try {
+      final res = await _post('$kApiBase/ai/explain', {
+        'question': question,
+        'options':  options,
+        'answer':   answer,
+      });
+      if (res == null || res.statusCode != 200) return null;
+      final body = _asMap(jsonDecode(res.body));
+      final text = body['explanation'] as String?;
+      return (text == null || text.trim().isEmpty) ? null : text.trim();
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── AI Career Roadmap ──────────────────────────────────────────────────────
   Future<Map<String, dynamic>?> getCareerRoadmap({
     required int age,

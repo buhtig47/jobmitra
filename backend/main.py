@@ -2401,6 +2401,25 @@ class _RoadmapRequest(BaseModel):
     exam_type:  str    = "Any"
     prep_level: str    = "Beginner"   # Beginner | Intermediate | Advanced
 
+class _ExplainRequest(BaseModel):
+    question: str
+    options:  list[str]
+    answer:   int  # index of correct option
+
+@app.post("/ai/explain")
+def ai_explain(req: _ExplainRequest):
+    """Short Hinglish explanation for a quiz/mock question (Revision Center).
+    Called only when the scraped question has no explanation of its own."""
+    if not _gemini_available:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    if not req.question.strip() or not (0 <= req.answer < len(req.options)):
+        raise HTTPException(status_code=400, detail="invalid question payload")
+    text = _gemini.generate_explanation(req.question, req.options, req.answer)
+    if not text:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    return {"explanation": text}
+
+
 @app.post("/ai/career-roadmap")
 def ai_career_roadmap(req: _RoadmapRequest):
     """Generate a personalized career roadmap using Gemini. Rate-limit: callers
