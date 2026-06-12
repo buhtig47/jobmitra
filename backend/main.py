@@ -4,7 +4,7 @@ Deploy on Cloud Run (asia-south1)
 DB: Turso (libsql cloud) — persistent across deploys
 """
 
-from fastapi import FastAPI, HTTPException, Query, Body, Response
+from fastapi import FastAPI, HTTPException, Query, Body, Response, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
@@ -586,7 +586,10 @@ def _require_scheduler(authorization: Optional[str] = None):
 
 
 @app.post("/internal/cron/scrape")
-def cron_scrape(authorization: Optional[str] = None):
+def cron_scrape(authorization: Optional[str] = Header(None)):
+    # Header(None), NOT a bare default: a bare param is a QUERY param in
+    # FastAPI, so the OIDC Authorization header never reached the check and
+    # Cloud Scheduler got 403 every night (status code 7 in job history).
     """Called by Cloud Scheduler daily — runs the scraper + sends job alerts."""
     _require_scheduler(authorization)
     try:
@@ -628,7 +631,7 @@ def cron_scrape(authorization: Optional[str] = None):
 
 
 @app.post("/internal/cron/quiz")
-def cron_quiz(authorization: Optional[str] = None):
+def cron_quiz(authorization: Optional[str] = Header(None)):
     """Called by Cloud Scheduler daily — sends quiz reminder to all subscribers."""
     _require_scheduler(authorization)
     from datetime import date
@@ -2443,6 +2446,80 @@ def ai_career_roadmap(req: _RoadmapRequest):
 # ADMIN: Generate quiz questions via Gemini and store them
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _question_hash(q_text: str) -> str:
+    import hashlib as _hlib
+    return _hlib.md5(q_text.lower().strip().encode()).hexdigest()
+
+
+def _store_quiz_sets(questions: list) -> tuple[int, int]:
+    """Store Gemini questions into the daily-quiz pool as sets of 5.
+    Returns (inserted_count, sets_added). Duplicate questions (same hash)
+    are silently skipped by the unique index."""
+    conn = get_db()
+    max_row = conn.execute(
+        "SELECT MAX(set_index) as m FROM questions WHERE type='quiz'"
+    ).fetchone()
+    next_idx = (max_row["m"] or -1) + 1 if max_row else 0
+
+    inserted_total = 0
+    idx = next_idx
+    for batch_start in range(0, len(questions), 5):
+        batch = questions[batch_start:batch_start+5]
+        try:
+            conn2 = get_db()
+            for sort_order, q in enumerate(batch):
+                conn2.execute(
+                    """INSERT OR IGNORE INTO questions
+                       (type, set_index, question, option_a, option_b, option_c,
+                        option_d, correct, topic, explanation, sort_order, question_hash)
+                       VALUES ('quiz',?,?,?,?,?,?,?,?,?,?,?)""",
+                    (idx, q["question"], q["option_a"], q["option_b"],
+                     q["option_c"], q["option_d"], q["correct"], q["topic"],
+                     q["explanation"], sort_order, _question_hash(q["question"]))
+                )
+                inserted_total += 1
+        except Exception:
+            log.exception("quiz-set insert failed at set_index=%d", idx)
+        idx += 1
+    return inserted_total, idx - next_idx
+
+
+def _store_ai_mock_pack(exam: str, questions: list) -> int:
+    """Create a fresh AI mock pack + its questions. Returns inserted count."""
+    from datetime import date
+    today = date.today()
+    pack_id = f"ai_{exam.lower().replace(' ', '_')}_{today.strftime('%Y%m%d')}"
+    conn = get_db()
+    conn.execute(
+        """INSERT OR IGNORE INTO mock_packs
+           (pack_id, title, subtitle, emoji, color_hex, is_pyq, sort_order)
+           VALUES (?,?,?,?,?,0,?)""",
+        (pack_id,
+         f"{exam} AI Mock — {today.strftime('%d %b')}",
+         f"{len(questions)} fresh AI-generated questions",
+         "🤖", "#00695C",
+         # After the curated PYQ packs (they sort first via is_pyq) but
+         # newest AI pack on top of older AI packs.
+         1000 - today.toordinal() % 1000),
+    )
+    inserted = 0
+    for sort_order, q in enumerate(questions):
+        try:
+            conn.execute(
+                """INSERT OR IGNORE INTO questions
+                   (type, pack_id, question, option_a, option_b, option_c,
+                    option_d, correct, topic, explanation, sort_order, question_hash)
+                   VALUES ('mock',?,?,?,?,?,?,?,?,?,?,?)""",
+                (pack_id, q["question"], q["option_a"], q["option_b"],
+                 q["option_c"], q["option_d"], q["correct"], q["topic"],
+                 q["explanation"], sort_order, _question_hash(q["question"])),
+            )
+            inserted += 1
+        except Exception:
+            log.exception("mock insert failed pack=%s", pack_id)
+    return inserted
+
+
 @app.post("/admin/generate-quiz")
 def admin_generate_quiz(
     secret:     str = Query(...),
@@ -2450,50 +2527,54 @@ def admin_generate_quiz(
     count:      int = Query(10, ge=5, le=50),
     difficulty: str = Query("medium"),
 ):
-    """Call Gemini to generate fresh MCQ questions and store them in the DB.
-    Run nightly via Cloud Scheduler to keep the question pool fresh."""
+    """Call Gemini to generate fresh MCQ questions and store them in the DB."""
     require_admin(secret)
     if not _gemini_available:
         raise HTTPException(status_code=503, detail="AI service unavailable")
     questions = _gemini.generate_quiz_questions(exam=exam, count=count, difficulty=difficulty)
     if not questions:
         raise HTTPException(status_code=503, detail="Gemini returned no questions")
-
-    # Determine next set_index to avoid collisions
-    conn = get_db()
-    max_row = conn.execute(
-        "SELECT MAX(set_index) as m FROM questions WHERE type='quiz'"
-    ).fetchone()
-    next_idx = (max_row["m"] or -1) + 1 if max_row else 0
-
-    # Split into sets of 5 questions each
-    inserted_total = 0
-    idx = next_idx
-    for batch_start in range(0, len(questions), 5):
-        batch = questions[batch_start:batch_start+5]
-        for sort_order, q in enumerate(batch):
-            q["set_index"]  = idx
-            q["sort_order"] = sort_order
-            import hashlib as _hlib
-            q["question_hash"] = _hlib.md5(
-                q["question"].lower().strip().encode()
-            ).hexdigest()
-        try:
-            conn2 = get_db()
-            for q in batch:
-                conn2.execute(
-                    """INSERT OR IGNORE INTO questions
-                       (type, set_index, question, option_a, option_b, option_c,
-                        option_d, correct, topic, explanation, sort_order, question_hash)
-                       VALUES ('quiz',?,?,?,?,?,?,?,?,?,?,?)""",
-                    (q["set_index"], q["question"], q["option_a"], q["option_b"],
-                     q["option_c"], q["option_d"], q["correct"], q["topic"],
-                     q["explanation"], q["sort_order"], q["question_hash"])
-                )
-                inserted_total += 1
-        except Exception:
-            log.exception("generate-quiz insert failed at set_index=%d", idx)
-        idx += 1
-
+    inserted_total, sets_added = _store_quiz_sets(questions)
     log.info("generate-quiz: inserted %d questions for exam=%s", inserted_total, exam)
-    return {"inserted": inserted_total, "sets_added": idx - next_idx, "exam": exam}
+    return {"inserted": inserted_total, "sets_added": sets_added, "exam": exam}
+
+
+# Weekday → exam focus. Rotation keeps the pool broad without any manual
+# curation: a full week covers every major exam family.
+_CONTENT_ROTATION = [
+    "SSC CGL & CHSL",        # Mon
+    "Banking IBPS SBI",      # Tue
+    "Railway RRB NTPC",      # Wed
+    "UPSC Prelims GS",       # Thu
+    "Police & Defence",      # Fri
+    "Teaching CTET",         # Sat
+    "General GK",            # Sun
+]
+
+@app.post("/internal/cron/generate-content")
+def cron_generate_content(authorization: Optional[str] = Header(None)):
+    """Daily AI content factory (Cloud Scheduler, OIDC):
+    - every day: 20 fresh quiz questions for the day's exam focus
+    - Sundays: additionally a full 20-question AI mock pack
+    Effectively unlimited prep content at Gemini-flash prices (~free tier)."""
+    _require_scheduler(authorization)
+    if not _gemini_available:
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+
+    from datetime import date
+    exam = _CONTENT_ROTATION[date.today().weekday()]
+
+    result = {"exam": exam, "quiz_inserted": 0, "mock_inserted": 0}
+    questions = _gemini.generate_quiz_questions(exam=exam, count=20, difficulty="medium")
+    if questions:
+        inserted, sets_added = _store_quiz_sets(questions)
+        result["quiz_inserted"] = inserted
+        result["quiz_sets_added"] = sets_added
+
+    if date.today().weekday() == 6:  # Sunday — weekly AI mock pack
+        mock_qs = _gemini.generate_quiz_questions(exam=exam, count=20, difficulty="hard")
+        if mock_qs:
+            result["mock_inserted"] = _store_ai_mock_pack(exam, mock_qs)
+
+    log.info("cron/generate-content: %s", result)
+    return result

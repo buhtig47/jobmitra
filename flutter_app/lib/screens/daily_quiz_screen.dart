@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/ad_service.dart';
 import '../services/api_service.dart';
 import '../services/practice_store.dart';
+import '../widgets/banner_ad_widget.dart';
 import 'revision_screen.dart';
 
 class _Q {
@@ -1051,6 +1052,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                // Result screen = natural pause with long dwell time
+                const BannerAdWidget(),
                 const SizedBox(height: 16),
                 // Mistakes from this (and every) session land in the
                 // Revision Center — surface it right when motivation peaks.

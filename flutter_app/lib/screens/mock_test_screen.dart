@@ -10,6 +10,7 @@ import '../utils/constants.dart';
 import '../services/ad_service.dart';
 import '../services/api_service.dart';
 import '../services/practice_store.dart';
+import '../widgets/banner_ad_widget.dart';
 
 // ── Data Models ───────────────────────────────────────────────────────────────
 
@@ -922,6 +923,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
       _timer?.cancel();
       _saveBestScore(_pack.id, _score);
       setState(() => _stage = _Stage.result);
+      // Natural break point (test finished) — AdMob-recommended interstitial
+      // slot. AdService's own frequency cap still applies.
+      AdService().showInterstitial();
       return;
     }
     setState(() {
@@ -1504,6 +1508,11 @@ class _MockTestScreenState extends State<MockTestScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
+                  // High-dwell natural pause — strongest banner slot in the app
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: BannerAdWidget(),
+                  ),
                   // Topic breakdown
                   if (sortedTopics.length > 1) ...[
                     Padding(

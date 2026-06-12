@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   final ApiService api;
@@ -240,8 +241,19 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) => _buildCard(items[i], spec),
+                    // Inline banner after every 6 cards (same cadence
+                    // pattern as the home feed's every-5th slot).
+                    itemCount: items.length + items.length ~/ 6,
+                    itemBuilder: (_, i) {
+                      if ((i + 1) % 7 == 0) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: BannerAdWidget(),
+                        );
+                      }
+                      final dataIndex = i - (i + 1) ~/ 7;
+                      return _buildCard(items[dataIndex], spec);
+                    },
                   ),
           ),
         ],

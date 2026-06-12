@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/practice_store.dart';
 import '../utils/constants.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class RevisionScreen extends StatefulWidget {
   final ApiService api;
@@ -248,6 +249,8 @@ class _RevisionScreenState extends State<RevisionScreen>
             ),
           ),
         ...withSignal.map(_topicRow),
+        const SizedBox(height: 12),
+        const BannerAdWidget(),
       ],
     );
   }

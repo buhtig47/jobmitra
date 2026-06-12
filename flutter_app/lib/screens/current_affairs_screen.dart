@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class CurrentAffairsScreen extends StatefulWidget {
   final ApiService api;
@@ -263,10 +264,14 @@ class _CurrentAffairsScreenState extends State<CurrentAffairsScreen> {
       color: AppColors.primary,
       child: ListView.separated(
         padding: const EdgeInsets.all(12),
-        itemCount: list.length,
+        // Inline banner after every 6 articles
+        itemCount: list.length + list.length ~/ 6,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
-          final a = list[i];
+          if ((i + 1) % 7 == 0) {
+            return const BannerAdWidget();
+          }
+          final a = list[i - (i + 1) ~/ 7];
           return _ArticleCard(
             article: a,
             bookmarked: _bookmarks.contains(a.id),
