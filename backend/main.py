@@ -606,11 +606,24 @@ def cron_scrape(authorization: Optional[str] = Header(None)):
                 new_job_ids.append(row_id)
                 cats_inserted[job["category"]] = cats_inserted.get(job["category"], 0) + 1
         expired = 0
-        for j in conn.execute("SELECT id, last_date FROM jobs WHERE is_active=1").fetchall():
+        for j in conn.execute(
+            "SELECT id, last_date, scraped_at FROM jobs WHERE is_active=1"
+        ).fetchall():
             try:
-                if (datetime.strptime(j["last_date"], "%d/%m/%Y") - datetime.now()).days < 0:
+                dl = days_until(j["last_date"])
+                if dl < 0:
                     conn.execute("UPDATE jobs SET is_active=0 WHERE id=?", (j["id"],))
                     expired += 1
+                elif dl >= DAYS_LEFT_UNKNOWN:
+                    # No deadline known — retire after 45 days so unknown-date
+                    # jobs don't live in the feed forever.
+                    sa = (j["scraped_at"] or "")[:10]
+                    if sa:
+                        age = (datetime.now().date()
+                               - datetime.strptime(sa, "%Y-%m-%d").date()).days
+                        if age > 45:
+                            conn.execute("UPDATE jobs SET is_active=0 WHERE id=?", (j["id"],))
+                            expired += 1
             except Exception:
                 pass
         notified = 0
@@ -621,8 +634,26 @@ def cron_scrape(authorization: Optional[str] = Header(None)):
         if new_job_ids:
             try: alert_pushes = notify_users_alert_rule_matches(conn, new_job_ids)
             except Exception: pass
-        log.info("cron/scrape done inserted=%d expired=%d notified=%d", inserted, expired, notified)
-        return {"inserted": inserted, "expired": expired, "notified": notified, "alert_pushes": alert_pushes}
+        # Content freshness: CA + announcements ride the same nightly cron.
+        # They were previously manual-only and went stale within a month.
+        # No FCM push at this hour — the 8 AM quiz cron handles the digest.
+        ca_result, ann_result = {}, {}
+        try:
+            ca_result = _scrape_ca_into_db()
+        except Exception:
+            log.exception("cron/scrape: CA scrape failed")
+        try:
+            ann_result = _scrape_announcements_into_db(push=False)
+        except Exception:
+            log.exception("cron/scrape: announcements scrape failed")
+
+        log.info("cron/scrape done inserted=%d expired=%d notified=%d ca=%s ann=%s",
+                 inserted, expired, notified,
+                 ca_result.get("inserted"), ann_result.get("inserted"))
+        return {"inserted": inserted, "expired": expired, "notified": notified,
+                "alert_pushes": alert_pushes,
+                "ca_inserted": ca_result.get("inserted", 0),
+                "ann_inserted": ann_result.get("inserted", 0)}
     except HTTPException:
         raise
     except Exception:
@@ -642,8 +673,22 @@ def cron_quiz(authorization: Optional[str] = Header(None)):
         body=f"Daily GK quiz #{day_num + 1} — kya tum aaj bhi perfect score loge? 🔥",
         data={"screen": "quiz"},
     )
-    log.info("cron/quiz sent=%s", ok)
-    return {"sent": ok}
+    # Morning refresh at a humane hour: CA catch-up + announcements digest
+    # push (only NEW items since the 2 AM scrape actually notify).
+    ca_result, ann_result = {}, {}
+    try:
+        ca_result = _scrape_ca_into_db()
+    except Exception:
+        log.exception("cron/quiz: CA scrape failed")
+    try:
+        ann_result = _scrape_announcements_into_db(push=True)
+    except Exception:
+        log.exception("cron/quiz: announcements scrape failed")
+    log.info("cron/quiz sent=%s ca=%s ann=%s", ok,
+             ca_result.get("inserted"), ann_result.get("inserted"))
+    return {"sent": ok,
+            "ca_inserted": ca_result.get("inserted", 0),
+            "ann_inserted": ann_result.get("inserted", 0)}
 
 
 # ─────────────────────────────────────────
@@ -1749,27 +1794,32 @@ def get_current_affairs(
     ]
 
 
+def _scrape_ca_into_db() -> dict:
+    """Scrape current-affairs sources and upsert into the DB."""
+    from scraper import scrape_current_affairs
+    articles = scrape_current_affairs()
+    conn = get_db()
+    inserted = 0
+    for a in articles:
+        try:
+            conn.execute(
+                """INSERT OR REPLACE INTO current_affairs
+                   (title, summary, category, pub_date, source_name, source_url)
+                   VALUES (?,?,?,?,?,?)""",
+                (a["title"], a["summary"], a["category"],
+                 a["pub_date"], a["source_name"], a["source_url"])
+            )
+            inserted += 1
+        except Exception:
+            pass
+    return {"success": True, "inserted": inserted, "total": len(articles)}
+
+
 @app.post("/admin/scrape-ca")
 def scrape_current_affairs_endpoint(secret: str = Query(...)):
     require_admin(secret)
     try:
-        from scraper import scrape_current_affairs
-        articles = scrape_current_affairs()
-        conn = get_db()
-        inserted = 0
-        for a in articles:
-            try:
-                conn.execute(
-                    """INSERT OR REPLACE INTO current_affairs
-                       (title, summary, category, pub_date, source_name, source_url)
-                       VALUES (?,?,?,?,?,?)""",
-                    (a["title"], a["summary"], a["category"],
-                     a["pub_date"], a["source_name"], a["source_url"])
-                )
-                inserted += 1
-            except Exception:
-                pass
-        return {"success": True, "inserted": inserted, "total": len(articles)}
+        return _scrape_ca_into_db()
     except Exception:
         log.exception("admin/scrape-ca failed")
         raise HTTPException(status_code=500, detail="internal error")
@@ -1924,16 +1974,12 @@ def test_push(secret: str = Query(...), topic: str = Query("jobmitra_announcemen
     return {"pushed": ok, "topic": topic}
 
 
-@app.post("/admin/scrape-announcements")
-def scrape_announcements_endpoint(secret: str = Query(...)):
-    """Run the scraper's announcement pass, insert results, push digest."""
-    require_admin(secret)
-    try:
-        import scraper as _scr
-        items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
-    except Exception:
-        log.exception("admin/scrape-announcements failed")
-        raise HTTPException(status_code=500, detail="internal error")
+def _scrape_announcements_into_db(push: bool = True) -> dict:
+    """Run the scraper's announcement pass and insert results.
+    push=True additionally sends the digest + per-org FCM topics — keep it
+    False for the middle-of-the-night cron so users aren't woken at 2 AM."""
+    import scraper as _scr
+    items = _scr.run_announcements() if hasattr(_scr, "run_announcements") else []
 
     conn = get_db()
     new_count = 0
@@ -1970,7 +2016,7 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
     # Digest push notification to general topic — only when there are NEW items
     pushed = False
     org_pushes: dict[str, int] = {}
-    if new_count > 0:
+    if push and new_count > 0:
         ann_labels = {
             "admit_card": "admit cards", "result": "results",
             "answer_key": "answer keys", "cutoff": "cut-offs",
@@ -2015,6 +2061,18 @@ def scrape_announcements_endpoint(secret: str = Query(...)):
         "by_type": per_type, "pushed": pushed,
         "org_pushes": org_pushes,
     }
+
+
+@app.post("/admin/scrape-announcements")
+def scrape_announcements_endpoint(secret: str = Query(...),
+                                  push: bool = Query(True)):
+    """Run the scraper's announcement pass, insert results, push digest."""
+    require_admin(secret)
+    try:
+        return _scrape_announcements_into_db(push=push)
+    except Exception:
+        log.exception("admin/scrape-announcements failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @app.post("/admin/bulk_import")
