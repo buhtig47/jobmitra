@@ -2259,6 +2259,172 @@ def scrape_current_affairs() -> list:
 
 
 # ════════════════════════════════════════════════════════
+#  ANNOUNCEMENTS — admit cards / results / answer keys / etc.
+#  Reuses the same Sarkari-result RSS feeds as the job scraper: those feeds
+#  publish admit-card / result / answer-key posts alongside job posts. We
+#  classify each item by title and keep only the non-job announcement types.
+# ════════════════════════════════════════════════════════
+
+# Ordered: first match wins. Most-specific types first so e.g. an
+# "Answer Key" post isn't misfiled as a generic "Result".
+_ANN_TYPE_RULES = [
+    ("answer_key", re.compile(r'\b(answer[\s\-]*keys?|answer\s+sheet|response\s+sheet)\b', re.I)),
+    ("admit_card", re.compile(r'\b(admit[\s\-]*cards?|hall[\s\-]*tickets?|call[\s\-]*letters?|e[\s\-]?admit|exam\s+city|city\s+(?:slip|intimation))\b', re.I)),
+    ("cutoff",     re.compile(r'\b(cut[\s\-]*offs?|cutoffs?|merit\s+marks)\b', re.I)),
+    ("result",     re.compile(r'\b(results?|merit\s+lists?|selection\s+lists?|final\s+lists?|score[\s\-]*cards?|marks?\s+(?:released|out))\b', re.I)),
+    ("syllabus",   re.compile(r'\b(syllabus|exam\s+pattern|exam\s+scheme)\b', re.I)),
+    ("exam_date",  re.compile(r'\b(exam[\s\-]*dates?|exam\s+schedule|date[\s\-]*sheet|datesheet|exam\s+calendar|tentative\s+schedule|exam\s+postpone|postponed|date\s+(?:announced|released))\b', re.I)),
+]
+
+# Canonical organisation detection — longest/most-specific patterns first.
+_ANN_ORG_RULES = [
+    (re.compile(r'\bUPSSSC\b', re.I), "UPSSSC"),
+    (re.compile(r'\bUPPSC\b', re.I), "UPPSC"),
+    (re.compile(r'\bMPPSC\b', re.I), "MPPSC"),
+    (re.compile(r'\bRPSC\b', re.I), "RPSC"),
+    (re.compile(r'\bTNPSC\b', re.I), "TNPSC"),
+    (re.compile(r'\bKPSC\b', re.I), "KPSC"),
+    (re.compile(r'\bBPSC\b', re.I), "BPSC"),
+    (re.compile(r'\b(?:SSC|staff\s+selection)\b', re.I), "SSC"),
+    (re.compile(r'\bUPSC\b', re.I), "UPSC"),
+    (re.compile(r'\b(?:RRB|railway\s+recruitment|RRC)\b', re.I), "RRB"),
+    (re.compile(r'\bIBPS\b', re.I), "IBPS"),
+    (re.compile(r'\bSBI\b', re.I), "SBI"),
+    (re.compile(r'\bRBI\b', re.I), "RBI"),
+    (re.compile(r'\bNABARD\b', re.I), "NABARD"),
+    (re.compile(r'\bAIIMS\b', re.I), "AIIMS"),
+    (re.compile(r'\bDRDO\b', re.I), "DRDO"),
+    (re.compile(r'\bISRO\b', re.I), "ISRO"),
+    (re.compile(r'\bNTPC\b', re.I), "NTPC"),
+    (re.compile(r'\bBHEL\b', re.I), "BHEL"),
+    (re.compile(r'\bONGC\b', re.I), "ONGC"),
+    (re.compile(r'\bKVS\b', re.I), "KVS"),
+    (re.compile(r'\b(?:NVS|navodaya)\b', re.I), "NVS"),
+    (re.compile(r'\bCTET\b', re.I), "CTET"),
+    (re.compile(r'\bREET\b', re.I), "REET"),
+    (re.compile(r'\bNEET\b', re.I), "NEET"),
+    (re.compile(r'\bJEE\b', re.I), "JEE"),
+    (re.compile(r'\bCUET\b', re.I), "CUET"),
+    (re.compile(r'\bGATE\b', re.I), "GATE"),
+    (re.compile(r'\bFCI\b', re.I), "FCI"),
+    (re.compile(r'\bLIC\b', re.I), "LIC"),
+    (re.compile(r'\bSEBI\b', re.I), "SEBI"),
+    (re.compile(r'\bNPCIL\b', re.I), "NPCIL"),
+    (re.compile(r'\bCSIR\b', re.I), "CSIR"),
+    (re.compile(r'\bICMR\b', re.I), "ICMR"),
+    (re.compile(r'\bBSF\b', re.I), "BSF"),
+    (re.compile(r'\bCRPF\b', re.I), "CRPF"),
+    (re.compile(r'\bCAPF\b', re.I), "CAPF"),
+    (re.compile(r'\bCDS\b', re.I), "CDS"),
+    (re.compile(r'\bNDA\b', re.I), "NDA"),
+    (re.compile(r'\bAFCAT\b', re.I), "AFCAT"),
+]
+
+
+def _classify_announcement(title: str) -> str | None:
+    for ann_type, pat in _ANN_TYPE_RULES:
+        if pat.search(title):
+            return ann_type
+    return None
+
+
+def _detect_ann_org(title: str) -> str:
+    for pat, org in _ANN_ORG_RULES:
+        if pat.search(title):
+            return org
+    return ""
+
+
+def run_announcements() -> list:
+    """Scrape admit cards / results / answer keys / cut-offs / syllabus /
+    exam dates from the Sarkari-result RSS feeds. Returns a list of dicts
+    matching the announcements table columns."""
+    seen_urls: set = set()
+    out: list = []
+
+    def _fetch_feed(item):
+        name, url = item
+        raw = _fetch(url, timeout=12)
+        if not raw:
+            return []
+        try:
+            root = ET.fromstring(raw.encode("utf-8"))
+        except ET.ParseError:
+            try:
+                raw2 = re.sub(r"&(?!(amp|lt|gt|apos|quot|#\d+);)", "&amp;", raw)
+                root = ET.fromstring(raw2.encode("utf-8"))
+            except Exception:
+                return []
+        NS_ATOM = {"a": "http://www.w3.org/2005/Atom"}
+        items = root.findall(".//item") or root.findall(".//a:entry", NS_ATOM)
+        rows = []
+        for it in items:
+            t_el = it.find("title")
+            title = (t_el.text or "").strip() if t_el is not None else ""
+            if not title or len(title) < 8:
+                continue
+            ann_type = _classify_announcement(title)
+            if ann_type is None:
+                continue  # plain job post — handled by run_all()
+            l_el = it.find("link")
+            link = ""
+            if l_el is not None:
+                link = (l_el.text or l_el.get("href") or "").strip()
+            if not link:
+                continue
+            pub_el = (it.find("pubDate") or it.find("published")
+                      or it.find("{http://www.w3.org/2005/Atom}published"))
+            release_date = ""
+            if pub_el is not None and pub_el.text:
+                for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z",
+                            "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"):
+                    try:
+                        release_date = datetime.strptime(
+                            pub_el.text.strip(), fmt).strftime("%Y-%m-%d")
+                        break
+                    except Exception:
+                        pass
+            clean = clean_title(re.sub(r"<[^>]+>", "", title)).strip()
+            # Strip U+FFFD replacement chars + the mojibake sequences the job
+            # scraper already rejects (feeds occasionally mis-encode em dashes)
+            clean = clean.replace("�", "").strip()
+            clean = _MOJIBAKE_PATTERNS.sub("", clean).strip()
+            clean = re.sub(r"\s{2,}", " ", clean).strip(" -|")
+            if len(clean) < 8:
+                continue
+            rows.append({
+                "type":         ann_type,
+                "title":        clean[:300],
+                "exam_name":    clean[:120],
+                "organisation": _detect_ann_org(clean),
+                "release_date": release_date,
+                "source":       name,
+                "source_url":   link,
+                "description":  "",
+                "scraped_at":   datetime.now().isoformat(),
+            })
+        return rows
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        futures = [pool.submit(_fetch_feed, kv) for kv in RSS_SOURCES.items()]
+        for fut in as_completed(futures):
+            try:
+                for row in fut.result():
+                    if row["source_url"] in seen_urls:
+                        continue
+                    seen_urls.add(row["source_url"])
+                    out.append(row)
+            except Exception:
+                pass
+
+    by_type: dict = {}
+    for r in out:
+        by_type[r["type"]] = by_type.get(r["type"], 0) + 1
+    log.info(f"  Announcements: {len(out)} items {by_type}")
+    return out
+
+
+# ════════════════════════════════════════════════════════
 #  MAIN RUNNER — v6: 16 workers, dead-source tracking
 # ════════════════════════════════════════════════════════
 
