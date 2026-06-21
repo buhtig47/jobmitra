@@ -48,13 +48,14 @@ Indian Sarkari Naukri aggregator Android app.
 ### Phase 1 — Bug Fixes + Quick Wins ✅ ALL DONE
 All Phase 1 items were already implemented in prior sessions. Verified clean in v1.7.5+21.
 
-### Phase 2 — UI/UX Redesign (next session)
-- Job card: left-edge colored bar, hero title, 2-col metadata grid, full-card tap, "NEW" badge <24h
-- Home screen: sticky greeting header, categories carousel, sectioned feed (Closing Soon / New Today / All)
-- Job detail: collapsing SliverAppBar, tabbed content (Overview/Eligibility/How to Apply/Docs), sticky CTA
-- Search: inline loading, recent searches chips, filter sheet
-- Profile edit: PopScope dirty-check dialog, age slider validation
-- Saved jobs: stage tracker pill row, filter chips
+### Phase 2 — UI/UX Redesign ✅ ALL DONE
+Audited against the code 2026-06-14 (v1.7.9+26) — every item already implemented in prior sessions:
+- Job card: left-edge colored bar, hero title, metadata grid, full-card tap, "NEW" badge <24h → `job_card.dart`
+- Home screen: sticky greeting header, categories carousel, sectioned feed (Closing Soon / New Today / All) → `_feedItems` + `_SectionHeader` in `home_screen.dart`
+- Job detail: tabbed content (Overview/Eligibility/Documents), sticky CTA → `job_detail_screen.dart`. NOTE: uses a fixed gradient header, NOT a collapsing SliverAppBar (deliberate, fine — don't redo).
+- Search: inline loading, recent searches chips, filter sheet → `search_screen.dart`
+- Profile edit: PopScope dirty-check dialog (`canPop:false`), age slider → `profile_edit_screen.dart`
+- Saved jobs: stage tracker pill row, filter chips → `saved_jobs_screen.dart`
 
 ### Phase 3 — Backend Refactors (future)
 - SQL pushdown for feed (fix "fetch 300, filter, slice" anti-pattern)
@@ -65,11 +66,11 @@ All Phase 1 items were already implemented in prior sessions. Verified clean in 
 - Scraper observability (alert if >20% sources fail)
 - `CREATE INDEX idx_jobs_scraped_at ON jobs(scraped_at DESC)`
 
-### Next: Upload AAB to Play Store
-- AAB built: `flutter_app/build/app/outputs/bundle/release/app-release.aab` (63.5 MB)
-- Version: 1.7.5+21
-- Changes vs v1.7.4+20: quiz streak chip on home screen, quiz notification deep-link, job card shows location/states for state-specific jobs
-- Upload once v1.7.4+20 description-fix review is approved (or upload directly to a new release)
+### Next: Fix Play Store rejection (Misleading Claims) + upload AAB
+- **Rejection (2026-06-14):** Misleading Claims policy → "Broken or Inaccessible Source Link". Root cause: store-listing description listed `https://isro.gov.in` (bare domain has NO DNS record; only `https://www.isro.gov.in` resolves). All other 16 source URLs return 200.
+- **Store-listing fix (manual, in Play Console — NOT in repo):** change `• ISRO: https://isro.gov.in` → `• ISRO: https://www.isro.gov.in`. Do NOT file an appeal (that path is for claiming govt affiliation). Fix + resubmit via Publishing overview.
+- **In-app fix (shipped in code):** `disclaimer_screen.dart` source links — ISRO `isro.gov.in`→`www.isro.gov.in`, ONGC `ongcindia.com`→`www.ongcindia.com` (flaky SSL on bare), RRB `rrbcdg.gov.in`→`www.rrbcdg.gov.in` (timeouts on bare).
+- AAB built: `flutter_app/build/app/outputs/bundle/release/app-release.aab` (65.3 MB), version **1.7.9+26**.
 
 ---
 
