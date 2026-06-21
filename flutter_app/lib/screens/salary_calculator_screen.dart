@@ -184,7 +184,7 @@ class _SalaryCalculatorScreenState extends State<SalaryCalculatorScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
+        preferredSize: const Size.fromHeight(116),
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(

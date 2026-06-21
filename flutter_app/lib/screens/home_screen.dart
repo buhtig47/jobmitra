@@ -579,7 +579,10 @@ class _FeedTabState extends State<_FeedTab> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
+        // 70 was tight even at default text scale; bumped for headroom under
+        // larger system font-size settings (the title also caps at maxLines:1
+        // with ellipsis as a hard backstop for extreme scale/long names).
+        preferredSize: const Size.fromHeight(84),
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -602,6 +605,8 @@ class _FeedTabState extends State<_FeedTab> {
                       children: [
                         Text(
                           _userName.isNotEmpty ? 'Namaste, $_userName! 🇮🇳' : '🇮🇳 JobMitra',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -1238,7 +1243,7 @@ class _FeedTabState extends State<_FeedTab> {
     // wash and look broken.
     const ph = Color(0xFFE0E0E0);
     return Container(
-      height: 160,
+      height: 188,
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,

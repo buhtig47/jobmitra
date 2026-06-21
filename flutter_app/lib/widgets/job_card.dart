@@ -10,7 +10,8 @@ class JobCard extends StatefulWidget {
   final VoidCallback onTap;
   final UserProfile? profile; // optional — shows eligibility badge
 
-  const JobCard({super.key, required this.job, required this.onTap, this.profile});
+  const JobCard(
+      {super.key, required this.job, required this.onTap, this.profile});
 
   @override
   State<JobCard> createState() => _JobCardState();
@@ -39,7 +40,12 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
   }
 
   void _onTapDown(_) => _controller.reverse();
-  void _onTapUp(_) { _controller.forward(); HapticFeedback.lightImpact(); widget.onTap(); }
+  void _onTapUp(_) {
+    _controller.forward();
+    HapticFeedback.lightImpact();
+    widget.onTap();
+  }
+
   void _onTapCancel() => _controller.forward();
 
   Future<void> _shareJob(Job job) => showJobShareSheet(context, job);
@@ -55,7 +61,8 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
     if (states.isEmpty) return null;
     final display = states
         .take(3)
-        .map((s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase())
+        .map((s) =>
+            s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase())
         .join(', ');
     return states.length > 3 ? '$display +${states.length - 3}' : display;
   }
@@ -94,137 +101,140 @@ class _JobCardState extends State<JobCard> with SingleTickerProviderStateMixin {
             borderRadius: BorderRadius.circular(Radii.cardLg),
             // Left-edge category bar feels more "premium" than the old
             // top-gradient strip; also lets the title start higher in the card.
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(width: 4, color: catColor),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            // Stack (not IntrinsicHeight+Row) — IntrinsicHeight's two-pass
+            // intrinsic-vs-actual text measurement can diverge by a few px on
+            // long wrapped titles, causing an intermittent bottom overflow.
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 4, color: catColor),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top row: category pill + NEW badge + match badge + deadline
+                      Row(
                         children: [
-                          // Top row: category pill + NEW badge + match badge + deadline
-                          Row(
-                            children: [
-                              _CategoryPill(job: job, color: catColor),
-                              const SizedBox(width: 6),
-                              if (job.isNew) _NewBadge(),
-                              if (job.isNew && score >= 3) const SizedBox(width: 6),
-                              if (score >= 3)
-                                _MatchBadge(score: score),
-                              const Spacer(),
-                              _DeadlinePill(job: job),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            job.cleanTitle,
-                            style: AppText.h2(),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (job.displayDepartment.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.account_balance_outlined,
-                                    size: 13, color: Colors.grey[500]),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    job.displayDepartment,
-                                    style: AppText.caption(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (_locationLabel(job) case final loc when loc != null) ...[
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.location_on_outlined,
-                                    size: 13, color: Colors.grey[500]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  loc,
-                                  style: AppText.caption(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ],
-                          // Salary is the #1 decision factor — surface it on
-                          // the card whenever the scraper found a pay scale.
-                          if (job.salaryText.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                const Icon(Icons.payments_outlined,
-                                    size: 13, color: Color(0xFF2E7D32)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    job.salaryText,
-                                    style: AppText.caption(
-                                        c: const Color(0xFF2E7D32)),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-                          const SizedBox(height: 10),
-                          // Metadata grid — two facts left, two action buttons right.
-                          Row(
-                            children: [
-                              if (job.vacancies > 0) ...[
-                                _StatChip(
-                                  icon: Icons.people_outline,
-                                  label: job.vacanciesText,
-                                  color: const Color(0xFF2E7D32),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              if (job.fee >= 0)
-                                _StatChip(
-                                  icon: Icons.currency_rupee,
-                                  label: job.feeText,
-                                  color: job.isFree
-                                      ? const Color(0xFF2E7D32)
-                                      : const Color(0xFF1565C0),
-                                ),
-                              const Spacer(),
-                              _IconAction(
-                                icon: Icons.share_rounded,
-                                color: catColor,
-                                onTap: () => _shareJob(job),
-                                tooltip: 'Share',
+                          _CategoryPill(job: job, color: catColor),
+                          const SizedBox(width: 6),
+                          if (job.isNew) _NewBadge(),
+                          if (job.isNew && score >= 3) const SizedBox(width: 6),
+                          if (score >= 3) _MatchBadge(score: score),
+                          const Spacer(),
+                          _DeadlinePill(job: job),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        job.cleanTitle,
+                        style: AppText.h2(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (job.displayDepartment.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.account_balance_outlined,
+                                size: 13, color: Colors.grey[500]),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                job.displayDepartment,
+                                style: AppText.caption(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(width: 6),
-                              _IconAction(
-                                icon: Icons.arrow_forward_rounded,
-                                color: catColor,
-                                solid: true,
-                                onTap: widget.onTap,
-                                tooltip: 'View',
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (_locationLabel(job) case final loc
+                          when loc != null) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 13, color: Colors.grey[500]),
+                            const SizedBox(width: 4),
+                            Text(
+                              loc,
+                              style: AppText.caption(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ],
+                      // Salary is the #1 decision factor — surface it on
+                      // the card whenever the scraper found a pay scale.
+                      if (job.salaryText.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(Icons.payments_outlined,
+                                size: 13, color: Color(0xFF2E7D32)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                job.salaryText,
+                                style:
+                                    AppText.caption(c: const Color(0xFF2E7D32)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                      const SizedBox(height: 10),
+                      // Metadata grid — two facts left, two action buttons right.
+                      Row(
+                        children: [
+                          if (job.vacancies > 0) ...[
+                            _StatChip(
+                              icon: Icons.people_outline,
+                              label: job.vacanciesText,
+                              color: const Color(0xFF2E7D32),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          if (job.fee >= 0)
+                            _StatChip(
+                              icon: Icons.currency_rupee,
+                              label: job.feeText,
+                              color: job.isFree
+                                  ? const Color(0xFF2E7D32)
+                                  : const Color(0xFF1565C0),
+                            ),
+                          const Spacer(),
+                          _IconAction(
+                            icon: Icons.share_rounded,
+                            color: catColor,
+                            onTap: () => _shareJob(job),
+                            tooltip: 'Share',
+                          ),
+                          const SizedBox(width: 6),
+                          _IconAction(
+                            icon: Icons.arrow_forward_rounded,
+                            color: catColor,
+                            solid: true,
+                            onTap: widget.onTap,
+                            tooltip: 'View',
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -260,7 +270,8 @@ class _IconAction extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           onTap: onTap,
           child: SizedBox(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             child: Icon(icon, size: 18, color: fg),
           ),
         ),
@@ -277,7 +288,8 @@ class _NewBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFE3F2FD),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.4)),
+        border:
+            Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.4)),
       ),
       child: const Text(
         'NEW',
@@ -303,10 +315,12 @@ class _MatchBadge extends StatelessWidget {
     final Color fg;
     final String label;
     if (score == 4) {
-      bg = const Color(0xFFE8F5E9); fg = const Color(0xFF2E7D32);
+      bg = const Color(0xFFE8F5E9);
+      fg = const Color(0xFF2E7D32);
       label = '✓ Perfect';
     } else {
-      bg = const Color(0xFFFFF3E0); fg = const Color(0xFFE65100);
+      bg = const Color(0xFFFFF3E0);
+      fg = const Color(0xFFE65100);
       label = '$score/4 match';
     }
     return Container(
@@ -398,8 +412,8 @@ class _DeadlinePill extends StatelessWidget {
   Widget _pill(Color bg, Color fg, IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(30)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

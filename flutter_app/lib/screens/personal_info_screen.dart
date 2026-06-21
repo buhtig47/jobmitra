@@ -1,5 +1,6 @@
 // lib/screens/personal_info_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/job_model.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -100,7 +101,23 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     return result ?? false;
   }
 
+  static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
   Future<void> _save() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isNotEmpty && !_emailPattern.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email address sahi format mein nahi hai')),
+      );
+      return;
+    }
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isNotEmpty && phone.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mobile number 10 digits ka hona chahiye')),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
     final info = PersonalInfo(
       name:        _nameCtrl.text.trim(),
@@ -222,7 +239,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   ]),
                   const SizedBox(height: 16),
                   _buildSection('📞 Contact Details', [
-                    _buildField('Mobile Number', _phoneCtrl, hint: '10-digit number', icon: Icons.phone_rounded, keyboard: TextInputType.phone),
+                    _buildField('Mobile Number', _phoneCtrl, hint: '10-digit number', icon: Icons.phone_rounded,
+                        keyboard: TextInputType.phone, maxLength: 10,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
                     _buildField('Email Address', _emailCtrl, hint: 'example@email.com', icon: Icons.email_rounded, keyboard: TextInputType.emailAddress),
                   ]),
                   const SizedBox(height: 16),
@@ -230,7 +249,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     _buildField('Full Address', _addressCtrl, hint: 'House no., Street, Mohalla', icon: Icons.home_rounded, maxLines: 2),
                     _buildField('District', _districtCtrl, hint: 'District name', icon: Icons.location_city_rounded),
                     _buildField('State', _stateCtrl, hint: 'State name', icon: Icons.map_rounded),
-                    _buildField('Pin Code', _pincodeCtrl, hint: '6-digit PIN', icon: Icons.pin_drop_rounded, keyboard: TextInputType.number),
+                    _buildField('Pin Code', _pincodeCtrl, hint: '6-digit PIN', icon: Icons.pin_drop_rounded,
+                        keyboard: TextInputType.number, maxLength: 6,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
                   ]),
                   const SizedBox(height: 16),
                   _buildSection('🪪 Identity (Optional)', [
@@ -238,7 +259,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                         hint: 'Last 4 digits only (for reference)',
                         icon: Icons.credit_card_rounded,
                         keyboard: TextInputType.number,
-                        maxLength: 4),
+                        maxLength: 4,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
                   ]),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -315,6 +337,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     TextInputType keyboard = TextInputType.text,
     int maxLines = 1,
     int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -323,6 +346,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         keyboardType: keyboard,
         maxLines: maxLines,
         maxLength: maxLength,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,

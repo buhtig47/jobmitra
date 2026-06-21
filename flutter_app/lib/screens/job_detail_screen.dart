@@ -595,12 +595,16 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final catLower = profile.category.toLowerCase();
     final feeWaived = catLower == 'sc' || catLower == 'st' ||
         catLower.contains('ph') || catLower.contains('pwd');
-    final feeOk = job.isFree || feeWaived;
-    final feeLabel = job.isFree
-        ? 'Free for all'
-        : feeWaived
-            ? 'Waived (₹${job.fee} → ₹0)'
-            : '₹${job.fee}';
+    // fee == -1 means the scraper didn't find a fee — show it as neutral
+    // ("don't know"), not a red cross implying the user failed the check.
+    final feeOk = job.fee < 0 ? null : (job.isFree || feeWaived);
+    final feeLabel = job.fee < 0
+        ? 'Not specified — check notification'
+        : job.isFree
+            ? 'Free for all'
+            : feeWaived
+                ? 'Waived (₹${job.fee} → ₹0)'
+                : '₹${job.fee}';
 
     const eduLevels = {
       '8th': 1, '10th': 2, '12th': 3, 'diploma': 3,
